@@ -1,4 +1,4 @@
-# Rails Pulse — Claude Context
+# Rails Pulse — Agent Context
 
 ## Database Migrations
 

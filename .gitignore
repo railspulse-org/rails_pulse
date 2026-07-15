@@ -2,6 +2,13 @@
 /.bundle/
 /.vscode/
 /.claude/
+/.cursor/
+/.codex/
+/.continue/
+/.windsurf/
+.aider*
+CLAUDE.local.md
+AGENTS.local.md
 /doc/
 /log/*.log
 /pkg/
