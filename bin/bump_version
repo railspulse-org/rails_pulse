@@ -25,6 +25,7 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
   echo "  - Gemfile.lock"
   echo "  - gemfiles/rails_7_2.gemfile.lock"
   echo "  - gemfiles/rails_8_0.gemfile.lock"
+  echo "  - gemfiles/rails_8_1.gemfile.lock"
   echo ""
   echo "Example:"
   echo "  bin/bump_version 0.3.0"
@@ -78,7 +79,7 @@ bundle install --quiet
 echo -e "  ${GREEN}✓${NC} Updated Gemfile.lock"
 
 # Update Rails-specific Gemfile.locks
-RAILS_VERSIONS=("7.2" "8.0")
+RAILS_VERSIONS=("7.2" "8.0" "8.1")
 
 for rails_ver in "${RAILS_VERSIONS[@]}"; do
   GEMFILE="gemfiles/rails_${rails_ver//./_}.gemfile"

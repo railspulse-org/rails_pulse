@@ -2,70 +2,59 @@
 
 ## Quick Start
 
-Run the interactive release script:
-
 ```bash
 bin/release
 ```
 
-This guides you through the entire release process automatically.
-
-To capture the full session as an HTML report (useful for reviewing step output afterward):
+Interactive release. HTML session log (requires `aha`, e.g. `brew install aha`):
 
 ```bash
-bin/release-log   # requires: brew install aha
+bin/release-log
 ```
 
-Output is saved to `tmp/release-YYYYMMDD-HHMMSS.html` and opened automatically when the session ends.
+Output: `tmp/release-YYYYMMDD-HHMMSS.html`.
 
 ## Manual Release
 
-If you prefer to run steps individually:
-
 ### 1. Pre-Release Testing
-
-Run comprehensive pre-release tests:
 
 ```bash
 rake test_release
 ```
 
-This validates (14 steps total):
-- Appraisal gemfile sync
-- Test schema sync
-- Dummy app migration verification
-- Git status (clean working directory)
-- Code linting (RuboCop)
-- Brakeman security scan
-- JavaScript unit tests (`npm run test:js`)
-- Asset building
-- Gem build verification
-- Generator tests (install + upgrade)
-- Full test matrix (all databases × Rails versions + system tests)
+`test_release` in the Rakefile runs **14 steps**:
+
+1. Appraisal gemfile install (`bundle exec appraisal install`)
+2. Test schema sync (`rake sync_test_schema`)
+3. Dummy app migration verification (`rake verify_dummy_migrations`)
+4. Clean git working tree
+5. RuboCop
+6. Brakeman
+7. `npm install`
+8. `npm run lint:js`
+9. `npm run test:js`
+10. `npm run build` (checks `public/rails-pulse-assets`, `vendor/assets/stylesheets`, `vendor/assets/javascripts`)
+11. `gem build rails_pulse.gemspec`
+12. Generator tests (`./bin/test_generators`)
+13. Migration regression (`rake test_migrations`)
+14. Full test matrix (`rake test_matrix`: 3 DBs × 3 Rails Appraisal lines, including `test/system` headless)
 
 #### Separate-DB Upgrade Smoke Test
 
-**Required when the release includes any new migration.**
+**Required when the release includes any new migration.** `test_release` exercises the single-database path only.
 
-The automated suite runs single-database only. Run this manual check to verify the
-separate-database upgrade path before shipping:
-
-1. Temporarily uncomment `config.connects_to` in
-   `test/dummy/config/initializers/rails_pulse.rb` and point it at a fresh SQLite file:
+1. Temporarily uncomment `config.connects_to` in `test/dummy/config/initializers/rails_pulse.rb` and point it at a fresh SQLite file:
    ```ruby
    config.connects_to = { database: { writing: :rails_pulse, reading: :rails_pulse } }
    ```
 
-2. Load a historical schema baseline into that database (use the V027 schema to test the
-   widest upgrade path):
+2. Load a historical schema baseline (widest upgrade path uses V027):
    ```ruby
-   # In a rails console or one-off script in the dummy app:
    conn = RailsPulse::ApplicationRecord.connection
    RailsPulse::TestSchemas::V027.call(conn)
    ```
 
-3. Insert at least one SQL operation row so any data-backfill migration has real rows to
-   process:
+3. Insert at least one SQL operation row so backfill migrations have data (adjust SQL for your adapter):
    ```ruby
    conn.execute("INSERT INTO rails_pulse_routes (method, path, created_at, updated_at) VALUES ('GET', '/test', datetime('now'), datetime('now'))")
    route_id = conn.select_value("SELECT id FROM rails_pulse_routes LIMIT 1")
@@ -74,26 +63,20 @@ separate-database upgrade path before shipping:
    conn.execute("INSERT INTO rails_pulse_operations (request_id, operation_type, label, duration, start_time, occurred_at, created_at, updated_at) VALUES (#{request_id}, 'sql', 'SELECT * FROM users', 5.0, 0.0, datetime('now'), datetime('now'), datetime('now'))")
    ```
 
-4. Run the upgrade generator **without** the `--database=separate` flag to verify
-   auto-detection:
+4. From the dummy app, run upgrade **without** `--database=separate` to exercise auto-detection:
    ```bash
    cd test/dummy && bin/rails generate rails_pulse:upgrade
    # Expected: "Detected database setup: separate"
    ```
 
-5. Run the migrations and verify they complete without rollback:
+5. Migrate and verify:
    ```bash
    bin/rails db:migrate:rails_pulse
-   ```
-
-6. Verify new columns exist and the backfill ran correctly:
-   ```bash
    bin/rails runner "puts RailsPulse::Operation.first&.actual_sql"
-   # Expected: the SQL string that was in the label column
+   # Expect the SQL that was stored for backfill (label-derived when that migration is included)
    ```
 
-7. Restore the initializer: comment `connects_to` back out and delete the temporary
-   SQLite file.
+6. Restore the initializer (comment `connects_to` out) and delete the temporary SQLite file.
 
 ### 2. Update Version
 
@@ -102,12 +85,14 @@ bin/bump_version 0.3.0
 ```
 
 Updates:
+
 - `lib/rails_pulse/version.rb`
 - `Gemfile.lock`
 - `gemfiles/rails_7_2.gemfile.lock`
 - `gemfiles/rails_8_0.gemfile.lock`
+- `gemfiles/rails_8_1.gemfile.lock`
 
-**Pre-release versions:** use dots, not hyphens — `0.3.0.pre.1`, `0.3.0.beta.1`, `0.3.0.rc.1`.
+Pre-release versions use **dots**, not hyphens: `0.3.0.pre.1`, `0.3.0.beta.1`, `0.3.0.rc.1`.
 
 ### 3. Commit Changes
 
@@ -123,9 +108,7 @@ Creates commit: `Bump version to v0.3.0`
 bin/tag_release 0.3.0
 ```
 
-Opens your editor for release notes. Optionally generates a draft from git history.
-
-Or provide notes inline:
+Opens an editor for release notes (optional draft from history), or:
 
 ```bash
 bin/tag_release 0.3.0 --notes "Bug fixes and improvements"
@@ -137,7 +120,7 @@ bin/tag_release 0.3.0 --notes "Bug fixes and improvements"
 bin/push_release --wait-ci
 ```
 
-Pushes commits and tags, optionally waits for CI to complete (requires `gh` CLI).
+Requires `gh` if waiting on CI.
 
 ### 6. Publish Gem
 
@@ -145,20 +128,13 @@ Pushes commits and tags, optionally waits for CI to complete (requires `gh` CLI)
 bin/publish_gem
 ```
 
-Prerequisites:
-- Assets built: `npm run build`
-- Authenticated with RubyGems: `gem signin`
-
-Builds the gem, publishes to RubyGems.org, and moves the `.gem` file to `pkg/`.
+Prerequisites: `npm run build` already done (or fresh), `gem signin` for RubyGems. Builds, publishes, moves the `.gem` into `pkg/`.
 
 ### 7. Create GitHub Release
 
-Visit the GitHub releases page (automatically opens if using `bin/release`):
 https://github.com/railspulse/rails_pulse/releases/new
 
 ## Individual Scripts
-
-Each script has detailed help:
 
 ```bash
 bin/release --help
@@ -172,18 +148,10 @@ bin/publish_gem --help
 
 ## Quick Reference
 
-**Full automated release (with HTML log):**
 ```bash
-bin/release-log
-```
-
-**Full automated release:**
-```bash
+bin/release-log   # full interactive release with HTML log
 bin/release
-```
 
-**Manual step-by-step:**
-```bash
 rake test_release
 bin/bump_version 0.3.0
 bin/commit_release 0.3.0
@@ -192,44 +160,8 @@ bin/push_release --wait-ci
 bin/publish_gem
 ```
 
-**Quick patch (skip tests):**
-```bash
-bin/bump_version 0.2.1
-bin/commit_release 0.2.1
-bin/tag_release 0.2.1 --notes "Critical bug fix"
-bin/push_release
-bin/publish_gem
-```
-
-## Troubleshooting
-
-**RubyGems authentication:**
-```bash
-gem signin
-```
-
-**Assets not built:**
-```bash
-npm run build
-```
-
-**Version already exists:**
-Increment version and try again — RubyGems doesn't allow re-publishing.
-
-**CI failed:**
-Fix issues, commit fixes, and re-run from step 5.
-
-**Rollback (emergency only):**
-```bash
-gem yank rails_pulse -v 0.3.0  # Use sparingly!
-```
+**Emergency yank (avoid):** `gem yank rails_pulse -v 0.3.0`
 
 ## Version Guidelines
 
-Rails Pulse follows [Semantic Versioning](https://semver.org/):
-
-- **MAJOR** (1.0.0): Breaking changes
-- **MINOR** (0.1.0): New features, backwards-compatible
-- **PATCH** (0.0.1): Bug fixes, security patches
-
-Pre-release suffixes use dots: `0.3.0.pre.1`, `0.3.0.beta.1`, `0.3.0.rc.1`
+[Semantic Versioning](https://semver.org/): MAJOR breaking, MINOR features, PATCH fixes. Pre-release suffixes use dots.

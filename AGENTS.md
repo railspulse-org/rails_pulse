@@ -53,13 +53,14 @@ Full architecture details: `docs/database_setup.md`
 ## Running Tests
 
 ```bash
-DB=sqlite3 rails test          # Default (SQLite3 + Rails 8.0)
-DB=postgresql rails test       # PostgreSQL
-rake test_matrix               # All DBs × Rails versions (pre-release validation)
-BROWSER=true rake test_matrix  # Include system tests
+DB=sqlite3 rails test          # Default adapter; Rails version from Gemfile.lock (currently 8.1.x)
+DB=postgresql rails test
+DB=mysql2 rails test
+rake test_matrix               # 3 DBs × 3 Appraisal Rails lines (includes system tests, headless)
+BROWSER=true rake test_matrix  # Headed Chrome; disables parallel workers
 ```
 
-Tests are parallelized by default. System tests (`BROWSER=true`) disable parallelization automatically.
+Tests are parallelized by default. `BROWSER=true` or `COVERAGE=true` disables parallelization (`test/test_helper.rb`).
 
 ## Testing Conventions
 
@@ -114,7 +115,7 @@ To rebuild assets: `npm run build` (or `npm run build:dev` for source maps).
 
 ## Releases
 
-Run `rake test_release` before any release — it validates git status, RuboCop, Brakeman, asset build, gem build, generator tests, and the full test matrix. See `docs/releasing.md` for the full process.
+Run `rake test_release` before any release — 14 steps including RuboCop, Brakeman, JS lint/tests, asset build, gem build, generators, migration regression, and the full test matrix. See `docs/releasing.md`.
 
 ## Git Hooks
 
@@ -138,4 +139,4 @@ Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `read
 
 ### Domain docs
 
-Single-context repo — `CONTEXT.md` + `docs/adr/` at root. See `docs/agents/domain.md`.
+Optional glossary and ADRs (`CONTEXT.md`, `docs/adr/`) — see `docs/agents/domain.md`. Create them when terms or decisions crystallize (`/grill-with-docs`). If missing, agents proceed without them.

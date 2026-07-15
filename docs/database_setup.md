@@ -1,344 +1,93 @@
-# Rails Pulse Database Setup & Migrations
+# Database setup & migrations
 
-Rails Pulse uses a **schema file as the single source of truth** for database structure. This provides clean installations for new users while supporting incremental migrations for upgrades.
+How Rails Pulse’s schema architecture works for **people building the gem**. End-user install walkthroughs also live on [railspulse.com](https://railspulse.com); keep the three-path rules here and in `AGENTS.md` in sync.
 
-## Overview
+## Three paths (must stay aligned)
 
-- **Master Schema File**: Defines all tables and columns in one place
-- **Clean Installation**: New users get the complete schema at once
-- **Incremental Upgrades**: Existing users get migrations for new features
-- **Two Setup Options**: Single database (recommended) or separate database
+| Path | Role |
+|------|------|
+| `db/rails_pulse_schema.rb` | Source of truth for the **complete** schema. Fresh installs only: `table_exists?` guards; never alter existing tables. |
+| `lib/generators/rails_pulse/templates/db/rails_pulse_schema.rb` | Must match the source of truth. Copied into host apps by `rails generate rails_pulse:install`. |
+| `db/rails_pulse_migrate/` | Incremental migrations for upgrades. Copied by `rails generate rails_pulse:upgrade`. |
 
-## Installation
+Install creates a host migration that loads and executes `db/rails_pulse_schema.rb`. Upgrade copies new gem migrations (and can detect missing columns as a safety net).
 
-### Option 1: Single Database (Recommended)
+### When adding a column or table
 
-Use your existing Rails database for Rails Pulse tables.
+1. Update `db/rails_pulse_schema.rb` (fresh installs).
+2. Update `lib/generators/rails_pulse/templates/db/rails_pulse_schema.rb` identically.
+3. Add `db/rails_pulse_migrate/TIMESTAMP_description.rb` with `column_exists?` / `table_exists?` guards.
+4. For **new tables only**, add the name to `RAILS_PULSE_TABLES` in `lib/generators/rails_pulse/base_methods.rb`.
+5. Update `test/migrations/upgrade_migration_test.rb` (`MIGRATION_CLASSES` in filename sort order + post-upgrade assertion).
+6. Run `rake test_migrations` and `rake sync_test_schema` (dummy app must mirror the schema).
+
+Example incremental migration:
+
+```ruby
+class AddPriorityToJobs < ActiveRecord::Migration[7.0]
+  def change
+    unless column_exists?(:rails_pulse_jobs, :priority)
+      add_column :rails_pulse_jobs, :priority, :integer, default: 0
+    end
+  end
+end
+```
+
+### Migration naming
+
+Avoid acronyms in filenames (`sql`, `url`, `id`). Host apps with custom inflections can camelize them differently and raise `NameError`. Prefer full words (`add_actual_query_to_operations`).
+
+### Data changes in migrations
+
+Never use model classes inside `up` for backfills (`Model.where.update_all`). That checks out a second pool and can miss DDL from the same migration on separate-database SQLite setups. Use `execute(<<~SQL ... SQL)` on the migration connection.
+
+## Host install / upgrade (overview)
+
+Generators accept `--database=single` (default) or `--database=separate`.
 
 ```bash
 rails generate rails_pulse:install
-rails db:migrate
+# or: rails generate rails_pulse:install --database=separate
+rails db:migrate          # single DB
+# separate DB typically: configure database.yml, then rails db:prepare
 ```
-
-This creates:
-- `config/initializers/rails_pulse.rb` - Configuration
-- `db/rails_pulse_schema.rb` - Schema definition (single source of truth)
-- `db/migrate/TIMESTAMP_install_rails_pulse_tables.rb` - Installation migration
-- `db/rails_pulse_migrate/.keep` - Directory for future migrations
-
-### Option 2: Separate Database
-
-Use a dedicated database for Rails Pulse data.
-
-```bash
-rails generate rails_pulse:install --database=separate
-```
-
-Then configure `config/database.yml`:
-
-```yaml
-development:
-  rails_pulse:
-    <<: *default
-    database: storage/development_rails_pulse.sqlite3
-    migrations_paths: db/rails_pulse_migrate
-
-production:
-  rails_pulse:
-    adapter: postgresql
-    database: myapp_rails_pulse
-    username: <%= ENV['DB_USERNAME'] %>
-    password: <%= ENV['DB_PASSWORD'] %>
-    host: <%= ENV['DB_HOST'] %>
-    migrations_paths: db/rails_pulse_migrate
-```
-
-Finally, create the database:
-
-```bash
-rails db:prepare
-```
-
-## Upgrading Rails Pulse
-
-When you upgrade to a new version of Rails Pulse that includes new features, run the upgrade generator:
-
-### For Single Database
 
 ```bash
 rails generate rails_pulse:upgrade
+# or: rails generate rails_pulse:upgrade --database=separate
 rails db:migrate
+# separate: rails db:migrate:rails_pulse
 ```
 
-### For Separate Database
+For separate DB, host `database.yml` should set `migrations_paths: db/rails_pulse_migrate` on the rails_pulse connection (as shown by the install generator message).
 
-```bash
-rails generate rails_pulse:upgrade --database=separate
-rails db:migrate
-```
+## `convert_to_migrations`
 
-### What the Upgrade Generator Does
+`rails generate rails_pulse:convert_to_migrations` turns the host’s `db/rails_pulse_schema.rb` into an install migration under `db/migrate/` when:
 
-1. **Copies new migrations** from the gem to your app
-2. **Detects missing columns** by comparing your database to the schema file (safety net)
-3. **Provides clear instructions** for next steps
+- the schema file exists, and
+- Rails Pulse tables are **not** already present.
 
-The generator automatically handles both upgrade paths:
-- If new migrations exist in the gem → copies them to your app
-- If no new migrations but missing columns → generates a migration for you
+If tables already exist, the generator exits and points you at `rails generate rails_pulse:upgrade`. The upgrade generator also prints this convert flow when it detects a schema file but no tables (intended path toward a single-database migration workflow).
 
-## Troubleshooting
+There is **no** gem-provided `db:dump:rails_pulse` / `db:restore` task. Moving data between separate and single databases is a DBA concern outside this generator.
 
-### "Rails Pulse not detected"
+## Schema file behavior
 
-Run the install generator first:
+Safe to re-run for creates: skips tables that already exist. Does **not** add/modify/remove columns or indexes on existing tables. Existing installs must use incremental migrations.
 
-```bash
-rails generate rails_pulse:install
-rails db:migrate
-```
+## Test / dummy app
 
-### Missing columns after gem update
+- `test/dummy/db/rails_pulse_schema.rb` must mirror `db/rails_pulse_schema.rb`.
+- `rake sync_test_schema` copies them (also runs during test setup / `test_release`).
+- `.githooks/post-checkout` warns when dummy `schema.rb` came from another branch (Rails 8.1 can load `schema.rb` instead of migrating on a fresh DB).
 
-The upgrade generator detects and fixes this automatically:
+## Troubleshooting (host apps)
 
-```bash
-rails generate rails_pulse:upgrade
-rails db:migrate
-```
+**“Rails Pulse not detected”** — run install + migrate first.
 
-### Database already exists error
+**Missing columns after gem update** — `rails generate rails_pulse:upgrade` then migrate.
 
-If you see "database already exists" when running migrations:
+**Tables already exist / branch switches** — install and schema paths are idempotent for existing tables; `db:migrate` / `db:prepare` are safe to retry. For a clean local DB: drop/create then migrate or prepare.
 
-**For single database:**
-```bash
-rails db:migrate:status  # Check if installation migration already ran
-```
-
-**For separate database:**
-```bash
-rails db:migrate:status:rails_pulse
-```
-
-### Schema file should not be deleted
-
-The file `db/rails_pulse_schema.rb` is your single source of truth for the database structure. Keep this file even after running migrations - it's used by the upgrade generator to detect missing columns.
-
-### Tables already exist error
-
-If you see "table already exists" when running migrations, this usually happens when switching between branches or after a database restore.
-
-**Cause**: The database has tables from a previous installation, but migrations are trying to create them again.
-
-**Solution for single database:**
-```bash
-# Option 1: Drop and recreate (development only!)
-rails db:drop db:create db:migrate
-
-# Option 2: Skip to latest migration (if tables are correct)
-rails db:migrate:status  # Check current state
-# If install migration shows as "down" but tables exist, just run:
-rails db:migrate  # The install migration is now idempotent and will skip existing tables
-```
-
-**Solution for separate database:**
-```bash
-# Option 1: Drop and recreate
-rails db:drop db:create db:prepare
-
-# Option 2: The schema file has built-in safety checks
-rails db:prepare  # Will skip tables that already exist
-```
-
-**Why this is safe now**: As of v0.3+, both the install migration and schema file check if tables exist before creating them, so running migrations multiple times is safe.
-
-### Branch switching workflow
-
-When switching between git branches with different Rails Pulse versions:
-
-**Single Database Setup:**
-```bash
-git checkout feature-branch
-bundle install
-rails db:migrate  # Idempotent - safe to run even if tables exist
-```
-
-**Separate Database Setup:**
-```bash
-git checkout feature-branch
-bundle install
-rails db:prepare  # Schema file will skip existing tables
-```
-
-**If you want a clean state:**
-```bash
-git checkout feature-branch
-bundle install
-rails db:drop db:create
-rails db:migrate  # (single DB) or rails db:prepare (separate DB)
-rails db:seed
-```
-
-### Running migrations twice
-
-As of v0.3+, you can safely run migrations multiple times:
-
-```bash
-rails db:migrate
-rails db:migrate  # Safe! Will skip tables that already exist
-```
-
-The install migration checks if Rails Pulse tables exist before creating them, and the schema file has similar safety checks.
-
-## Architecture
-
-### How Installation Works
-
-1. **Schema File**: The gem ships with a complete schema definition
-2. **Installation**: Copies schema to your app as `db/rails_pulse_schema.rb`
-3. **Migration**: Creates a migration that loads and executes the schema
-4. **Result**: All tables and columns created in one go
-
-### How Upgrades Work
-
-1. **New Feature Released**: Gem ships with new migration in `db/rails_pulse_migrate/`
-2. **Bundle Update**: You update the gem version
-3. **Upgrade Generator**: Copies new migration(s) to your app
-4. **Rails Migrate**: You run the migration to apply changes
-
-### Schema File Behavior
-
-The schema file (`db/rails_pulse_schema.rb`) is designed for **fresh installations only**. It has important safety characteristics:
-
-**What it does:**
-- ✅ Creates missing tables
-- ✅ Skips tables that already exist
-- ✅ Safe to run multiple times
-- ✅ Provides logging of what it's creating
-
-**What it does NOT do:**
-- ❌ Add columns to existing tables
-- ❌ Modify existing columns
-- ❌ Remove columns from tables
-- ❌ Change indexes on existing tables
-
-**Why this matters:**
-The schema file represents the "ideal final state" for new installations. For existing installations, **you must use incremental migrations** to modify table structure.
-
-**How it works with migrations:**
-The install migration (created by `rails generate rails_pulse:install`) loads and executes the schema file. This provides a clean, single-migration installation for new users while maintaining a schema file as the source of truth. The migration uses `Rails.root.join("db/rails_pulse_schema.rb")` to locate the schema file that was copied to your app during installation.
-
-**Example - Adding a new column:**
-
-When adding a new feature that requires a database column:
-
-1. Create an incremental migration in `db/rails_pulse_migrate/`:
-   ```ruby
-   # db/rails_pulse_migrate/20250120000000_add_priority_to_jobs.rb
-   class AddPriorityToJobs < ActiveRecord::Migration[7.0]
-     def change
-       unless column_exists?(:rails_pulse_jobs, :priority)
-         add_column :rails_pulse_jobs, :priority, :integer, default: 0
-       end
-     end
-   end
-   ```
-
-2. Update **both** schema files to include the column (for new installations):
-   ```ruby
-   # db/rails_pulse_schema.rb  (source of truth)
-   # lib/generators/rails_pulse/templates/db/rails_pulse_schema.rb  (generator template — must match!)
-   unless connection.table_exists?(:rails_pulse_jobs)
-     connection.create_table :rails_pulse_jobs do |t|
-       # ... existing columns ...
-       t.integer :priority, default: 0  # New column for fresh installs
-     end
-   end
-   ```
-
-   > **Important**: The generator template at `lib/generators/rails_pulse/templates/db/rails_pulse_schema.rb`
-   > is what gets copied into users' apps when they run `rails generate rails_pulse:install`. It must be
-   > kept in sync with `db/rails_pulse_schema.rb` — failing to update it means fresh installs will be
-   > missing the new column even though the source of truth is correct.
-
-3. **For new tables only**: Add the table name to `RAILS_PULSE_TABLES` in `lib/generators/rails_pulse/base_methods.rb`. This list is the fallback used when the upgrade generator cannot parse the host app's `db/rails_pulse_schema.rb`, so it must stay in sync with the actual set of tables.
-
-4. Update the migration regression tests in `test/migrations/upgrade_migration_test.rb`:
-   - Add the new class name to `MIGRATION_CLASSES` (in filename sort order)
-   - Add an assertion verifying the new column/table exists after upgrading from v0.2.7
-   - Run `rake test_migrations` to verify
-
-5. Users run the upgrade generator to get the migration:
-   ```bash
-   rails generate rails_pulse:upgrade
-   rails db:migrate
-   ```
-
-This approach ensures:
-- **Fresh installations** get the complete schema with all columns (via install migration loading schema file)
-- **Existing installations** get the incremental migration to add the column
-- **Safety** - the schema file never modifies existing tables
-- **Single source of truth** - the schema file shows the current complete structure
-
-**Test/Dummy App Setup:**
-For Rails engine development (like Rails Pulse itself), the test/dummy app needs both:
-1. The schema file at `test/dummy/db/rails_pulse_schema.rb` (synced from gem's `db/rails_pulse_schema.rb`)
-2. The install migration at `test/dummy/db/migrate/TIMESTAMP_install_rails_pulse_tables.rb`
-
-The `rake sync_test_schema` task keeps the test schema in sync with the gem schema. This runs automatically before test setup.
-
-### Benefits
-
-- **Clean for new users**: One migration installs everything
-- **Safe for existing users**: Incremental migrations with safety checks
-- **Automatic detection**: Upgrade generator catches skipped migrations
-- **Standard Rails**: Familiar migration workflow
-- **Reviewable changes**: See exactly what's changing before running migrations
-- **Idempotent**: Schema file and migrations can run multiple times safely
-
-## Examples
-
-### Fresh Installation
-
-```bash
-# Install Rails Pulse
-rails generate rails_pulse:install
-
-# Create tables
-rails db:migrate
-
-# Start using Rails Pulse!
-```
-
-### Upgrading After Gem Update
-
-```bash
-# Update gem
-bundle update rails_pulse
-
-# Check for and copy new migrations
-rails generate rails_pulse:upgrade
-
-# Apply changes
-rails db:migrate
-
-# Restart server
-rails restart
-```
-
-### Converting from Separate to Single Database
-
-```bash
-# 1. Export data from separate database
-rails db:dump:rails_pulse > rails_pulse_backup.sql
-
-# 2. Update database.yml (remove rails_pulse configuration)
-
-# 3. Re-install in main database
-rails generate rails_pulse:install --database=single
-rails db:migrate
-
-# 4. Import data
-rails db:restore < rails_pulse_backup.sql
-```
+**Schema file** — keep `db/rails_pulse_schema.rb` in the host app; upgrade detection relies on it.
