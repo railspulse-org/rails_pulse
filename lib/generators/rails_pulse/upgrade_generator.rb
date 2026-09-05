@@ -170,11 +170,7 @@ module RailsPulse
         missing_columns = detect_missing_columns
 
         if missing_columns.empty?
-          if @initializer_updated
-            say "Schema is up to date. Review initializer changes with git diff.", :green
-          else
-            say "Rails Pulse is up to date! No migration needed.", :green
-          end
+          report_outstanding_work(migrate_command)
           return
         end
 
@@ -202,6 +198,61 @@ module RailsPulse
         change_rails_pulse_routes_to_multi_verb_model
         add_null_action_unique_index_to_routes
       ].freeze
+
+      # "Rails Pulse is up to date! No migration needed." used to be printed
+      # whenever every migration *file* was already in the app — including the
+      # common case where they were copied in one deploy and have not yet been
+      # run against this database, or where the schema migrated but
+      # `rails_pulse:migrate_routes` is still outstanding. A host in that state
+      # is one deploy away from the 0.4 gem running against 0.3 tables. Say
+      # what is actually left instead.
+      def report_outstanding_work(migrate_command)
+        pending = pending_migration_files
+        backfill = route_backfill_outstanding?
+
+        if pending.empty? && !backfill
+          if @initializer_updated
+            say "Schema is up to date. Review initializer changes with git diff.", :green
+          else
+            say "Rails Pulse is up to date! No migration needed.", :green
+          end
+          return
+        end
+
+        say "All of this version's migration files are present, but this database is not up to date:", :yellow
+        if pending.any?
+          say "  #{pending.size} migration file(s) have not been run:", :yellow
+          pending.each { |filename| say "    - #{filename}", :yellow }
+        end
+        say "  Route actions have not been backfilled.", :yellow if backfill
+
+        include_route_backfill = backfill || requires_route_backfill?(pending)
+        say_route_backfill_warning if include_route_backfill
+        say_next_steps(migrate_command, include_route_backfill: include_route_backfill)
+      end
+
+      # Migration files on disk whose version is not recorded on the connection
+      # this install uses. Any failure (no database, stubbed connection) reads
+      # as "nothing pending" so the generator never blocks on it.
+      def pending_migration_files
+        pool = if @is_separate_db && defined?(RailsPulse::ApplicationRecord)
+          RailsPulse::ApplicationRecord.connection_pool
+        else
+          ActiveRecord::Base.connection_pool
+        end
+        context = pool.migration_context
+        applied = context.get_all_versions
+        context.migrations.reject { |migration| applied.include?(migration.version) }
+               .map { |migration| File.basename(migration.filename) }
+      rescue StandardError
+        []
+      end
+
+      def route_backfill_outstanding?
+        defined?(RailsPulse::Route) && RailsPulse::Route.needs_action_backfill?
+      rescue StandardError
+        false
+      end
 
       def requires_route_backfill?(migrations)
         migrations.any? do |name|

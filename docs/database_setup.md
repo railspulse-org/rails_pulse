@@ -98,7 +98,8 @@ rails rails_pulse:migrate_routes
 
 1. **Copies new migrations** from the gem to your app
 2. **Detects missing columns** by comparing your database to the schema file (safety net)
-3. **Provides clear instructions** for next steps, including `rails rails_pulse:migrate_routes` when a release needs a data backfill
+3. **Reports what is still outstanding** when every migration file is already present: files that have not been run against this database, and a route backfill that has not been done — rather than calling the install "up to date"
+4. **Provides clear instructions** for next steps, including `rails rails_pulse:migrate_routes` when a release needs a data backfill
 
 The generator automatically handles both upgrade paths:
 - If new migrations exist in the gem → copies them to your app

@@ -43,6 +43,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`rails generate rails_pulse:upgrade` no longer reports "up to date" while migrations
+  are unrun.** It said so whenever every migration *file* was already in the app — the
+  usual state of a host that copied the migrations in one deploy and is about to run them
+  in the next, one step from running 0.4 code against 0.3 tables. It now lists migration
+  files present but not applied to this database (and the matching `db:migrate` /
+  `db:migrate:rails_pulse` command), and says when route actions still need
+  `rails rails_pulse:migrate_routes`. Any failure to read migration state is treated as
+  nothing pending, so the generator never blocks on it.
+
 - **Cleaned up test suite output.** A green `rake test` run no longer prints RDoc
   constant-redefinition warnings, stray blank lines from a leftover progress `puts`,
   leaked log/rake-task output, a "missing assertions" warning, or a seed-dependent

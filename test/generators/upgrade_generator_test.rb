@@ -20,11 +20,17 @@ class UpgradeGeneratorTest < Rails::Generators::TestCase
 
     # Stub the generator to use test-specific gem migrations path
     RailsPulse::Generators::UpgradeGenerator.any_instance.stubs(:gem_migrations_path).returns(gem_migrations_path)
+    # The database behind the generator is the dummy app's; pin the two
+    # "outstanding work" probes so each test controls them explicitly.
+    RailsPulse::Generators::UpgradeGenerator.any_instance.stubs(:pending_migration_files).returns([])
+    RailsPulse::Generators::UpgradeGenerator.any_instance.stubs(:route_backfill_outstanding?).returns(false)
   end
 
   teardown do
     FileUtils.rm_rf(gem_migrations_path)
     RailsPulse::Generators::UpgradeGenerator.any_instance.unstub(:gem_migrations_path)
+    RailsPulse::Generators::UpgradeGenerator.any_instance.unstub(:pending_migration_files)
+    RailsPulse::Generators::UpgradeGenerator.any_instance.unstub(:route_backfill_outstanding?)
   end
 
   # Database Detection Tests
@@ -275,6 +281,59 @@ test "separate database upgrade copies migrations to rails_pulse_migrate" do
   end
 
   # Missing Column Detection Tests
+
+  # Outstanding Work Tests
+
+  test "says up to date only when nothing is pending" do
+    File.write(File.join(destination_root, "config/database.yml"), single_database_yml)
+    RailsPulse::Generators::UpgradeGenerator.any_instance.stubs(:detect_missing_columns).returns({})
+
+    output = mock_complete_tables { run_generator([], {}) }
+
+    assert_match(/Rails Pulse is up to date! No migration needed/, output)
+    assert_no_match(/not up to date/, output)
+  end
+
+  test "reports migration files that are present but have not been run" do
+    File.write(File.join(destination_root, "config/database.yml"), single_database_yml)
+    RailsPulse::Generators::UpgradeGenerator.any_instance.stubs(:detect_missing_columns).returns({})
+    RailsPulse::Generators::UpgradeGenerator.any_instance.stubs(:pending_migration_files)
+      .returns([ "20260610000002_change_rails_pulse_routes_to_multi_verb_model.rb" ])
+
+    output = mock_complete_tables { run_generator([], {}) }
+
+    assert_no_match(/up to date! No migration needed/, output)
+    assert_match(/1 migration file\(s\) have not been run/, output)
+    assert_match(/20260610000002_change_rails_pulse_routes_to_multi_verb_model\.rb/, output)
+    assert_match(/1\. Run: rails db:migrate/, output)
+    # The unrun file is a route identity migration, so the backfill is announced too.
+    assert_match(/rails rails_pulse:migrate_routes/, output)
+    assert_match(/IMPORTANT: This upgrade changes how routes are identified/, output)
+  end
+
+  test "reports an outstanding route backfill even when every migration has run" do
+    File.write(File.join(destination_root, "config/database.yml"), single_database_yml)
+    RailsPulse::Generators::UpgradeGenerator.any_instance.stubs(:detect_missing_columns).returns({})
+    RailsPulse::Generators::UpgradeGenerator.any_instance.stubs(:route_backfill_outstanding?).returns(true)
+
+    output = mock_complete_tables { run_generator([], {}) }
+
+    assert_no_match(/up to date! No migration needed/, output)
+    assert_match(/Route actions have not been backfilled/, output)
+    assert_match(/rails rails_pulse:migrate_routes/, output)
+  end
+
+  test "separate database pending migrations name the rails_pulse migrate command" do
+    File.write(File.join(destination_root, "config/database.yml"), separate_database_yml)
+    RailsPulse::Generators::UpgradeGenerator.any_instance.stubs(:pending_migration_files)
+      .returns([ "20260419000001_add_p95_p99_duration_to_rails_pulse_jobs.rb" ])
+
+    output = run_generator([], { database: "separate" })
+
+    assert_match(/have not been run/, output)
+    assert_match(/1\. Run: rails db:migrate:rails_pulse/, output)
+    assert_no_match(/migrate_routes/, output)
+  end
 
   test "generates migration for missing columns when no new migrations" do
     File.write(File.join(destination_root, "config/database.yml"), single_database_yml)
