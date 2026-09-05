@@ -29,6 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   process does not serve. `docs/deployment-modes.md` no longer tells standalone users to
   comment out the engine mount — keeping it is fine and lets the host keep linking to
   `rails_pulse.root_path`.
+- **`rails rails_pulse:status`.** One shell command that says where an install stands:
+  whether the schema is current for the running gem (via `RailsPulse::SchemaCheck`), gem
+  migrations not yet copied into the app, migration files present but not run, whether
+  `rails_pulse:migrate_routes` and the unrecognised-path index are done, settings this
+  version added that the initializer does not mention, the tracking and authentication
+  configuration, and when summaries last ran. Everything that needs action is repeated in
+  a closing list and the task exits 1, so a release script can stop before serving
+  traffic. `RailsPulse::Installers::ConfigUpdater.missing` is the read-only counterpart
+  of `update` that backs the initializer check.
 - **Schema drift guard.** New gem code running against tables that have not been
   migrated for it — a deploy that shipped the gem before `db:migrate`, or a rolling
   restart that left old and new processes side by side — used to log "Failed to

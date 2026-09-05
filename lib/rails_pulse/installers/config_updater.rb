@@ -27,6 +27,11 @@ module RailsPulse
         new(destination: destination, source: source, output: output).update
       end
 
+      # What `update` would add, without writing anything.
+      def self.missing(destination:, source: nil)
+        new(destination: destination, source: source).missing
+      end
+
       def self.template_path
         File.expand_path("../../../../lib/generators/rails_pulse/templates/rails_pulse.rb", __FILE__)
       end
@@ -35,6 +40,18 @@ module RailsPulse
         @destination = destination
         @source = source || self.class.template_path
         @output = output
+      end
+
+      # { keys: [setting keys absent from the host file], hash_keys: [names of
+      # entries absent from a hash the host does set] }. Empty arrays when the
+      # host mentions everything; both empty when the file does not exist.
+      def missing
+        return { keys: [], hash_keys: [] } unless File.exist?(destination)
+
+        host = File.read(destination)
+        missing_keys = template_settings.map { |setting| setting[:key] } - mentioned_keys(host)
+        hash_keys = missing_hash_entries(host, missing_keys)
+        { keys: missing_keys, hash_keys: hash_keys.map { |entry| entry[:name] } }
       end
 
       def update

@@ -23,6 +23,11 @@ namespace :rails_pulse do
     RailsPulse::Stats::CleanupStatsReporter.report
   end
 
+  desc "Reports schema, migration, route backfill and initializer state for this install; exits 1 when something needs action."
+  task status: :environment do
+    exit 1 unless RailsPulse::Tasks::StatusReporter.report
+  end
+
   desc "Migrate existing routes: backfill controller actions, normalize paths, consolidate multi-verb routes."
   task migrate_routes: :environment do
     ca_results = RailsPulse::RouteControllerActionBackfiller.call

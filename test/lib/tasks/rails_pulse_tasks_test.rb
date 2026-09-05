@@ -40,6 +40,36 @@ class RailsPulseTasksTest < ActiveSupport::TestCase
     output.string
   end
 
+  # rails_pulse:status tests
+
+  test "status task is registered" do
+    assert Rake::Task.task_defined?("rails_pulse:status")
+  end
+
+  test "status task prints the report and exits non-zero when action is needed" do
+    RailsPulse::Tasks::StatusReporter.stubs(:report).returns(false)
+
+    exit_status = nil
+    reenable_and_capture("rails_pulse:status") do
+      begin
+        Rake::Task["rails_pulse:status"].invoke
+      rescue SystemExit => e
+        exit_status = e.status
+        raise
+      end
+    end
+
+    assert_equal 1, exit_status
+  end
+
+  test "status task exits normally when nothing needs action" do
+    RailsPulse::Tasks::StatusReporter.stubs(:report).returns(true)
+
+    assert_nothing_raised do
+      reenable_and_capture("rails_pulse:status") { Rake::Task["rails_pulse:status"].invoke }
+    end
+  end
+
   # rails_pulse:cleanup tests
 
   test "cleanup task outputs disabled message and exits when archiving_enabled is false" do
