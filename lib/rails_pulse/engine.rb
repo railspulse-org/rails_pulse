@@ -66,6 +66,7 @@ module RailsPulse
   # Task runners
   module Tasks
     autoload :CleanupTaskRunner, File.expand_path("tasks/cleanup_task_runner", __dir__)
+    autoload :StatusReporter, File.expand_path("tasks/status_reporter", __dir__)
   end
 
   class Engine < ::Rails::Engine

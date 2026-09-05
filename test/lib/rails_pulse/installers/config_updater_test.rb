@@ -15,6 +15,34 @@ module RailsPulse
         FileUtils.remove_entry(@dir)
       end
 
+      # Missing (read-only) Tests
+
+      test "missing reports what update would add without writing" do
+        write_template <<~RUBY
+          RailsPulse.configure do |config|
+            config.enabled = true
+            config.track_exceptions = true
+          end
+        RUBY
+        write_host <<~RUBY
+          RailsPulse.configure do |config|
+            config.enabled = true
+          end
+        RUBY
+        before = File.read(@destination)
+
+        missing = ConfigUpdater.missing(destination: @destination, source: @template)
+
+        assert_equal({ keys: %w[track_exceptions], hash_keys: [] }, missing)
+        assert_equal before, File.read(@destination)
+      end
+
+      test "missing is empty when the host file does not exist" do
+        write_template "RailsPulse.configure do |config|\n  config.enabled = true\nend\n"
+
+        assert_equal({ keys: [], hash_keys: [] }, ConfigUpdater.missing(destination: @destination, source: @template))
+      end
+
       # Insert Tests
 
       test "inserts missing settings without rewriting existing values" do

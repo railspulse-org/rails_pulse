@@ -104,6 +104,14 @@ The generator automatically handles both upgrade paths:
 - If new migrations exist in the gem → copies them to your app
 - If no new migrations but missing columns → generates a migration for you
 
+### Checking where an install stands
+
+```bash
+rails rails_pulse:status
+```
+
+Prints, for the Pulse connection: whether the schema is current for the running gem, gem migrations not yet copied into the app, migration files present but not run, whether the route backfill and unrecognised-path index are done, settings this version added that the initializer does not mention, the tracking/authentication configuration, and when summaries last ran. Anything that needs action is repeated at the end, and the task exits 1 in that case so a release script can stop on it.
+
 ### If the new gem is deployed before the migrations run
 
 Rails Pulse checks the live tables once per process, the first time it needs to

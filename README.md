@@ -75,6 +75,8 @@ Restart all processes after migrate. This release changes how routes are stored 
 
 The upgrade generator appends new settings to `config/initializers/rails_pulse.rb` without rewriting what you already set. Review with `git diff` and keep or discard hunks.
 
+To see where an install stands at any point — schema, unrun migration files, route backfill, initializer — run `rails rails_pulse:status`. It exits 1 when something needs action, so it can gate a deploy.
+
 Exception tracking is **off** for existing installs. The generator inserts `config.track_exceptions = false`; set it to `true` after migrating to opt in:
 
 ```ruby
