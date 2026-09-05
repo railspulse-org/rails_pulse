@@ -310,6 +310,19 @@ module RailsPulse
       assert_match "standalone_authentication_method", error.message
     end
 
+    test "schema_check_enabled defaults to true" do
+      assert Configuration.new.schema_check_enabled
+    end
+
+    test "validate_configuration! raises for a non-boolean schema_check_enabled" do
+      config = Configuration.new
+      config.schema_check_enabled = "yes"
+
+      error = assert_raises(ArgumentError) { config.validate_configuration! }
+
+      assert_match "schema_check_enabled", error.message
+    end
+
     test "validate_configuration! raises for a non-callable authorize" do
       config = Configuration.new
       config.authorize = true

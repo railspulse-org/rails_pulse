@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rails Pulse — schema upgrade required</title>
+  <style>
+    body { font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: #1f2937; background: #f9fafb; margin: 0; padding: 3rem 1.5rem; }
+    main { max-width: 44rem; margin: 0 auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 2rem; }
+    h1 { font-size: 1.375rem; margin: 0 0 0.75rem; }
+    p { margin: 0 0 1rem; }
+    ul { margin: 0 0 1.5rem; padding-left: 1.25rem; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9375rem; }
+    pre { background: #111827; color: #f9fafb; padding: 1rem 1.25rem; border-radius: 0.5rem; overflow-x: auto; }
+    .muted { color: #6b7280; font-size: 0.9375rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Rails Pulse <%= RailsPulse::VERSION %> needs a schema upgrade</h1>
+    <p>The gem in this process is newer than the Rails Pulse tables it is connected to. Request, job and exception tracking is paused, and the dashboard is unavailable, until the database is migrated.</p>
+
+    <p><strong>Missing from the database</strong></p>
+    <ul>
+      <% missing.each do |table, columns| %>
+        <li>
+          <code><%= table %></code>
+          <% if columns == [ :table ] %>
+            <span class="muted">— table does not exist</span>
+          <% else %>
+            <span class="muted">— columns:</span> <%= columns.map { |column| tag.code(column) }.join(", ").html_safe %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+
+    <p><strong>To upgrade</strong>, from the application root:</p>
+    <pre><%= RailsPulse::SchemaCheck::UPGRADE_INSTRUCTIONS.join("\n") %></pre>
+
+    <p class="muted">Then restart every process (web and workers) together. A rolling restart that leaves older processes running against the migrated schema breaks tracking the other way round. Back up the database first: the route identity migration is irreversible.</p>
+  </main>
+</body>
+</html>

@@ -33,6 +33,7 @@ module RailsPulse
                   :service_level_objectives,
                   :query_service_level_objectives,
                   :warn_on_stale_summaries,
+                  :schema_check_enabled,
                   :baseline_window,
                   :comparison_window,
                   :hourly_summary_retention
@@ -135,6 +136,10 @@ module RailsPulse
       # Show a warning banner when summaries haven't been generated recently
       @warn_on_stale_summaries = true
 
+      # Pause tracking and gate the dashboard when the tables are behind this
+      # gem version (see RailsPulse::SchemaCheck). Off only as an escape hatch.
+      @schema_check_enabled = true
+
       # Historical comparison. The baseline is the traffic-weighted metric across
       # `baseline_window` of day summaries; `comparison_window` is the recent
       # slice measured against it.
@@ -223,6 +228,7 @@ module RailsPulse
       validate_service_level_objectives_settings!
       validate_query_service_level_objectives_settings!
       validate_comparison_settings!
+      validate_schema_check_settings!
     end
 
     private
@@ -335,6 +341,12 @@ module RailsPulse
       if @standalone_authentication_method && !@standalone_authentication_method.is_a?(Proc)
         raise ArgumentError, "standalone_authentication_method must be a Proc or nil, got #{@standalone_authentication_method.class}"
       end
+    end
+
+    def validate_schema_check_settings!
+      return if [ true, false ].include?(@schema_check_enabled)
+
+      raise ArgumentError, "schema_check_enabled must be true or false, got #{@schema_check_enabled.inspect}"
     end
 
     def validate_tags!

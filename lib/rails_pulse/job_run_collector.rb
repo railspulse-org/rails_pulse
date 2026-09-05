@@ -90,7 +90,7 @@ module RailsPulse
 
       def tracking_enabled?
         config = RailsPulse.configuration
-        config.enabled && config.track_jobs
+        config.enabled && config.track_jobs && RailsPulse::SchemaCheck.tracking_allowed?
       end
 
       def ignore_job?(job)

@@ -10,6 +10,7 @@ module RailsPulse
     class << self
       def track_request(data)
         return if RequestStore.store[:skip_recording_rails_pulse_activity]
+        return unless RailsPulse::SchemaCheck.tracking_allowed?
 
         if RailsPulse.configuration.async && !connection_shared_across_threads?
           Thread.new do

@@ -15,6 +15,7 @@ module RailsPulse
     protect_from_forgery with: :exception
 
     before_action :authenticate_rails_pulse_user!
+    before_action :require_current_schema!
     before_action :set_onboarding_state
     before_action :load_deployment_markers
 
@@ -226,6 +227,30 @@ module RailsPulse
         else
           ActiveSupport::SecurityUtils.secure_compare(username.to_s, expected_username) &&
             ActiveSupport::SecurityUtils.secure_compare(password.to_s, expected_password)
+        end
+      end
+    end
+
+    # New gem code against un-migrated tables would otherwise 500 on every
+    # page that touches a missing column. Runs after authentication so the
+    # schema report is not exposed to anonymous callers.
+    def require_current_schema!
+      return if RailsPulse::SchemaCheck.current?
+
+      RailsPulse::SchemaCheck.warn_once!
+      missing = RailsPulse::SchemaCheck.missing
+
+      respond_to do |format|
+        format.html do
+          render template: "rails_pulse/shared/schema_outdated", layout: false,
+                 status: :service_unavailable, locals: { missing: missing }
+        end
+        format.any do
+          render json: {
+            error: "Rails Pulse #{RailsPulse::VERSION} requires a schema upgrade",
+            missing: missing,
+            instructions: RailsPulse::SchemaCheck::UPGRADE_INSTRUCTIONS
+          }, status: :service_unavailable
         end
       end
     end

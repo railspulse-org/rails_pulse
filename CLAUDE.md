@@ -19,7 +19,8 @@ You must update **all three** (plus the table list for new tables):
 2. **`lib/generators/rails_pulse/templates/db/rails_pulse_schema.rb`** — keep in sync with the source of truth so the install generator produces correct output
 3. **`db/rails_pulse_migrate/TIMESTAMP_description.rb`** — add an incremental migration with `column_exists?`/`table_exists?` guards for existing installs
 4. **`lib/generators/rails_pulse/base_methods.rb` `RAILS_PULSE_TABLES`** — add the table name (new tables only); this is the fallback list used when the host app's schema file can't be parsed
-5. **`test/migrations/upgrade_migration_test.rb`** — update the migration regression tests:
+5. **`lib/rails_pulse/schema_check.rb` `SENTINEL_COLUMNS`** — add the column (existing tables only) so a host running the new gem against un-migrated tables pauses tracking instead of erroring; `schema_check_test.rb` verifies every entry exists in the schema file
+6. **`test/migrations/upgrade_migration_test.rb`** — update the migration regression tests:
    - Add the new class name to `MIGRATION_CLASSES` (in filename sort order)
    - Add an assertion that the new column/table exists after upgrading from v0.2.7
    - Run `rake test_migrations` to verify

@@ -29,6 +29,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   process does not serve. `docs/deployment-modes.md` no longer tells standalone users to
   comment out the engine mount — keeping it is fine and lets the host keep linking to
   `rails_pulse.root_path`.
+- **Schema drift guard.** New gem code running against tables that have not been
+  migrated for it — a deploy that shipped the gem before `db:migrate`, or a rolling
+  restart that left old and new processes side by side — used to log "Failed to
+  persist tracking data" on every request and 500 every dashboard page that touched a
+  missing column. `RailsPulse::SchemaCheck` now checks, once per process, that every
+  Rails Pulse table exists and that a short explicit list of sentinel columns (the ones
+  incremental migrations have added, e.g. `routes.http_methods`, `requests.method`) is
+  present. While anything is missing,
+  request, job and exception tracking pause after a single logged warning that names
+  the missing tables and columns and the upgrade commands, and the dashboard answers
+  every page with a 503 explaining the same (JSON for non-HTML requests). Any database
+  error during the comparison is treated as "not outdated", so an app booting without a
+  database (`assets:precompile`, `db:create`) is never blocked, and
+  `config.schema_check_enabled = false` disables the check.
 
 ### Fixed
 

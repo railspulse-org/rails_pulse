@@ -19,6 +19,8 @@ module RailsPulse
 
     class << self
       def capture(exception, request_url: nil, request_method: nil, request_params: nil, environment: nil, deploy_sha: nil)
+        return unless RailsPulse::SchemaCheck.tracking_allowed?
+
         new(exception, request_url: request_url, request_method: request_method, request_params: request_params, environment: environment, deploy_sha: deploy_sha).capture
       end
 
