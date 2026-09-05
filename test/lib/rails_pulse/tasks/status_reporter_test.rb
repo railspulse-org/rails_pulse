@@ -39,7 +39,7 @@ class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
 
   test "schema drift is reported with the upgrade commands and fails the report" do
     assume_clean_install
-    RailsPulse::SchemaCheck.stubs(:expected_schema).returns("rails_pulse_routes" => { "http_methods" => {}, "ghost" => {} })
+    RailsPulse::SchemaCheck.stubs(:expected_schema).returns("rails_pulse_routes" => %w[http_methods ghost])
 
     assert_not report
     assert_includes @output.string, "Schema:     BEHIND this gem version"
