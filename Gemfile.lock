@@ -85,7 +85,7 @@ GEM
       uri (>= 0.13.1)
     addressable (2.9.0)
       public_suffix (>= 2.0.2, < 8.0)
-    ansi (1.5.0)
+    ansi (1.6.0)
     appraisal (2.5.0)
       bundler
       rake
@@ -171,11 +171,13 @@ GEM
     marcel (1.2.1)
     matrix (0.4.3)
     mini_mime (1.1.5)
-    minitest (5.27.0)
-    minitest-reporters (1.7.1)
+    minitest (6.0.6)
+      drb (~> 2.0)
+      prism (~> 1.5)
+    minitest-reporters (1.8.0)
       ansi
       builder
-      minitest (>= 5.0)
+      minitest (>= 5.0, < 7)
       ruby-progressbar
     mocha (2.7.1)
       ruby2_keywords (>= 0.0.5)
@@ -431,7 +433,7 @@ DEPENDENCIES
   good_job
   importmap-rails
   minitest (>= 5.0)
-  minitest-reporters
+  minitest-reporters (>= 1.8.0)
   mocha
   mysql2 (~> 0.5)
   ostruct
