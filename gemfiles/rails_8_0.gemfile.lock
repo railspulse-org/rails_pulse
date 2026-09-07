@@ -1,7 +1,7 @@
 PATH
   remote: ..
   specs:
-    rails_pulse (0.4.0.pre.3)
+    rails_pulse (0.4.0.pre.4)
       rails (>= 7.1.0, < 9.0.0)
       ransack (~> 4.0)
       request_store (~> 1.5)
@@ -429,7 +429,7 @@ DEPENDENCIES
   good_job
   importmap-rails
   minitest (>= 5.0)
-  minitest-reporters
+  minitest-reporters (>= 1.8.0)
   mocha
   mysql2 (~> 0.5)
   ostruct
