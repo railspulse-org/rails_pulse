@@ -9,6 +9,7 @@ module RailsPulse
     def index
       setup_metric_cards
       setup_chart_and_table_data
+      @available_actions = Route.distinct.pluck(:controller_action).compact_blank.sort
     end
 
     def show
@@ -112,7 +113,7 @@ module RailsPulse
 
     # Request/route-name filters that Summary chart queries don't join for.
     def chart_filter_exclusions
-      %w[route_path_cont route_controller_action_cont controller_action_cont http_method_eq]
+      %w[route_path_cont route_controller_action_eq controller_action_cont http_method_eq]
     end
 
     def default_time_range_key

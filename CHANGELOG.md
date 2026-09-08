@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Routes filter by action is now a dropdown.** Replaced the free-text "Filter by action" field with a select listing the actions that actually exist, so filtering is exact instead of substring-matched.
+
 ### Fixed
 
 - **Standalone auth notice logged once per process.** The "standalone dashboard ignores config.authentication_method / config.authorize" notice kept its once-only flag on each controller class, so it repeated for every engine controller a visitor reached. The flag now lives on `RailsPulse::Standalone` and the notice is logged once per process.

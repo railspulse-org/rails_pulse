@@ -28,10 +28,10 @@
                           placeholder: "Filter by path",
                           autocomplete: "off",
                           class: "input" %>
-        <%= form.search_field :route_controller_action_cont,
-                          placeholder: "Filter by action",
-                          autocomplete: "off",
-                          class: "input" %>
+        <%= form.select :route_controller_action_eq,
+                    options_for_select([["All actions", ""]] + @available_actions.map { |a| [a, a] }, @ransack_query.route_controller_action_eq),
+                    {},
+                    { class: "input" } %>
         <%= form.select :avg_duration,
                     duration_options(:route),
                     { selected: @selected_response_range },
