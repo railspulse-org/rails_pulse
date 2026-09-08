@@ -117,6 +117,10 @@ They are **not** registered with Sprockets (`config.assets.precompile`) — re-m
 
 To rebuild assets: `npm run build` (or `npm run build:dev` for source maps).
 
+## Changelog Entries
+
+`CHANGELOG.md` entries are 1-2 sentences: what changed and its impact. No implementation narrative — root cause, code paths touched, specific error messages, or before/after numbers belong in the commit or PR description, not here.
+
 ## Releases
 
 Run `rake test_release` before any release — it validates git status, RuboCop, Brakeman, asset build, gem build, generator tests, and the full test matrix. See `docs/releasing.md` for the full process.

@@ -1,3 +1,5 @@
+require "stringio"
+
 namespace :db do
   namespace :schema do
     desc "Load Rails Pulse schema (for separate database setup only)"
@@ -36,13 +38,25 @@ end
 # for test runs, not just for development/production db:prepare.
 # The task may be namespaced as "app:db:schema:load_rails_pulse" in engine context
 # vs "db:schema:load_rails_pulse" in a host app — try both.
+#
+# This fires on every single `rails test` process (once per appraisal/test_matrix
+# combination, again for the migration regression process), and after the first
+# run it only ever reports "tables already exist" — so its output is muted here.
+# The task itself stays fully verbose when invoked directly (installs, upgrades,
+# and test/lib/tasks/rails_pulse_test.rb assert on that direct-invocation output).
 Rake::Task["db:test:prepare"].enhance do
   if separate_database_setup?
     task_name = %w[db:schema:load_rails_pulse app:db:schema:load_rails_pulse]
       .find { |name| Rake::Task.task_defined?(name) }
     if task_name
       Rake::Task[task_name].reenable
-      Rake::Task[task_name].invoke
+      original_stdout = $stdout
+      $stdout = StringIO.new
+      begin
+        Rake::Task[task_name].invoke
+      ensure
+        $stdout = original_stdout
+      end
     end
   end
 end if Rake::Task.task_defined?("db:test:prepare")

@@ -387,19 +387,53 @@ echo
 echo "$(rp_rule "9/9 GITHUB RELEASE")"
 echo
 
-GITHUB_RELEASE_URL="https://github.com/railspulse/rails_pulse/releases/new?tag=v$NEW_VERSION"
+REPO_SLUG=$(git remote get-url origin | sed -E 's#.*[:/]([^/]+/[^/.]+)(\.git)?$#\1#')
+GITHUB_RELEASE_URL="https://github.com/$REPO_SLUG/releases/tag/v$NEW_VERSION"
+GITHUB_RELEASE_NEW_URL="https://github.com/$REPO_SLUG/releases/new?tag=v$NEW_VERSION"
 
-echo "  Create a GitHub release at:"
-echo "    $GITHUB_RELEASE_URL"
+# The annotated tag's own message (written in step 6) is the source of truth
+# for these notes — reuse it instead of asking for release notes twice.
+# Default the prerelease prompt from the version string, but always ask:
+# 0.4.0.rc.1 or a hand-picked non-standard version could go either way.
+PRERELEASE_DEFAULT="n"
+if [[ "$NEW_VERSION" =~ \.(pre|beta|rc)\. ]]; then
+  PRERELEASE_DEFAULT="y"
+fi
+
+PRERELEASE_FLAG=""
+if ask_yes_no "Is v$NEW_VERSION a pre-release?" "$PRERELEASE_DEFAULT"; then
+  PRERELEASE_FLAG="--prerelease"
+fi
 echo
 
-if ask_yes_no "Open GitHub releases page in browser?"; then
-  if command -v xdg-open &> /dev/null; then
-    xdg-open "$GITHUB_RELEASE_URL"
-  elif command -v open &> /dev/null; then
-    open "$GITHUB_RELEASE_URL"
+RELEASE_PUBLISHED=false
+if command -v gh &> /dev/null; then
+  if ask_yes_no "Publish the GitHub release now (using the tag's own notes)?" "y"; then
+    TAG_NOTES=$(git for-each-ref "refs/tags/v$NEW_VERSION" --format='%(contents)')
+    if gh release create "v$NEW_VERSION" --repo "$REPO_SLUG" --title "v$NEW_VERSION" --notes "$TAG_NOTES" $PRERELEASE_FLAG; then
+      rp_ok "GitHub release published: $GITHUB_RELEASE_URL"
+      RELEASE_PUBLISHED=true
+    else
+      rp_fail "GitHub release creation failed"
+      echo "  Create it manually at: $GITHUB_RELEASE_NEW_URL"
+    fi
   else
-    echo "Could not open browser automatically"
+    rp_warn "skipping GitHub release"
+    echo "  Create it later at: $GITHUB_RELEASE_NEW_URL"
+  fi
+else
+  rp_warn "'gh' not found — can't publish automatically"
+  echo "  Create a GitHub release at:"
+  echo "    $GITHUB_RELEASE_NEW_URL"
+  echo
+  if ask_yes_no "Open GitHub releases page in browser?"; then
+    if command -v xdg-open &> /dev/null; then
+      xdg-open "$GITHUB_RELEASE_NEW_URL"
+    elif command -v open &> /dev/null; then
+      open "$GITHUB_RELEASE_NEW_URL"
+    else
+      echo "Could not open browser automatically"
+    fi
   fi
 fi
 
@@ -413,10 +447,15 @@ echo
 
 echo "  Links:"
 echo "    - RubyGems: https://rubygems.org/gems/rails_pulse/versions/$NEW_VERSION"
-echo "    - GitHub: https://github.com/railspulse/rails_pulse/releases/tag/v$NEW_VERSION"
+echo "    - GitHub: $GITHUB_RELEASE_URL"
 echo
 echo "  Next steps:"
-echo "    1. Create GitHub release (if not done): $GITHUB_RELEASE_URL"
-echo "    2. Test installation: gem install rails_pulse -v $NEW_VERSION"
-echo "    3. Announce the release"
+if [ "$RELEASE_PUBLISHED" = false ]; then
+  echo "    1. Create GitHub release: $GITHUB_RELEASE_NEW_URL"
+  echo "    2. Test installation: gem install rails_pulse -v $NEW_VERSION"
+  echo "    3. Announce the release"
+else
+  echo "    1. Test installation: gem install rails_pulse -v $NEW_VERSION"
+  echo "    2. Announce the release"
+fi
 echo

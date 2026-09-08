@@ -10,7 +10,7 @@ group :test do
   gem "appraisal"
   gem "puma", "7.2.1"
   gem "capybara"
-  gem "minitest-reporters"
+  gem "minitest-reporters", ">= 1.8.0"
   gem "mocha"
   gem "selenium-webdriver"
   gem "shoulda-matchers"
