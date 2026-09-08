@@ -172,11 +172,13 @@ module RailsPulse
       run_authentication_method(hook)
     end
 
+    # Logged once per process, not once per controller: the flag lives on
+    # RailsPulse::Standalone, so RequestsController and QueriesController do
+    # not each repeat it on their first request.
     def note_ignored_host_authentication(config)
       return if config.authentication_method.nil? && config.authorize.nil?
-      return if self.class.instance_variable_get(:@_rails_pulse_standalone_auth_noted)
+      return unless RailsPulse.note_host_authentication_ignored!
 
-      self.class.instance_variable_set(:@_rails_pulse_standalone_auth_noted, true)
       logger.info "RailsPulse: standalone dashboard ignores config.authentication_method / config.authorize " \
                   "(host session helpers are not available here); using HTTP Basic auth. " \
                   "Set config.standalone_authentication_method to customise."

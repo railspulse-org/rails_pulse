@@ -236,6 +236,36 @@ module RailsPulse
       end
     end
 
+    test "the ignored-host-authentication notice is logged once per process, not once per controller" do
+      log = StringIO.new
+      RailsPulse.stubs(:logger).returns(Logger.new(log))
+
+      with_standalone_auth(authentication_method: proc { user_signed_in? }) do
+        auth = { "HTTP_AUTHORIZATION" => basic("admin", "s3cret") }
+        get("/", auth)
+        get("/routes", auth)
+        get("/queries", auth)
+        get("/", auth)
+      end
+
+      assert_equal 1, log.string.scan("standalone dashboard ignores config.authentication_method").size
+    ensure
+      RailsPulse.unstub(:logger)
+    end
+
+    test "the ignored-host-authentication notice is not logged when the host configures no hooks" do
+      log = StringIO.new
+      RailsPulse.stubs(:logger).returns(Logger.new(log))
+
+      with_standalone_auth do
+        get("/", "HTTP_AUTHORIZATION" => basic("admin", "s3cret"))
+      end
+
+      assert_no_match(/standalone dashboard ignores/, log.string)
+    ensure
+      RailsPulse.unstub(:logger)
+    end
+
     test "wrong HTTP Basic credentials are rejected" do
       with_standalone_auth do
         assert_equal 401, get("/", "HTTP_AUTHORIZATION" => basic("admin", "nope")).status

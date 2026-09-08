@@ -43,6 +43,18 @@ module RailsPulse
     # prepended override stays but defers to the mount prefix again.
     def exit_standalone!
       @standalone = false
+      @host_authentication_ignored_noted = false
+    end
+
+    # ApplicationController logs a one-line notice when the standalone
+    # dashboard ignores the host's authentication_method / authorize hooks.
+    # Returns true the first time it is called in this process (log now),
+    # false afterwards. Process-wide on purpose: a per-controller flag
+    # repeats the notice for every engine controller a visitor reaches.
+    def note_host_authentication_ignored!
+      return false if @host_authentication_ignored_noted
+
+      @host_authentication_ignored_noted = true
     end
   end
 
