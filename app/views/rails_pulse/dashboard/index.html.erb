@@ -4,16 +4,19 @@
       <%= render "rails_pulse/dashboard/health_badge",
       name: "Routes",
       health: @health_summary[:routes],
-      critical_label: "critical" %>
+      critical_label: "critical",
+      link_url: routes_path %>
       <%= render "rails_pulse/dashboard/health_badge",
       name: "Queries",
       health: @health_summary[:queries],
-      critical_label: "critical" %>
+      critical_label: "critical",
+      link_url: queries_path %>
       <% if @health_summary[:jobs] %>
         <%= render "rails_pulse/dashboard/health_badge",
         name: "Jobs",
         health: @health_summary[:jobs],
-        critical_label: "failing" %>
+        critical_label: "failing",
+        link_url: jobs_path %>
       <% end %>
       <%# Nil when exception tracking is off, or when the tables have not been
           migrated yet — which is also when exceptions_path does not exist. %>
