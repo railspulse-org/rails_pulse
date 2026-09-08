@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Dashboard status bar badges are now all clickable.** Routes, Queries, and Jobs badges link to their respective pages, matching Exceptions and Storage.
 - **Standalone auth notice logged once per process.** The "standalone dashboard ignores config.authentication_method / config.authorize" notice kept its once-only flag on each controller class, so it repeated for every engine controller a visitor reached. The flag now lives on `RailsPulse::Standalone` and the notice is logged once per process.
 
 ## [0.4.0.pre.4] - 2026-09-07
