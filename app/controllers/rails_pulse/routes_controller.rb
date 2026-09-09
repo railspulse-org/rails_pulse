@@ -14,6 +14,7 @@ module RailsPulse
     def show
       setup_metric_cards
       setup_chart_and_table_data
+      setup_archived_summary_data
     end
 
     private
@@ -124,6 +125,36 @@ module RailsPulse
 
     def set_route
       @route = Route.find(params[:id])
+    end
+
+    # Raw Request rows get purged by CleanupService after full_retention_period.
+    # For any part of the selected window older than that cutoff, fall back to
+    # pre-aggregated Summary rows (which CleanupService never deletes for
+    # day/week/month periods) so the table isn't just blank for old ranges.
+    def setup_archived_summary_data
+      cutoff = retention_cutoff
+      window_start = @page_timings&.table_start_time
+
+      if cutoff && window_start && Time.at(window_start) < cutoff
+        scope = Summary.for_routes
+          .where(summarizable_id: @route.id)
+          .where(period_type: period_type)
+          .where("period_start < ?", cutoff)
+
+        if @page_timings&.table_end_time
+          scope = scope.where("period_start < ?", Time.at(@page_timings.table_end_time))
+        end
+
+        @archived_summary_data = scope.order(period_start: :desc).limit(100)
+      else
+        @archived_summary_data = Summary.none
+      end
+    end
+
+    def retention_cutoff
+      config = RailsPulse.configuration rescue nil
+      period = config&.full_retention_period
+      period ? period.ago : nil
     end
 
     def ordering_by_computed_column?

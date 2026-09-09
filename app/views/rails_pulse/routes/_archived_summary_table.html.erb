@@ -1,0 +1,44 @@
+<% columns = [
+  { field: :period_start, label: 'Time Period', class: 'w-auto' },
+  { field: :count, label: 'Requests', class: 'w-32' },
+  { field: :avg_duration, label: 'Avg Duration', class: 'w-32' },
+  { field: :min_duration, label: 'Min Duration', class: 'w-32' },
+  { field: :max_duration, label: 'Max Duration', class: 'w-32' }
+] %>
+
+<table class="table mbs-4">
+  <%= render "rails_pulse/components/table_head", columns: columns %>
+
+  <tbody>
+    <% @archived_summary_data.each do |summary| %>
+      <%
+        avg_duration_ms = summary.avg_duration&.round(2) || 0
+        performance_class = case avg_duration_ms
+        when 0..100 then "text-green-600"
+        when 100..300 then "text-yellow-600"
+        when 300..1000 then "text-orange-600"
+        else "text-red-600"
+        end
+      %>
+      <tr>
+        <td class="whitespace-nowrap">
+          <%= human_readable_summary_period(summary) %>
+        </td>
+        <td class="whitespace-nowrap text-center">
+          <span class="font-medium"><%= summary.count %></span>
+        </td>
+        <td class="whitespace-nowrap">
+          <span class="<%= performance_class %> font-medium">
+            <%= avg_duration_ms %> ms
+          </span>
+        </td>
+        <td class="whitespace-nowrap text-center">
+          <%= summary.min_duration&.round(2) || 0 %> ms
+        </td>
+        <td class="whitespace-nowrap text-center">
+          <%= summary.max_duration&.round(2) || 0 %> ms
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
