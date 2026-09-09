@@ -45,9 +45,21 @@
 
       <div data-controller="rails-pulse--table-sort">
         <div id="index_table" data-rails-pulse--index-target="indexTable" data-rails-pulse--table-sort-target="tableFrame">
-          <% if @table_data && @table_data.any? %>
+          <% has_requests = @table_data && @table_data.any? %>
+          <% has_archived_summaries = @archived_summary_data && @archived_summary_data.any? %>
+
+          <% if has_requests %>
             <%= render 'rails_pulse/routes/requests_table' %>
-          <% else %>
+          <% end %>
+
+          <% if has_archived_summaries %>
+            <h3 id="archived-data" class="text-sm font-semibold text-subtle mbs-8 mbe-2">
+              Archived data (older than the retention window — aggregated by period)
+            </h3>
+            <%= render 'rails_pulse/routes/archived_summary_table' %>
+          <% end %>
+
+          <% unless has_requests || has_archived_summaries %>
             <%= render 'rails_pulse/components/empty_state',
                 title: 'No route requests found for the selected filters.',
                 description: 'Try adjusting your time range or filters to see results.' %>

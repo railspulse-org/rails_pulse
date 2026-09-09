@@ -31,5 +31,9 @@ module RailsPulse
     def page_url(page_number)
       url_for(request.query_parameters.merge(page: page_number))
     end
+
+    def archived_page_url(page_number)
+      url_for(request.query_parameters.merge(archived_page: page_number, anchor: "archived-data"))
+    end
   end
 end

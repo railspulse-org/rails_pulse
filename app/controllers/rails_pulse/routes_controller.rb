@@ -14,6 +14,7 @@ module RailsPulse
     def show
       setup_metric_cards
       setup_chart_and_table_data
+      setup_archived_summary_data
     end
 
     private
@@ -124,6 +125,51 @@ module RailsPulse
 
     def set_route
       @route = Route.find(params[:id])
+    end
+
+    ARCHIVED_SUMMARY_PAGE_LIMIT = 20
+
+    # Raw Request rows get purged by CleanupService after full_retention_period.
+    # For any part of the selected window older than that cutoff, fall back to
+    # pre-aggregated Summary rows (which CleanupService never deletes for
+    # day/week/month periods) so the table isn't just blank for old ranges.
+    def setup_archived_summary_data
+      cutoff = retention_cutoff
+      window_start = @page_timings&.table_start_time
+
+      scope = if cutoff && window_start && Time.at(window_start) < cutoff
+        scope = Summary.for_routes
+          .where(summarizable_id: @route.id)
+          .where(period_type: period_type)
+          .where("period_start < ?", cutoff)
+
+        if @page_timings&.table_end_time
+          scope = scope.where("period_start < ?", Time.at(@page_timings.table_end_time))
+        end
+
+        scope.order(period_start: :desc)
+      else
+        Summary.none
+      end
+
+      @archived_pagination, @archived_summary_data =
+        paginate_archived(scope, limit: ARCHIVED_SUMMARY_PAGE_LIMIT)
+    end
+
+    # Mirrors PaginationConcern#paginate but keys off its own `archived_page`
+    # param so the archived table's pagination doesn't fight over the same
+    # `page`/`limit` params as the live requests table above it on the page.
+    def paginate_archived(collection, limit:)
+      page = [ params[:archived_page].to_i, 1 ].max
+      paginator = RailsPulse::Paginator.new(count: collection.count(:all), page: page, limit: limit)
+      records = collection.offset((paginator.page - 1) * limit).limit(limit)
+      [ paginator, records ]
+    end
+
+    def retention_cutoff
+      config = RailsPulse.configuration rescue nil
+      period = config&.full_retention_period
+      period ? period.ago : nil
     end
 
     def ordering_by_computed_column?

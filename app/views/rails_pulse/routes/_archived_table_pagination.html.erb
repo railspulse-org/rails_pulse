@@ -1,0 +1,28 @@
+<div class="flex items-center mbs-4">
+  <div class="text-sm text-subtle show@md">Total of <%= @archived_pagination.count %> archived period(s).</div>
+
+  <div class="flex items-center mis-auto justify-end" style="column-gap: 1rem">
+    <div class="text-sm font-medium"><%= "Page #{@archived_pagination.page} of #{@archived_pagination.last}" %></div>
+
+    <nav class="flex items-center gap shrink-0" style="--btn-padding: .5rem;" aria-label="Archived data pagination">
+      <% prev_page = @archived_pagination.previous %>
+      <% next_page = @archived_pagination.next %>
+      <%= link_to archived_page_url(1), class: "btn", aria: { disabled: prev_page.nil? }.compact_blank do %>
+        <%= rails_pulse_icon 'chevrons-left', width: '16', height: '16' %>
+        <span class="sr-only">Go to first page</span>
+      <% end %>
+      <%= link_to archived_page_url(prev_page || @archived_pagination.page), class: "btn", aria: { disabled: prev_page.nil? }.compact_blank do %>
+        <%= rails_pulse_icon 'chevron-left', width: '16', height: '16' %>
+        <span class="sr-only">Go to previous page</span>
+      <% end %>
+      <%= link_to archived_page_url(next_page || @archived_pagination.page), class: "btn", aria: { disabled: next_page.nil? }.compact_blank do %>
+        <%= rails_pulse_icon 'chevron-right', width: '16', height: '16' %>
+        <span class="sr-only">Go to next page</span>
+      <% end %>
+      <%= link_to archived_page_url(@archived_pagination.last), class: "btn", aria: { disabled: next_page.nil? }.compact_blank do %>
+        <%= rails_pulse_icon 'chevrons-right', width: '16', height: '16' %>
+        <span class="sr-only">Go to last page</span>
+      <% end %>
+    </nav>
+  </div>
+</div>
