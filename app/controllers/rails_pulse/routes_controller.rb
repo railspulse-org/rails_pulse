@@ -127,6 +127,8 @@ module RailsPulse
       @route = Route.find(params[:id])
     end
 
+    ARCHIVED_SUMMARY_PAGE_LIMIT = 20
+
     # Raw Request rows get purged by CleanupService after full_retention_period.
     # For any part of the selected window older than that cutoff, fall back to
     # pre-aggregated Summary rows (which CleanupService never deletes for
@@ -135,7 +137,7 @@ module RailsPulse
       cutoff = retention_cutoff
       window_start = @page_timings&.table_start_time
 
-      if cutoff && window_start && Time.at(window_start) < cutoff
+      scope = if cutoff && window_start && Time.at(window_start) < cutoff
         scope = Summary.for_routes
           .where(summarizable_id: @route.id)
           .where(period_type: period_type)
@@ -145,10 +147,23 @@ module RailsPulse
           scope = scope.where("period_start < ?", Time.at(@page_timings.table_end_time))
         end
 
-        @archived_summary_data = scope.order(period_start: :desc).limit(100)
+        scope.order(period_start: :desc)
       else
-        @archived_summary_data = Summary.none
+        Summary.none
       end
+
+      @archived_pagination, @archived_summary_data =
+        paginate_archived(scope, limit: ARCHIVED_SUMMARY_PAGE_LIMIT)
+    end
+
+    # Mirrors PaginationConcern#paginate but keys off its own `archived_page`
+    # param so the archived table's pagination doesn't fight over the same
+    # `page`/`limit` params as the live requests table above it on the page.
+    def paginate_archived(collection, limit:)
+      page = [ params[:archived_page].to_i, 1 ].max
+      paginator = RailsPulse::Paginator.new(count: collection.count(:all), page: page, limit: limit)
+      records = collection.offset((paginator.page - 1) * limit).limit(limit)
+      [ paginator, records ]
     end
 
     def retention_cutoff
