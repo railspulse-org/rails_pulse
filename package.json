@@ -21,7 +21,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@hotwired/stimulus": "^3.2.2",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/coverage-v8": "^4.1.11",
     "@vitest/eslint-plugin": "^1.6.16",
     "autoprefixer": "^10.4.16",
     "chokidar": "^4.0.3",
@@ -34,7 +34,7 @@
     "lucide": "^0.545.0",
     "postcss": "^8.5.26",
     "rimraf": "^5.0.5",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=22.22.2",
@@ -63,8 +63,8 @@
   "author": "Rails Pulse",
   "license": "MIT",
   "optionalDependencies": {
-    "@rolldown/binding-linux-x64-gnu": "1.0.0-rc.17",
-    "@rolldown/binding-linux-arm64-gnu": "1.0.0-rc.17"
+    "@rolldown/binding-linux-arm64-gnu": "1.0.0-rc.17",
+    "@rolldown/binding-linux-x64-gnu": "1.0.0-rc.17"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.7.2",
