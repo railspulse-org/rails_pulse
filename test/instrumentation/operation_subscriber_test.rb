@@ -84,6 +84,89 @@ class OperationSubscriberTest < ActiveSupport::TestCase
     assert_equal 0, operations.size, "RailsPulse queries should be filtered out"
   end
 
+  test "should filter out cached SQL queries" do
+    payload = {
+      sql: "SELECT * FROM users WHERE id = ?",
+      name: "User Load",
+      cached: true
+    }
+
+    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
+      sleep(0.001)
+    end
+
+    operations = RequestStore.store[:rails_pulse_operations]
+
+    assert_equal 0, operations.size, "Cached queries should be filtered out"
+  end
+
+  test "should capture uncached SQL queries with cached false" do
+    payload = {
+      sql: "SELECT * FROM users WHERE id = ?",
+      name: "User Load",
+      cached: false
+    }
+
+    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
+      sleep(0.001)
+    end
+
+    operations = RequestStore.store[:rails_pulse_operations]
+
+    assert_equal 1, operations.size
+  end
+
+  test "should filter out queries matching a string ignored_queries pattern" do
+    original = RailsPulse.configuration.ignored_queries
+    RailsPulse.configuration.ignored_queries = [ "SELECT 1" ]
+
+    payload = { sql: "SELECT 1", name: "SQL" }
+
+    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
+      sleep(0.001)
+    end
+
+    operations = RequestStore.store[:rails_pulse_operations]
+
+    assert_equal 0, operations.size, "Queries matching an ignored_queries string should be filtered out"
+  ensure
+    RailsPulse.configuration.ignored_queries = original
+  end
+
+  test "should filter out queries matching a regexp ignored_queries pattern" do
+    original = RailsPulse.configuration.ignored_queries
+    RailsPulse.configuration.ignored_queries = [ %r{FROM \"?schema_migrations\"?} ]
+
+    payload = { sql: "SELECT * FROM \"schema_migrations\"", name: "SQL" }
+
+    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
+      sleep(0.001)
+    end
+
+    operations = RequestStore.store[:rails_pulse_operations]
+
+    assert_equal 0, operations.size, "Queries matching an ignored_queries regexp should be filtered out"
+  ensure
+    RailsPulse.configuration.ignored_queries = original
+  end
+
+  test "should not filter queries that do not match ignored_queries patterns" do
+    original = RailsPulse.configuration.ignored_queries
+    RailsPulse.configuration.ignored_queries = [ "SELECT 1" ]
+
+    payload = { sql: "SELECT * FROM users", name: "User Load" }
+
+    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
+      sleep(0.001)
+    end
+
+    operations = RequestStore.store[:rails_pulse_operations]
+
+    assert_equal 1, operations.size
+  ensure
+    RailsPulse.configuration.ignored_queries = original
+  end
+
   test "should capture template rendering operations" do
     payload = {
       identifier: "/app/views/users/show.html.erb"
