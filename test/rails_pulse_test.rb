@@ -146,6 +146,44 @@ class RailsPulseTest < ActiveSupport::TestCase
     assert_same RailsPulse.logger, RailsPulse.logger
   end
 
+  test "logger delivers messages to the configured logger instead of Rails.logger" do
+    original = Rails.logger
+    rails_output = StringIO.new
+    custom_output = StringIO.new
+    Rails.logger = Logger.new(rails_output)
+    RailsPulse.instance_variable_set(:@logger, nil)
+    RailsPulse.configuration.logger = Logger.new(custom_output)
+
+    RailsPulse.logger.warn("configured logger probe")
+
+    assert_includes custom_output.string, "configured logger probe"
+    assert_not_includes rails_output.string, "configured logger probe"
+  ensure
+    Rails.logger = original
+    RailsPulse.instance_variable_set(:@logger, nil)
+  end
+
+  test "logger honors a logger configured after the default logger was already used" do
+    original = Rails.logger
+    rails_output = StringIO.new
+    custom_output = StringIO.new
+    Rails.logger = Logger.new(rails_output)
+    RailsPulse.instance_variable_set(:@logger, nil)
+
+    RailsPulse.logger.warn("before configuration")
+
+    assert_includes rails_output.string, "before configuration"
+
+    RailsPulse.configuration.logger = Logger.new(custom_output)
+    RailsPulse.logger.warn("after configuration")
+
+    assert_includes custom_output.string, "after configuration"
+    assert_not_includes rails_output.string, "after configuration"
+  ensure
+    Rails.logger = original
+    RailsPulse.instance_variable_set(:@logger, nil)
+  end
+
   # connects_to
 
   test "connects_to returns nil when configuration has no connects_to" do

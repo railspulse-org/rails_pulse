@@ -33,6 +33,9 @@ module RailsPulse
     end
 
     def logger
+      configured = configuration&.logger
+      return configured if configured
+
       if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
         @logger ||= ActiveSupport::TaggedLogging.new(Rails.logger).tagged("RailsPulse")
       else
