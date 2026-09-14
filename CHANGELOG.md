@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **`config.logger` is now honored.** `RailsPulse.logger` previously ignored a custom logger set in the initializer and always wrote to the tagged `Rails.logger`; the configured logger now receives all Rails Pulse log output. (#244)
+- **Cached SQL reads no longer captured as operations.** Query-cache hits were going through the same stack-walk and operation-allocation path as real queries, adding measurable overhead on requests with heavy cache reuse. `config.ignored_queries` now also works — it was previously validated but never consulted when collecting SQL operations.
 - **Dashboard status bar badges are now all clickable.** Routes, Queries, and Jobs badges link to their respective pages, matching Exceptions and Storage.
 - **Standalone auth notice logged once per process.** The "standalone dashboard ignores config.authentication_method / config.authorize" notice kept its once-only flag on each controller class, so it repeated for every engine controller a visitor reached. The flag now lives on `RailsPulse::Standalone` and the notice is logged once per process.
 

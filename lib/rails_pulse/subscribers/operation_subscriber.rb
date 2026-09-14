@@ -157,9 +157,28 @@ module RailsPulse
           ActiveSupport::Notifications.subscribe "sql.active_record" do |name, start, finish, id, payload|
             begin
               next if payload[:name] == "SCHEMA"
+              # Cached reads never hit the database, so there's nothing to time or
+              # analyze for N+1s — skip before the stack walk in capture_operation.
+              next if payload[:cached]
+              next if query_ignored?(payload[:sql])
               capture_operation(name, start, finish, payload, "sql", :sql, extra: { row_count: payload[:row_count] })
             rescue => e
               RailsPulse.logger.error "Exception in SQL subscriber: #{e.class} - #{e.message}"
+            end
+          end
+        end
+
+        def query_ignored?(sql)
+          return false if sql.nil?
+
+          RailsPulse.configuration.ignored_queries.any? do |pattern|
+            case pattern
+            when String
+              pattern == sql
+            when Regexp
+              pattern.match?(sql)
+            else
+              false
             end
           end
         end
