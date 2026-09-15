@@ -106,6 +106,14 @@ module RailsPulse
         assert_includes item[:metric_sub], "Last run:"
       end
 
+      test "returns no staleness item after SummaryService runs with zero requests" do
+        RailsPulse::SummaryService.new("hour", 1.hour.ago.beginning_of_hour).perform
+
+        items = StoragePressure.new.pressure_items.select { |i| i[:name] == "Summary job" }
+
+        assert_empty items
+      end
+
       # Signal B — Stuck Records
 
       test "returns no stuck-records item when no requests exist past retention" do
