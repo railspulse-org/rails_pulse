@@ -107,5 +107,29 @@ module RailsPulse
       assert_equal 1, summary.status_5xx
       assert_equal 1, summary.status_4xx
     end
+
+    # ============================================================================
+    # Empty Period Tests
+    # ============================================================================
+
+    test "aggregate_requests writes an overall summary with count 0 when there are no requests" do
+      SummaryService.new("hour", @hour_start).perform
+
+      summary = Summary.find_by!(
+        summarizable_type: "RailsPulse::Request",
+        summarizable_id: 0,
+        period_type: "hour",
+        period_start: @hour_start
+      )
+
+      assert_equal 0, summary.count
+      assert_equal 0, summary.avg_duration
+      assert_nil summary.min_duration
+      assert_nil summary.max_duration
+      assert_nil summary.p50_duration
+      assert_nil summary.p95_duration
+      assert_nil summary.p99_duration
+      assert_nil summary.stddev_duration
+    end
   end
 end
