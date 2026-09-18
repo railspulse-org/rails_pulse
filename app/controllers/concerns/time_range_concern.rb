@@ -107,6 +107,20 @@ module TimeRangeConcern
 
     time_diff = (end_time.to_i - start_time.to_i) / 3600.0
 
+    # in_time_zone before rounding: a custom range parsed from a string
+    # (parse_time_param, below) is a plain Time carrying the server OS's
+    # local offset, not Time.zone. beginning_of_day/beginning_of_hour round
+    # in whatever offset the receiver carries, so without this conversion
+    # the boundary lands on local-offset midnight/top-of-hour — which is a
+    # different instant than Time.zone midnight/top-of-hour whenever the
+    # server's OS timezone isn't Time.zone. Summary#normalize_period_start
+    # always buckets by Time.zone, so a boundary rounded in the wrong zone
+    # silently misses every summary row and every chart on the page renders
+    # empty. Already-Time.zone values (every path but a parsed string) are
+    # a no-op here.
+    start_time = start_time.in_time_zone
+    end_time = end_time.in_time_zone
+
     if time_diff <= 25
       start_time = start_time.beginning_of_hour
       end_time = end_time.end_of_hour

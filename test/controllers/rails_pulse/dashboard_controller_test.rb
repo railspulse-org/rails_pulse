@@ -208,6 +208,13 @@ class RailsPulse::DashboardControllerTest < ActionDispatch::IntegrationTest
 
   test "custom time range drives the chart window instead of the trailing days" do
     travel_to Time.zone.parse("2026-09-19 12:00")
+    # parse_time_param deliberately reads a custom-range string as the
+    # server OS's local wall-clock time; pinning the OS zone to Time.zone
+    # here keeps that reading unambiguous so this test is only about the
+    # dashboard windowing under test, not the TZ-conversion edge case
+    # covered separately in TimeRangeConcernTest.
+    original_tz = ENV["TZ"]
+    ENV["TZ"] = "UTC"
     RailsPulse::Summary.delete_all
     route = rails_pulse_routes(:api_users)
     [ "2026-09-15", "2026-09-16" ].each do |day|
@@ -226,6 +233,7 @@ class RailsPulse::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/Sep 15/, response.body)
     assert_match(/Compared to previous 4 days/, response.body)
   ensure
+    ENV["TZ"] = original_tz
     travel_back
   end
 
