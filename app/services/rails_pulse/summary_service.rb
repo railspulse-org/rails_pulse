@@ -29,15 +29,18 @@ module RailsPulse
     private
 
     def aggregate_requests
-      # Create a single summary for ALL requests in this period
+      # Create a single summary for ALL requests in this period. Written even
+      # when the period is empty (count: 0) so its timestamp keeps advancing
+      # every period — it's the heartbeat several health checks use to detect
+      # whether SummaryJob is still running (dashboard banner, rails_pulse:status,
+      # StoragePressure staleness, and CleanupService's summarized_cutoff).
       requests = Request.where(occurred_at: start_time...end_time)
-
-      return if requests.empty?
 
       # Get all durations and statuses for percentile calculations
       request_data = requests.pluck(:duration, :status)
       durations = request_data.map(&:first).compact.sort
       statuses = request_data.map(&:second)
+      avg = durations.any? ? durations.sum.to_f / durations.size : 0
 
       # Find or create the overall request summary
       summary = Summary.find_or_initialize_by(
@@ -50,14 +53,14 @@ module RailsPulse
       summary.assign_attributes(
         period_end: end_time,
         count: durations.size,
-        avg_duration: durations.any? ? durations.sum.to_f / durations.size : 0,
+        avg_duration: avg,
         min_duration: durations.min,
         max_duration: durations.max,
         total_duration: durations.sum,
         p50_duration: RailsPulse::Statistics.calculate_percentile(durations, 0.5),
         p95_duration: RailsPulse::Statistics.calculate_percentile(durations, 0.95),
         p99_duration: RailsPulse::Statistics.calculate_percentile(durations, 0.99),
-        stddev_duration: RailsPulse::Statistics.calculate_stddev(durations, durations.sum.to_f / durations.size),
+        stddev_duration: RailsPulse::Statistics.calculate_stddev(durations, avg),
         error_count: statuses.count { |s| s >= 500 },
         success_count: statuses.count { |s| s < 500 },
         status_2xx: statuses.count { |s| s.between?(200, 299) },
