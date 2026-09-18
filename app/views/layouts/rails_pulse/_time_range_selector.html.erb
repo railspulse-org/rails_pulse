@@ -1,9 +1,9 @@
 <% preference = session_time_range_preference
 
-if preference.is_a?(Hash) && preference["type"] == "custom"
+if RailsPulse::TimeRangePreference.custom?(preference)
   current_selection = :custom
   current_label = "#{preference["start_time"]} to #{preference["end_time"]}"
-elsif preference.present?
+elsif preference.is_a?(String) && preference.present?
   current_selection = preference.to_sym
   current_label =
     case current_selection

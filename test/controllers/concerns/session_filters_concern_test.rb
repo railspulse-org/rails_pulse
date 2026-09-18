@@ -126,15 +126,15 @@ class SessionFiltersConcernTest < ActionController::TestCase
     assert_equal "last_24_hours", result
   end
 
-  test "session_time_range_preference returns symbol preset" do
+  test "session_time_range_preference normalizes a symbol preset to a string" do
     @controller.session[:time_range_preference] = :last_7_days
 
     result = @controller.send(:session_time_range_preference)
 
-    assert_equal :last_7_days, result
+    assert_equal "last_7_days", result
   end
 
-  test "session_time_range_preference returns custom range hash" do
+  test "session_time_range_preference normalizes a symbol-keyed custom range to string keys" do
     custom_range = {
       type: "custom",
       start_time: "2024-01-01",
@@ -145,9 +145,10 @@ class SessionFiltersConcernTest < ActionController::TestCase
     result = @controller.send(:session_time_range_preference)
 
     assert_kind_of Hash, result
-    assert_equal "custom", result[:type]
-    assert_equal "2024-01-01", result[:start_time]
-    assert_equal "2024-01-31", result[:end_time]
+    assert_equal "custom", result["type"]
+    assert_equal "2024-01-01", result["start_time"]
+    assert_equal "2024-01-31", result["end_time"]
+    assert_nil result[:type]
   end
 
   test "session_time_range_preference returns custom range with string keys" do
@@ -222,13 +223,13 @@ class SessionFiltersConcernTest < ActionController::TestCase
     assert_equal "invalid", result
   end
 
-  test "session_time_range_preference handles various data types" do
-    # Test with integer (shouldn't happen but test defensively)
+  test "session_time_range_preference returns nil for an unrecognized value" do
+    # A hand-edited or stale session value must fall back rather than raise
     @controller.session[:time_range_preference] = 123
 
     result = @controller.send(:session_time_range_preference)
 
-    assert_equal 123, result
+    assert_nil result
   end
 
   # Integration Tests

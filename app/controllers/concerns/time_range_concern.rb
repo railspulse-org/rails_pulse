@@ -41,6 +41,11 @@ module TimeRangeConcern
     end_time = Time.zone.now
     selected_time_range = default_key
 
+    # Normalized up front so a symbol-keyed hash from a Marshal-backed session
+    # store reads the same as the string-keyed one the cookie store produces;
+    # anything unrecognized becomes nil and falls through to later priorities.
+    session_preference = RailsPulse::TimeRangePreference.normalize(session[:time_range_preference])
+
     # Priority 1: Page-specific preset from dropdown (check this first!)
     if ransack_params[:period_start_range].present? && ransack_params[:period_start_range].to_sym != :custom
       # Predefined time range from dropdown
@@ -76,25 +81,22 @@ module TimeRangeConcern
         selected_time_range = :custom
       end
     # Priority 4: Time range selector (from session)
-    elsif session[:time_range_preference].present?
-      preference = session[:time_range_preference]
-      if preference.is_a?(Hash) && preference["type"] == "custom"
-        # Custom range from time range selector
-        start_time = parse_time_param(preference["start_time"]) || start_time
-        end_time = parse_time_param(preference["end_time"]) || end_time
-        selected_time_range = :custom
-      else
-        # Preset from time range selector
-        selected_time_range = preference.to_sym
-        start_time =
-          case selected_time_range
-          when :last_24_hours  then 1.day.ago
-          when :last_7_days    then 1.week.ago
-          when :last_14_days   then 2.weeks.ago
-          when :last_30_days   then 1.month.ago
-          else start_time
-          end
-      end
+    elsif RailsPulse::TimeRangePreference.custom?(session_preference)
+      # Custom range from time range selector
+      start_time = parse_time_param(session_preference["start_time"]) || start_time
+      end_time = parse_time_param(session_preference["end_time"]) || end_time
+      selected_time_range = :custom
+    elsif session_preference.is_a?(String) && session_preference.present?
+      # Preset from time range selector
+      selected_time_range = session_preference.to_sym
+      start_time =
+        case selected_time_range
+        when :last_24_hours  then 1.day.ago
+        when :last_7_days    then 1.week.ago
+        when :last_14_days   then 2.weeks.ago
+        when :last_30_days   then 1.month.ago
+        else start_time
+        end
     # Priority 5: Global filters (from session)
     elsif session_global_filters["start_time"].present? || session_global_filters["end_time"].present?
       start_time = parse_time_param(session_global_filters["start_time"]) || start_time
