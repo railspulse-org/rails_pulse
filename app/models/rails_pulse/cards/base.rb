@@ -6,8 +6,7 @@ module RailsPulse
       private
 
       # nil unless the caller passed both start_time and end_time, so the
-      # default "trailing @period days/hours ending now" math below still
-      # applies wherever no explicit range was selected.
+      # "trailing @period days/hours" fallback below still applies by default.
       def time_window
         return @time_window if defined?(@time_window)
 
@@ -114,16 +113,13 @@ module RailsPulse
         current_window_start
       end
 
-      # Every calendar date in the sparkline window, via TimeWindow so an
-      # explicit range that does not start on a day boundary (the normal case
-      # for a custom datetime range) does not leak the earlier partial day in
-      # as a spurious zero-value label.
+      # Every calendar date in the sparkline window. Via TimeWindow, so a
+      # range not starting on a day boundary skips the leading partial day.
       def sparkline_dates
         time_window&.dates || (sparkline_start.to_date..now.to_date).to_a
       end
 
-      # Every hour-start in the sparkline window, with the same skip-partial
-      # semantics as sparkline_dates.
+      # Same skip-partial semantics as sparkline_dates, for hours.
       def sparkline_hours
         time_window&.hour_starts || begin
           start_time = sparkline_start.beginning_of_hour

@@ -8,12 +8,10 @@ module RailsPulse
       @start_time, @end_time, @selected_time_range, @time_diff = setup_time_range
       populate_deployment_markers
 
-      # Whole days spanned by the selected range, rounded rather than
-      # truncated — a range a few seconds short of N whole days (e.g. a
-      # custom range ending :59:59) still counts as N. Cards and charts also
-      # receive @start_time/@end_time directly so they bucket the exact
-      # selected range instead of re-deriving "the last @period days ending
-      # now", which silently discarded a custom range set in the past.
+      # Rounded rather than truncated, so a range a few seconds short of N
+      # whole days still counts as N. Cards/charts also get @start_time/
+      # @end_time directly so they bucket the exact range, not "the last
+      # @period days ending now".
       @period = RailsPulse::TimeWindow.new(@start_time, @end_time).days
 
       # Determine period type based on time range

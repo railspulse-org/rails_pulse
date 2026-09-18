@@ -13,8 +13,7 @@ module RailsPulse
 
         def to_chart_data
           if @period_type == "hour"
-            # Bucket to exactly the selected hours when an explicit range was
-            # given; otherwise fall back to "the trailing @period days".
+            # Exact selected hours when explicit, else "trailing @period days".
             hours = time_window&.hour_starts || default_hour_range
             start_time = hours.first
             end_time = hours.last
@@ -68,8 +67,7 @@ module RailsPulse
             p95_data = time_range.map { |time| [ time.to_i * 1000, final_data[time]&.[](:p95) ] }
             p99_data = time_range.map { |time| [ time.to_i * 1000, final_data[time]&.[](:p99) ] }
           else
-            # Bucket to exactly the selected calendar days when an explicit
-            # range was given; otherwise fall back to "the trailing @period days".
+            # Exact selected days when explicit, else "trailing @period days".
             date_range = time_window&.dates || default_day_range
             start_date = date_range.first
             end_date = date_range.last
@@ -171,9 +169,8 @@ module RailsPulse
 
         private
 
-        # nil unless both start_time and end_time were given, so the dashboard's
-        # default "recent" view (no custom range selected) keeps using the
-        # trailing-@period-days fallback below.
+        # nil unless both start_time and end_time were given, so the default
+        # "recent" view keeps using the trailing-@period-days fallback below.
         def time_window
           @time_window ||= RailsPulse::TimeWindow.build(@start_time, @end_time)
         end

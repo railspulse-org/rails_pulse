@@ -1,19 +1,12 @@
 module RailsPulse
-  # A resolved start/end range plus the bucketing helpers dashboard charts,
-  # cards, and summary panels need: how many whole days it spans, which
-  # calendar dates or hour-starts fall inside it, and the equal-length window
-  # immediately before it for period-over-period comparisons.
-  #
-  # Built from the start/end times TimeRangeConcern#setup_time_range resolves
-  # and threaded through instead of collapsing to a bare day count. Collapsing
-  # to a count and re-deriving "the last N days ending now" from it silently
-  # discarded any custom range set in the past, and truncated the count
-  # itself via integer division on top of that.
+  # A resolved start/end range plus the bucketing helpers charts and cards
+  # need: day count, calendar dates/hour-starts inside it, and the
+  # equal-length prior window for comparisons.
   class TimeWindow
     attr_reader :start_time, :end_time
 
-    # Returns nil (rather than raising) when either bound is missing, since
-    # every caller already has a "no range selected" fallback to use instead.
+    # nil (not raised) when either bound is missing — callers already have
+    # a "no range selected" fallback to use instead.
     def self.build(start_time, end_time)
       return nil if start_time.nil? || end_time.nil?
 
@@ -25,17 +18,14 @@ module RailsPulse
       @end_time = coerce(end_time)
     end
 
-    # Whole days spanned, rounded rather than truncated so a range that is a
-    # few seconds short of N whole days (e.g. "last N days" ending :59:59)
-    # still counts as N, not N-1. Always at least 1.
+    # Whole days spanned, rounded rather than truncated (a range a few
+    # seconds short of N days still counts as N). Always at least 1.
     def days
       [ ((end_time - start_time) / 1.day).round, 1 ].max
     end
 
-    # Every calendar date whose day-bucket (midnight to midnight) falls
-    # entirely inside the window, ascending. A day whose midnight is before
-    # the window start is excluded, so a start time that lands mid-day does
-    # not pull in a partial day of data from before the selected range.
+    # Every full calendar day inside the window, ascending. Skips a leading
+    # day whose midnight falls before the window start.
     def dates
       first_date = start_time.beginning_of_day == start_time ? start_time.to_date : (start_time.to_date + 1)
       return [] if first_date > end_time.to_date

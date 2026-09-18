@@ -125,9 +125,8 @@ module RailsPulse
 
         private
 
-        # nil unless both start_time and end_time were given, so the dashboard's
-        # default "recent" view (no custom range selected) keeps using the
-        # trailing-@period-days fallback below.
+        # nil unless both start_time and end_time were given, so the default
+        # "recent" view keeps using the trailing-@period-days fallback below.
         def time_window
           @time_window ||= RailsPulse::TimeWindow.build(@start_time, @end_time)
         end
