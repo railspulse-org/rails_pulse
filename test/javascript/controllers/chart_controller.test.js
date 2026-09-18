@@ -139,6 +139,45 @@ describe('ChartController', () => {
       expect(typeof formatter).toBe('function')
       expect(formatter(t0)).not.toBe(formatter(t1))
     })
+
+    it('sets xAxis.minInterval to the data\'s actual bucket size, so auto-placed ticks cannot land closer together than one real day and repeat the same date label', async () => {
+      const day1 = new Date('2024-01-15T00:00:00').getTime()
+      const day2 = new Date('2024-01-16T00:00:00').getTime()
+      const day3 = new Date('2024-01-17T00:00:00').getTime()
+      const seriesData = [{ name: 'P95', data: [[day1, 100], [day2, 110], [day3, 120]] }]
+      const html = makeTimePairHTML(seriesData)
+      const ctrl = await mountChart(html)
+
+      const config = ctrl.buildChartConfig()
+
+      expect(config.xAxis.minInterval).toBe(24 * 60 * 60 * 1000)
+    })
+
+    it('derives minInterval from the smallest gap even when an SLO series shares timestamps with the data series', async () => {
+      const day1 = new Date('2024-01-15T00:00:00').getTime()
+      const day2 = new Date('2024-01-16T00:00:00').getTime()
+      const seriesData = [
+        { name: 'P95 SLO (200ms)', data: [[day1, 200], [day2, 200]] },
+        { name: 'P95', data: [[day1, 100], [day2, 110]] }
+      ]
+      const html = makeTimePairHTML(seriesData)
+      const ctrl = await mountChart(html)
+
+      const config = ctrl.buildChartConfig()
+
+      expect(config.xAxis.minInterval).toBe(24 * 60 * 60 * 1000)
+    })
+
+    it('does not set minInterval when there is only one data point', async () => {
+      const day1 = new Date('2024-01-15T00:00:00').getTime()
+      const seriesData = [{ name: 'P95', data: [[day1, 100]] }]
+      const html = makeTimePairHTML(seriesData)
+      const ctrl = await mountChart(html)
+
+      const config = ctrl.buildChartConfig()
+
+      expect(config.xAxis.minInterval).toBeUndefined()
+    })
   })
 
   // # Tooltip formatters — null value handling
