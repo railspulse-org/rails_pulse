@@ -2,17 +2,20 @@ module RailsPulse
   module Dashboard
     module Charts
       class ThroughputAndErrors
-        def initialize(disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day")
+        def initialize(disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
           @disabled_tags = disabled_tags
           @show_non_tagged = show_non_tagged
           @period = period
           @period_type = period_type
+          @start_time = start_time
+          @end_time = end_time
         end
 
         def to_chart_data
           if @period_type == "hour"
-            start_time = (@period * 24).hours.ago.beginning_of_hour
-            end_time = Time.current.beginning_of_hour
+            hours = time_window&.hour_starts || default_hour_range
+            start_time = hours.first
+            end_time = hours.last
 
             summaries = RailsPulse::Summary
               .with_tag_filters(@disabled_tags, @show_non_tagged)
@@ -40,13 +43,7 @@ module RailsPulse
               }
             end
 
-            # Build hourly time range
-            time_range = []
-            current_time = start_time
-            while current_time <= end_time
-              time_range << current_time
-              current_time += 1.hour
-            end
+            time_range = hours
 
             series = [
               {
@@ -70,9 +67,9 @@ module RailsPulse
 
             return { series: series }
           else
-            start_date = @period.days.ago.beginning_of_day.to_date
-            end_date = Time.current.to_date
-            date_range = (start_date..end_date)
+            date_range = time_window&.dates || default_day_range
+            start_date = date_range.first
+            end_date = date_range.last
 
             summaries = RailsPulse::Summary
               .with_tag_filters(@disabled_tags, @show_non_tagged)
@@ -124,6 +121,33 @@ module RailsPulse
           end
 
           { labels: labels, series: series }
+        end
+
+        private
+
+        # nil unless both start_time and end_time were given, so the dashboard's
+        # default "recent" view (no custom range selected) keeps using the
+        # trailing-@period-days fallback below.
+        def time_window
+          @time_window ||= RailsPulse::TimeWindow.build(@start_time, @end_time)
+        end
+
+        def default_hour_range
+          start_time = (@period * 24).hours.ago.beginning_of_hour
+          end_time = Time.current.beginning_of_hour
+          hours = []
+          current_time = start_time
+          while current_time <= end_time
+            hours << current_time
+            current_time += 1.hour
+          end
+          hours
+        end
+
+        def default_day_range
+          start_date = @period.days.ago.beginning_of_day.to_date
+          end_date = Time.current.to_date
+          (start_date..end_date).to_a
         end
       end
     end

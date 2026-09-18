@@ -279,7 +279,70 @@ module RailsPulse
           assert_includes result[:labels], 15.days.ago.to_date.strftime("%b %-d")
         end
 
+        # Explicit Range Tests
+
+        test "explicit range buckets exactly the selected days and ignores the trailing window" do
+          travel_to Time.zone.parse("2026-09-19 12:00")
+          route = rails_pulse_routes(:api_users)
+          create_route_day_summary(route, Time.zone.parse("2026-09-15"), p50: 900, p95: 1000, p99: 1500, count: 100)
+          create_route_day_summary(route, Time.zone.parse("2026-09-16"), p50: 10, p95: 20, p99: 30, count: 100)
+
+          result = RailsPulse::Dashboard::Charts::ResponseTimePercentiles.new(
+            period: 3, period_type: "day",
+            start_time: Time.zone.parse("2026-09-16 00:00").to_i, end_time: Time.zone.parse("2026-09-19 23:59:59").to_i
+          ).to_chart_data
+
+          assert_equal [ "Sep 16", "Sep 17", "Sep 18", "Sep 19" ], result[:labels]
+          p95 = result[:series].find { |s| s[:name] == "P95" }
+
+          assert_equal [ 20, nil, nil, nil ], p95[:data]
+        end
+
+        test "explicit range entirely in the past is honored" do
+          travel_to Time.zone.parse("2026-09-19 12:00")
+          route = rails_pulse_routes(:api_users)
+          create_route_day_summary(route, Time.zone.parse("2026-09-02"), p50: 10, p95: 20, p99: 30, count: 100)
+
+          result = RailsPulse::Dashboard::Charts::ResponseTimePercentiles.new(
+            period: 4, period_type: "day",
+            start_time: Time.zone.parse("2026-09-01 00:00").to_i, end_time: Time.zone.parse("2026-09-05 23:59:59").to_i
+          ).to_chart_data
+
+          assert_equal [ "Sep 1", "Sep 2", "Sep 3", "Sep 4", "Sep 5" ], result[:labels]
+        end
+
+        test "explicit hourly range buckets exactly the selected hours" do
+          travel_to Time.zone.parse("2026-09-19 12:00")
+          route = rails_pulse_routes(:api_users)
+          create_route_hour_summary(route, Time.zone.parse("2026-09-19 07:00"), p50: 10, p95: 20, p99: 30, count: 10)
+
+          result = RailsPulse::Dashboard::Charts::ResponseTimePercentiles.new(
+            period: 1, period_type: "hour",
+            start_time: Time.zone.parse("2026-09-19 06:00").to_i, end_time: Time.zone.parse("2026-09-19 08:59:59").to_i
+          ).to_chart_data
+
+          p95 = result[:series].find { |s| s[:name] == "P95" }
+          expected_hours = [ "2026-09-19 06:00", "2026-09-19 07:00", "2026-09-19 08:00" ].map { |h| Time.zone.parse(h).to_i * 1000 }
+
+          assert_equal expected_hours, p95[:data].map(&:first)
+          assert_equal [ nil, 20, nil ], p95[:data].map(&:last)
+        end
+
         private
+
+        def create_route_hour_summary(route, time, p50:, p95:, p99:, count:)
+          RailsPulse::Summary.create!(
+            summarizable: route,
+            period_start: time.beginning_of_hour,
+            period_end: time.end_of_hour,
+            period_type: "hour",
+            count: count,
+            avg_duration: p50.to_f,
+            p50_duration: p50.to_f,
+            p95_duration: p95.to_f,
+            p99_duration: p99.to_f
+          )
+        end
 
         def create_route_day_summary(route, date, p50:, p95:, p99:, count:)
           RailsPulse::Summary.create!(

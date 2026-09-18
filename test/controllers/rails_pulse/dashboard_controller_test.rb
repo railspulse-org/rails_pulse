@@ -206,6 +206,29 @@ class RailsPulse::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil response.body
   end
 
+  test "custom time range drives the chart window instead of the trailing days" do
+    travel_to Time.zone.parse("2026-09-19 12:00")
+    RailsPulse::Summary.delete_all
+    route = rails_pulse_routes(:api_users)
+    [ "2026-09-15", "2026-09-16" ].each do |day|
+      date = Time.zone.parse(day)
+      RailsPulse::Summary.create!(
+        summarizable: route, period_type: "day", period_start: date.beginning_of_day, period_end: date.end_of_day,
+        count: 10, avg_duration: 10.0, p50_duration: 10.0, p95_duration: 20.0, p99_duration: 30.0
+      )
+    end
+
+    patch rails_pulse.settings_time_range_path, params: { start_time: "2026-09-16 00:00", end_time: "2026-09-19 12:00" }
+    get rails_pulse.root_path
+
+    assert_response :success
+    assert_match(/Sep 16/, response.body)
+    assert_no_match(/Sep 15/, response.body)
+    assert_match(/Compared to previous 4 days/, response.body)
+  ensure
+    travel_back
+  end
+
   test "dashboard assets stay on origin when asset_host is set" do
     previous_app = Rails.application.config.asset_host
     previous_ac = ActionController::Base.config.asset_host

@@ -2,12 +2,14 @@ module RailsPulse
   module Routes
     module Cards
       class PercentileResponseTimes < RailsPulse::Cards::Base
-        def initialize(route: nil, disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day")
+        def initialize(route: nil, disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
           @route = route
           @disabled_tags = disabled_tags
           @show_non_tagged = show_non_tagged
           @period = period
           @period_type = period_type
+          @start_time = start_time
+          @end_time = end_time
         end
 
         def to_metric_card

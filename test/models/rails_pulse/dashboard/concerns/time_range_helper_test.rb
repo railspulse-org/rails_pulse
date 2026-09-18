@@ -146,6 +146,35 @@ module RailsPulse
           refute_equal end_time, end_time.beginning_of_day
         end
 
+        # Explicit Range Tests
+
+        class RangedTestClass < TestClass
+          def initialize(period:, start_time:, end_time:)
+            super(period: period)
+            @start_time = start_time
+            @end_time = end_time
+          end
+        end
+
+        test "period_range uses the explicit range when one is given" do
+          start_time = Time.zone.parse("2026-09-16 00:00")
+          end_time = Time.zone.parse("2026-09-19 23:59:59")
+          instance = RangedTestClass.new(period: 3, start_time: start_time.to_i, end_time: end_time.to_i)
+
+          assert_equal [ start_time, end_time ], instance.send(:period_range)
+        end
+
+        test "HealthSummary and NeedsAttention accept an explicit range" do
+          start_time = Time.zone.parse("2026-09-16 00:00")
+          end_time = Time.zone.parse("2026-09-19 23:59:59")
+
+          [ RailsPulse::Dashboard::HealthSummary, RailsPulse::Dashboard::NeedsAttention ].each do |klass|
+            instance = klass.new(period: 3, start_time: start_time.to_i, end_time: end_time.to_i)
+
+            assert_equal [ start_time, end_time ], instance.send(:period_range), klass.name
+          end
+        end
+
         # Integration Tests
 
         test "period_range works with actual dashboard classes" do

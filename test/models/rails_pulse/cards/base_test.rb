@@ -22,13 +22,52 @@ module RailsPulse
       class TestCard < Base
         attr_reader :disabled_tags, :show_non_tagged
 
-        def initialize(job: nil, disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day")
+        def initialize(job: nil, disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
           @job = job
           @disabled_tags = disabled_tags
           @show_non_tagged = show_non_tagged
           @period = period
           @period_type = period_type
+          @start_time = start_time
+          @end_time = end_time
         end
+      end
+
+      # Explicit Range Tests
+
+      def ranged_card(period_type: "day")
+        TestCard.new(
+          period: 3, period_type: period_type,
+          start_time: Time.zone.parse("2026-09-16 00:00").to_i,
+          end_time: Time.zone.parse("2026-09-19 23:59:59").to_i
+        )
+      end
+
+      test "explicit range anchors now to the range end instead of the clock" do
+        assert_equal Time.zone.parse("2026-09-19 23:59:59"), ranged_card.send(:now)
+      end
+
+      test "explicit range sets current_window_start to the range start" do
+        assert_equal Time.zone.parse("2026-09-16 00:00"), ranged_card.send(:current_window_start)
+      end
+
+      test "explicit range counts whole days without truncating" do
+        assert_equal 4, ranged_card.send(:window_days)
+        assert_equal "Compared to previous 4 days", ranged_card.send(:comparison_period_text)
+      end
+
+      test "explicit range previous window is the same length immediately before" do
+        assert_equal Time.zone.parse("2026-09-12 00:00"), ranged_card.send(:previous_window_start)
+      end
+
+      test "explicit range daily sparkline covers exactly the selected days" do
+        sparkline = ranged_card.send(:sparkline_from, {})
+
+        assert_equal [ "Sep 16", "Sep 17", "Sep 18", "Sep 19" ], sparkline.keys
+      end
+
+      test "explicit range date label spans the selected days" do
+        assert_equal "Sep 16 – Sep 19", ranged_card.send(:period_date_range)
       end
 
       # Time Period Tests - Day Type

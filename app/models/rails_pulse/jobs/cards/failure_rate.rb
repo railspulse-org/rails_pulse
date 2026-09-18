@@ -2,12 +2,14 @@ module RailsPulse
   module Jobs
     module Cards
       class FailureRate < RailsPulse::Cards::Base
-        def initialize(job: nil, disabled_tags: [], show_non_tagged: true, period: 14, period_type: "day")
+        def initialize(job: nil, disabled_tags: [], show_non_tagged: true, period: 14, period_type: "day", start_time: nil, end_time: nil)
           @job = job
           @disabled_tags = disabled_tags
           @show_non_tagged = show_non_tagged
           @period = period
           @period_type = period_type
+          @start_time = start_time
+          @end_time = end_time
         end
 
         def to_metric_card
@@ -88,25 +90,15 @@ module RailsPulse
 
         def sparkline_from_failure_rates(errors_by_period, counts_by_period)
           if @period_type == "hour"
-            start_time = current_window_start.beginning_of_hour
-            end_time = now.beginning_of_hour
-            result = {}
-
-            current_time = start_time
-            while current_time <= end_time
+            sparkline_hours.each_with_object({}) do |current_time, result|
               errors = errors_by_period[current_time].to_f
               total = counts_by_period[current_time].to_f
               rate = total.zero? ? 0.0 : (errors / total * 100).round(1)
               # Use timestamp in milliseconds as key to preserve uniqueness across days
               result[current_time.to_i * 1000] = { value: rate }
-              current_time += 1.hour
             end
-            result
           else
-            start_date = current_window_start.to_date
-            end_date = now.to_date
-
-            (start_date..end_date).each_with_object({}) do |day, hash|
+            sparkline_dates.each_with_object({}) do |day, hash|
               errors = errors_by_period[day].to_f
               total = counts_by_period[day].to_f
               rate = total.zero? ? 0.0 : (errors / total * 100).round(1)
