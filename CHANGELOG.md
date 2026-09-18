@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Cleanup no longer risks statement timeouts on large tables.** `CleanupService`'s orphan checks for queries, routes, jobs, and exception groups used a `NOT IN` subquery, which some databases (notably PostgreSQL at scale) execute by materializing and rescanning the full subquery result instead of using an index. Switched to a correlated `NOT EXISTS`, which lets the planner use an index per row. A stalled cleanup stage previously blocked all later stages, including hourly summary pruning. (#253)
 - **Idle periods no longer trigger false "summary job not running" warnings.** `SummaryJob` now records a zero-count overall summary for hours/days with no requests, so the dashboard banner, `rails_pulse:status`, the storage-pressure card, and count-based cleanup no longer mistake "no traffic" for "job stopped running." (#250)
 - **`config.logger` is now honored.** `RailsPulse.logger` previously ignored a custom logger set in the initializer and always wrote to the tagged `Rails.logger`; the configured logger now receives all Rails Pulse log output. (#244)
 - **Cached SQL reads no longer captured as operations.** Query-cache hits were going through the same stack-walk and operation-allocation path as real queries, adding measurable overhead on requests with heavy cache reuse. `config.ignored_queries` now also works — it was previously validated but never consulted when collecting SQL operations.
