@@ -599,9 +599,9 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
     }
 
     assert_kind_of Hash, session[:time_range_preference]
-    assert_equal "custom", session[:time_range_preference][:type]
-    assert_equal "2024-01-01 00:00", session[:time_range_preference][:start_time]
-    assert_equal "2024-01-31 23:59", session[:time_range_preference][:end_time]
+    assert_equal "custom", session[:time_range_preference]["type"]
+    assert_equal "2024-01-01 00:00", session[:time_range_preference]["start_time"]
+    assert_equal "2024-01-31 23:59", session[:time_range_preference]["end_time"]
   end
 
   test "set_time_range preset takes precedence over custom times" do

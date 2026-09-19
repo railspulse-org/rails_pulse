@@ -24,10 +24,11 @@ module SessionFiltersConcern
     session_global_filters["disabled_tags"] || []
   end
 
-  # Returns the time range preference from session
-  # Can be a symbol/string for presets or a hash for custom ranges
+  # Returns the time range preference from session, normalized so every
+  # session serializer yields the same shape: a String preset name, a
+  # string-keyed Hash for a custom range, or nil for anything unrecognized.
   def session_time_range_preference
-    session[:time_range_preference]
+    RailsPulse::TimeRangePreference.normalize(session[:time_range_preference])
   end
 
   # Returns whether deployment markers should be shown by default

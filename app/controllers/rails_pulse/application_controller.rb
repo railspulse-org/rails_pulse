@@ -86,10 +86,12 @@ module RailsPulse
         session[:time_range_preference] = preset if TIME_RANGE_PRESETS.include?(preset)
       elsif start_time && end_time
         # Store custom range
+        # String keys: a Marshal-backed session store would otherwise hand the
+        # symbol keys back verbatim, and the readers expect the JSON shape.
         session[:time_range_preference] = {
-          type: "custom",
-          start_time: start_time,
-          end_time: end_time
+          "type" => "custom",
+          "start_time" => start_time,
+          "end_time" => end_time
         }
       end
 

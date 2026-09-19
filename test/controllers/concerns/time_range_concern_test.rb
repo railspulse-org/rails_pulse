@@ -351,6 +351,32 @@ class TimeRangeConcernTest < ActionController::TestCase
     assert_kind_of Integer, end_time
   end
 
+  test "setup_time_range handles session custom range with symbol keys" do
+    # Marshal-backed session stores (e.g. activerecord-session_store) keep the
+    # symbol keys the writer used; the cookie store's JSON round trip does not.
+    custom_start = 5.days.ago.to_i
+    custom_end = 2.days.ago.to_i
+    @controller.session[:time_range_preference] = {
+      type: "custom",
+      start_time: custom_start,
+      end_time: custom_end
+    }
+
+    start_time, end_time, selected_range, _time_diff = @controller.send(:setup_time_range)
+
+    assert_equal "custom", selected_range
+    assert_in_delta custom_start, start_time, 86400
+    assert_in_delta custom_end, end_time, 86400
+  end
+
+  test "setup_time_range falls back to default for a session hash without a custom type" do
+    @controller.session[:time_range_preference] = { "foo" => "bar" }
+
+    _start_time, _end_time, selected_range, _time_diff = @controller.send(:setup_time_range)
+
+    assert_equal "last_24_hours", selected_range
+  end
+
   test "setup_time_range handles session preset symbols" do
     @controller.session[:time_range_preference] = :last_30_days
 
