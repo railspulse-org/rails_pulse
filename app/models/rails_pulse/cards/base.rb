@@ -149,10 +149,24 @@ module RailsPulse
 
       # Group sparkline query by period type (hour or day)
       def group_sparkline_by_period(sparkline_query, sum_field)
-        if period_type_hours?
-          sparkline_query.group_by_hour(:period_start).sum(sum_field)
-        else
-          sparkline_query.group_by_date(:period_start).sum(sum_field)
+        bucket_by_period(sparkline_query) { |relation| relation.sum(sum_field) }
+      end
+
+      # Aggregates `relation` per calendar day of Time.zone, or per hour when
+      # the card's period type is "hour". The block receives the relation
+      # grouped by `column` and does the arithmetic in SQL; only the
+      # re-bucketing of keys happens here. It is done in Ruby because SQL
+      # DATE() / DATE_TRUNC() operate on the stored UTC value, which puts a
+      # Melbourne midnight on the previous calendar date and a Kolkata hour
+      # thirty minutes off, so the sparkline lookups (keyed by Time.zone
+      # dates and hour starts) would miss.
+      def bucket_by_period(relation, column: :period_start)
+        yield(relation.group(column)).each_with_object({}) do |(time, value), buckets|
+          next if time.nil? || value.nil?
+
+          local = time.in_time_zone
+          key = period_type_hours? ? local.beginning_of_hour : local.to_date
+          buckets[key] = (buckets[key] || 0) + value
         end
       end
 

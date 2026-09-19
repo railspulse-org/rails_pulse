@@ -44,11 +44,7 @@ module RailsPulse
             )
           sparkline_query = sparkline_query.where(summarizable_id: @route.id) if @route
 
-          if period_type_hours?
-            grouped_data = sparkline_query.group_by_hour(:period_start).sum(:count)
-          else
-            grouped_data = sparkline_query.group_by_date(:period_start).sum(:count)
-          end
+          grouped_data = bucket_by_period(sparkline_query) { |relation| relation.sum(:count) }
 
           # Use base class sparkline generation (handles hour vs day automatically)
           sparkline_data = sparkline_from(grouped_data)

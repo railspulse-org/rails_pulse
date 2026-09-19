@@ -46,13 +46,8 @@ module RailsPulse
             )
           sparkline_query = sparkline_query.where(summarizable_id: @query.id) if @query
 
-          if period_type_hours?
-            weighted_sums = sparkline_query.group_by_hour(:period_start).sum("p95_duration * count")
-            period_counts = sparkline_query.group_by_hour(:period_start).sum(:count)
-          else
-            weighted_sums = sparkline_query.group_by_date(:period_start).sum("p95_duration * count")
-            period_counts = sparkline_query.group_by_date(:period_start).sum(:count)
-          end
+          weighted_sums = bucket_by_period(sparkline_query) { |relation| relation.sum("p95_duration * count") }
+          period_counts = bucket_by_period(sparkline_query) { |relation| relation.sum(:count) }
 
           # Calculate weighted averages for each period
           averages_by_period = weighted_sums.each_with_object({}) do |(period, weighted), hash|
