@@ -43,7 +43,7 @@ module RailsPulse
       # System Health bar
       @health_summary = RailsPulse::Dashboard::HealthSummary.new(disabled_tags: disabled_tags, show_non_tagged: show_non_tagged, period: @period, start_time: @start_time, end_time: @end_time).to_health_data
 
-      @storage_status = RailsPulse::Dashboard::StorageStatus.new
+      @storage_status = RailsPulse::Dashboard::StorageStatus.new(cached_sizes: true)
 
       # Deployments panel — scoped to the same window as the chart markers so
       # the panel and the markers drawn on the charts always agree.

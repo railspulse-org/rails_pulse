@@ -6,6 +6,15 @@ module RailsPulse
     # @param show_non_tagged [Boolean] Whether to include non-tagged items
     # @return [Array<Integer>] Filtered IDs
     def self.filter_ids(model_class, disabled_tags, show_non_tagged)
+      scope(model_class, disabled_tags, show_non_tagged).pluck(:id)
+    end
+
+    # The same filter as a relation, for use as a subquery. Summary
+    # .with_tag_filters embeds it in an IN (SELECT id ...) so the database
+    # applies the tag filter itself instead of the app plucking every route,
+    # query and job id and sending them back inline on each card's query.
+    # @return [ActiveRecord::Relation]
+    def self.scope(model_class, disabled_tags, show_non_tagged)
       relation = model_class.all
 
       # Exclude items with disabled tags. Explicit ESCAPE: SQLite has no
@@ -21,7 +30,7 @@ module RailsPulse
         relation = relation.where("tags IS NOT NULL AND tags != '[]'")
       end
 
-      relation.pluck(:id)
+      relation
     end
 
     # Main entry point for tag filtering
