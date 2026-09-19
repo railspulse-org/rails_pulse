@@ -166,6 +166,14 @@ module RailsPulse
       end
     end
 
+    # Method Override Tests
+
+    test "a spoofed POST (_method=patch) reaches the PATCH-only settings route instead of 404ing" do
+      response = post("/settings/time_range", params: { "preset" => "last_7_days", "_method" => "patch" })
+
+      assert_not_equal 404, response.status
+    end
+
     # Server Configuration Tests
 
     test "falls back to the host app's secret_key_base when SECRET_KEY_BASE is not set" do
@@ -307,6 +315,10 @@ module RailsPulse
 
     def get(path, env = {})
       Rack::MockRequest.new(@app).get(path, env)
+    end
+
+    def post(path, env = {})
+      Rack::MockRequest.new(@app).post(path, env)
     end
 
     def basic(username, password)
