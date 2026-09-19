@@ -167,14 +167,6 @@ module RailsPulse
     end
 
     # Method Override Tests
-    #
-    # The dashboard's time-range and global-filters pickers submit a real
-    # HTML form: POST with a hidden _method=patch field, the standard verb
-    # override trick, relying on Rack::MethodOverride (or
-    # ActionDispatch::MethodOverride) to translate it into the PATCH the
-    # route actually expects. The mounted engine gets that middleware for
-    # free from the host app's default stack; this hand-built rackup does
-    # not add it.
 
     test "a spoofed POST (_method=patch) reaches the PATCH-only settings route instead of 404ing" do
       response = post("/settings/time_range", params: { "preset" => "last_7_days", "_method" => "patch" })
