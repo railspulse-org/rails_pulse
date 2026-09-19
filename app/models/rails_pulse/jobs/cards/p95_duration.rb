@@ -50,13 +50,8 @@ module RailsPulse
             trend_icon, trend_amount = trend_for(current_p95, previous_p95)
           end
 
-          grouped_weighted = base_query
-            .group_by_date(:period_start)
-            .sum(Arel.sql("rails_pulse_summaries.p95_duration * rails_pulse_summaries.count"))
-
-          grouped_counts = base_query
-            .group_by_date(:period_start)
-            .sum("rails_pulse_summaries.count")
+          grouped_weighted = bucket_by_period(base_query) { |relation| relation.sum(Arel.sql("rails_pulse_summaries.p95_duration * rails_pulse_summaries.count")) }
+          grouped_counts = bucket_by_period(base_query) { |relation| relation.sum("rails_pulse_summaries.count") }
 
           sparkline_data = sparkline_from_averages(grouped_weighted, grouped_counts)
 

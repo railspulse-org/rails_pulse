@@ -36,10 +36,9 @@ module RailsPulse
           # what it means on a throughput card.
           trend_icon, trend_amount = trend_for(current, previous) if show_trend?
 
-          grouped = base_query
-            .where(period_start: current_window_start..now)
-            .group_by_date(:period_start)
-            .sum("rails_pulse_summaries.count")
+          grouped = bucket_by_period(base_query.where(period_start: current_window_start..now)) do |relation|
+            relation.sum("rails_pulse_summaries.count")
+          end
 
           {
             id: "exceptions_total_occurrences",

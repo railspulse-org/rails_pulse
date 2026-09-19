@@ -24,6 +24,13 @@ jobs:
             rails: "8.1"
             database: "sqlite3"
             coverage: true
+          # One cell east of UTC: summaries are bucketed in Time.zone, and
+          # bugs that put a local midnight on the previous UTC date only
+          # show up here.
+          - ruby: "3.4"
+            rails: "8.1"
+            database: "postgresql"
+            time_zone: "Australia/Melbourne"
 
     services:
       postgres:
@@ -43,6 +50,8 @@ jobs:
       RAILS_ENV: test
       DB: ${{ matrix.database }}
       CI: true
+      TZ: ${{ matrix.time_zone || 'UTC' }}
+      RAILS_PULSE_TEST_TIME_ZONE: ${{ matrix.time_zone || '' }}
       POSTGRES_USERNAME: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_HOST: localhost

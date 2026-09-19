@@ -98,11 +98,7 @@ module RailsPulse
         def grouped_counts(scope)
           scoped = scope.where(period_type: @period_type, period_start: current_window_start..now)
 
-          if period_type_hours?
-            scoped.group_by_hour(:period_start).sum("rails_pulse_summaries.count")
-          else
-            scoped.group_by_date(:period_start).sum("rails_pulse_summaries.count")
-          end
+          bucket_by_period(scoped) { |relation| relation.sum("rails_pulse_summaries.count") }
         end
 
         def period_stat(exceptions, requests)
