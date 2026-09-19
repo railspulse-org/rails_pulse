@@ -125,14 +125,14 @@ module RailsPulse
     def cleanup_queries_by_time(cutoff_time)
       RailsPulse::Query
         .where("created_at < ?", cutoff_time)
-        .where("id NOT IN (SELECT query_id FROM rails_pulse_operations WHERE query_id IS NOT NULL)")
+        .where("NOT EXISTS (SELECT 1 FROM rails_pulse_operations WHERE rails_pulse_operations.query_id = rails_pulse_queries.id)")
         .delete_all
     end
 
     def cleanup_routes_by_time(cutoff_time)
       RailsPulse::Route
         .where("created_at < ?", cutoff_time)
-        .where("id NOT IN (SELECT route_id FROM rails_pulse_requests WHERE route_id IS NOT NULL)")
+        .where("NOT EXISTS (SELECT 1 FROM rails_pulse_requests WHERE rails_pulse_requests.route_id = rails_pulse_routes.id)")
         .delete_all
     end
 
@@ -145,7 +145,7 @@ module RailsPulse
     def cleanup_jobs_by_time(cutoff_time)
       RailsPulse::Job
         .where("created_at < ?", cutoff_time)
-        .where("id NOT IN (SELECT job_id FROM rails_pulse_job_runs WHERE job_id IS NOT NULL)")
+        .where("NOT EXISTS (SELECT 1 FROM rails_pulse_job_runs WHERE rails_pulse_job_runs.job_id = rails_pulse_jobs.id)")
         .delete_all
     end
 
@@ -193,21 +193,21 @@ module RailsPulse
 
     def cleanup_queries_by_count
       scope = RailsPulse::Query.where(
-        "id NOT IN (SELECT query_id FROM rails_pulse_operations WHERE query_id IS NOT NULL)"
+        "NOT EXISTS (SELECT 1 FROM rails_pulse_operations WHERE rails_pulse_operations.query_id = rails_pulse_queries.id)"
       )
       cleanup_by_count(RailsPulse::Query, :rails_pulse_queries, order_column: :created_at, scope: scope)
     end
 
     def cleanup_routes_by_count
       scope = RailsPulse::Route.where(
-        "id NOT IN (SELECT route_id FROM rails_pulse_requests WHERE route_id IS NOT NULL)"
+        "NOT EXISTS (SELECT 1 FROM rails_pulse_requests WHERE rails_pulse_requests.route_id = rails_pulse_routes.id)"
       )
       cleanup_by_count(RailsPulse::Route, :rails_pulse_routes, order_column: :created_at, scope: scope)
     end
 
     def cleanup_jobs_by_count
       scope = RailsPulse::Job.where(
-        "id NOT IN (SELECT job_id FROM rails_pulse_job_runs WHERE job_id IS NOT NULL)"
+        "NOT EXISTS (SELECT 1 FROM rails_pulse_job_runs WHERE rails_pulse_job_runs.job_id = rails_pulse_jobs.id)"
       )
       cleanup_by_count(RailsPulse::Job, :rails_pulse_jobs, order_column: :created_at, scope: scope)
     end
@@ -276,7 +276,7 @@ module RailsPulse
       RailsPulse::ExceptionGroup
         .where(preserve: false)
         .where.not(status: "ignored")
-        .where("id NOT IN (SELECT DISTINCT exception_group_id FROM rails_pulse_exception_occurrences)")
+        .where("NOT EXISTS (SELECT 1 FROM rails_pulse_exception_occurrences WHERE rails_pulse_exception_occurrences.exception_group_id = rails_pulse_exception_groups.id)")
         .delete_all
     end
 
