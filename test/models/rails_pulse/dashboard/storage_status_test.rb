@@ -49,6 +49,14 @@ module RailsPulse
         assert_equal status.tables.sum { |table| table[:count] }, status.overview[:total_records]
       end
 
+      test "reads live counts regardless of the Rails environment" do
+        Rails.stubs(:env).returns(ActiveSupport::EnvironmentInquirer.new("production"))
+
+        table = table_named(:rails_pulse_queries)
+
+        assert_equal RailsPulse::Query.count, table[:count]
+      end
+
       # Calculation Tests
 
       test "reports fill percent against the configured table limit" do
