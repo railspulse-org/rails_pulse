@@ -341,12 +341,18 @@ module RailsPulse
       Rails.unstub(:env)
     end
 
+    # RailsPulse::ApplicationController never sets its own
+    # allow_forgery_protection, so it normally delegates dynamically to
+    # ActionController::Base. Toggling it here (matching csrf_protection_test.rb)
+    # rather than on RailsPulse::ApplicationController itself, whose class_attribute
+    # would otherwise pin a local override and desync from Base for the rest of
+    # the process.
     def with_forgery_protection
-      original = RailsPulse::ApplicationController.allow_forgery_protection
-      RailsPulse::ApplicationController.allow_forgery_protection = true
+      original = ActionController::Base.allow_forgery_protection
+      ActionController::Base.allow_forgery_protection = true
       yield
     ensure
-      RailsPulse::ApplicationController.allow_forgery_protection = original
+      ActionController::Base.allow_forgery_protection = original
     end
 
     def get(path, env = {})
