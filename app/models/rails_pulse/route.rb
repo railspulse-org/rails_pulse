@@ -70,11 +70,17 @@ module RailsPulse
     # True when at least one stored route still has no action but the live
     # host router would assign one — the usual sign that schema migrated
     # without `rails rails_pulse:migrate_routes`.
+    # Runs on every dashboard page, so the common case (every route already
+    # has an action) must be one indexed query; router recognition only
+    # happens when there is something to recognise.
     def self.needs_action_backfill?
       return false unless column_names.include?("controller_action")
       return false unless column_names.include?("http_methods")
 
-      where(controller_action: [ nil, "" ]).limit(25).any? do |route|
+      blank_action = where(controller_action: [ nil, "" ])
+      return false unless blank_action.exists?
+
+      blank_action.limit(25).any? do |route|
         method = route.http_methods_list.first
         next false if method.blank?
 

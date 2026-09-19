@@ -55,26 +55,21 @@ module RailsPulse
       # Return early if no filters are applied
       return all if actual_disabled_tags.empty? && show_non_tagged
 
-      # Get filtered IDs from TagFilterService
-      filtered_ids = TagFilterService.filter_all(disabled_tags, show_non_tagged)
+      # One subquery per summarizable kind. This scope runs on every card and
+      # chart query, so the alternative (plucking every matching route, query
+      # and job id and inlining the lists) cost three extra statements per
+      # call and grew each statement with the size of the tables.
+      table = arel_table
+      keep_for = lambda do |type, model|
+        matching = TagFilterService.scope(model, actual_disabled_tags, show_non_tagged).select(:id).arel
+        table[:summarizable_type].eq(type).and(table[:summarizable_id].in(matching))
+      end
 
-      route_ids = filtered_ids[:route_ids].presence || [ -1 ]
-      query_ids = filtered_ids[:query_ids].presence || [ -1 ]
-      job_ids = filtered_ids[:job_ids].presence || [ -1 ]
-
-      # Apply filters: include only summaries for filtered routes/queries/jobs
-      # Use -1 as an impossible ID when no items match the filter
       where(
-        "(" \
-        "  (summarizable_type = 'RailsPulse::Route' AND summarizable_id IN (?)) OR " \
-        "  (summarizable_type = 'RailsPulse::Query' AND summarizable_id IN (?)) OR " \
-        "  (summarizable_type = 'RailsPulse::Job' AND summarizable_id IN (?)) OR " \
-        "  (summarizable_type = 'RailsPulse::Request') OR " \
-        "  (summarizable_type = 'RailsPulse::ExceptionGroup')" \
-        ")",
-        route_ids,
-        query_ids,
-        job_ids
+        keep_for.call("RailsPulse::Route", Route)
+          .or(keep_for.call("RailsPulse::Query", Query))
+          .or(keep_for.call("RailsPulse::Job", Job))
+          .or(table[:summarizable_type].in([ "RailsPulse::Request", "RailsPulse::ExceptionGroup" ]))
       )
     }
 
