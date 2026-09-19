@@ -112,6 +112,42 @@ module RailsPulse
     # Empty Period Tests
     # ============================================================================
 
+    # ============================================================================
+    # Write Mechanics
+    # ============================================================================
+
+    test "re-running a period updates the existing rows instead of duplicating them" do
+      create_request(duration: 100, status: 200)
+      SummaryService.new("hour", @hour_start).perform
+      create_request(duration: 300, status: 200)
+
+      assert_no_difference -> { Summary.count } do
+        SummaryService.new("hour", @hour_start).perform
+      end
+
+      route_summary = Summary.find_by!(summarizable_type: "RailsPulse::Route", summarizable_id: @route.id, period_start: @hour_start)
+
+      assert_equal 2, route_summary.count
+      assert_in_delta 200.0, route_summary.avg_duration
+    end
+
+    test "writes each summarizable kind with a single statement regardless of row count" do
+      other_route = rails_pulse_routes(:api_posts)
+      3.times { create_request(duration: 100, status: 200) }
+      2.times { create_request(duration: 50, status: 200, route: other_route) }
+      inserts = 0
+      subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+        inserts += 1 if payload[:sql] =~ /\AINSERT INTO .rails_pulse_summaries./
+      end
+
+      SummaryService.new("hour", @hour_start).perform
+
+      assert_equal 1, inserts, "overall and per-route rows should share one INSERT"
+      assert_equal 3, Summary.count
+    ensure
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+
     test "aggregate_requests writes an overall summary with count 0 when there are no requests" do
       SummaryService.new("hour", @hour_start).perform
 
@@ -130,6 +166,14 @@ module RailsPulse
       assert_nil summary.p95_duration
       assert_nil summary.p99_duration
       assert_nil summary.stddev_duration
+    end
+    private
+
+    def create_request(duration:, status:, route: @route)
+      RailsPulse::Request.create!(
+        route: route, duration: duration, status: status,
+        request_uuid: SecureRandom.uuid, occurred_at: @hour_start + 1.minute
+      )
     end
   end
 end
