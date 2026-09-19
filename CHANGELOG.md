@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- `RailsPulse.warm_metric_cache!` (a no-op) and `RailsPulse.clear_metric_cache!` (used `delete_matched`, which some cache stores do not support). Neither was referenced by the dashboard.
+
 ### Fixed
 
+- **Summary aggregation now runs its transaction on the Rails Pulse connection.** On separate-database installs it was opened on the host's primary database, so a failure part-way through a period could leave partial summaries behind.
+- **The dashboard's own HTTP, mailer, job and storage events are no longer recorded.** These subscribers skipped the recursion guard that SQL and template events already honoured.
 - **Standalone dashboard no longer 404s on the time range and global filters pickers.** Those forms submit `POST` with a hidden `_method=patch` field — the standard verb-override trick — which the mounted engine translates via the host app's default middleware stack. The standalone server (`rails_pulse_server`) builds its own minimal Rack stack and never added `Rack::MethodOverride`, so the request reached routing as a plain `POST` and 404'd against the `PATCH`-only route.
 - **Cleanup no longer risks statement timeouts on large tables.** `CleanupService`'s orphan checks for queries, routes, jobs, and exception groups used a `NOT IN` subquery, which some databases (notably PostgreSQL at scale) execute by materializing and rescanning the full subquery result instead of using an index. Switched to a correlated `NOT EXISTS`, which lets the planner use an index per row. A stalled cleanup stage previously blocked all later stages, including hourly summary pruning. (#253)
 - **Idle periods no longer trigger false "summary job not running" warnings.** `SummaryJob` now records a zero-count overall summary for hours/days with no requests, so the dashboard banner, `rails_pulse:status`, the storage-pressure card, and count-based cleanup no longer mistake "no traffic" for "job stopped running." (#250)
