@@ -29,6 +29,7 @@ $stderr.sync = true
 # Build the Rack app with session support
 require "rack/session/cookie"
 require "rack/static"
+require "rack/method_override"
 require "securerandom"
 require_relative "rails_pulse/rack_compat"
 require_relative "rails_pulse/middleware/asset_server"
@@ -78,6 +79,13 @@ use Rack::Static,
   urls: [ "/assets" ],
   root: Rails.public_path.to_s,
   header_rules: [ [ :all, RailsPulse::Engine.asset_headers ] ]
+
+# The dashboard's settings forms (time range, global filters) submit
+# POST with a hidden _method=patch field — the usual verb-override trick
+# for the PATCH-only routes they target. The mounted engine gets this
+# translation for free from the host app's default middleware stack;
+# here it must be added explicitly or those routes 404.
+use Rack::MethodOverride
 
 # Add session middleware for the dashboard. The cookie is signed with
 # SECRET_KEY_BASE when set, otherwise with the host app's own secret_key_base
