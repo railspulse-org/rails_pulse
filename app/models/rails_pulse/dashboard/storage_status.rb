@@ -74,48 +74,6 @@ module RailsPulse
         }
       ].freeze
 
-      # One-off screenshot fixture. Set SCREENSHOT to false (or delete this block) when done.
-      SCREENSHOT = !Rails.env.test?
-      SCREENSHOT_STATE = :warning # :healthy, :warning, :critical
-      SCREENSHOT_TABLES = {
-        healthy: {
-          rails_pulse_operations:            { count: 42_180,  limit: 100_000, recent: 3_140, bytes: 100_663_296, days_old: 14 },
-          rails_pulse_requests:              { count: 18_420,  limit: 50_000,  recent: 1_280, bytes: 42_991_616,  days_old: 14 },
-          rails_pulse_job_runs:              { count: 12_104,  limit: 50_000,  recent: 890,   bytes: 29_360_128,  days_old: 14 },
-          rails_pulse_exception_occurrences: { count: 1_842,   limit: 50_000,  recent: 22,    bytes: 11_534_336,  days_old: 14 },
-          rails_pulse_summaries:             { count: 1_128,   limit: nil,     recent: 48,    bytes: 4_403_200,   days_old: 14 },
-          rails_pulse_queries:               { count: 486,     limit: 10_000,  recent: 6,     bytes: 2_202_010,   days_old: 62 },
-          rails_pulse_routes:                { count: 214,     limit: 1_000,   recent: 1,     bytes: 421_888,     days_old: 62 },
-          rails_pulse_jobs:                  { count: 38,      limit: 1_000,   recent: 0,     bytes: 98_304,      days_old: 62 },
-          rails_pulse_exception_groups:      { count: 64,      limit: 10_000,  recent: 2,     bytes: 184_320,     days_old: 62 },
-          rails_pulse_deployments:           { count: 12,      limit: nil,     recent: 0,     bytes: 49_152,      days_old: 48 }
-        },
-        warning: {
-          rails_pulse_operations:            { count: 78_410,  limit: 100_000, recent: 6_820, bytes: 176_160_768, days_old: 14 },
-          rails_pulse_requests:              { count: 36_210,  limit: 50_000,  recent: 2_410, bytes: 81_788_928,  days_old: 14 },
-          rails_pulse_job_runs:              { count: 31_002,  limit: 50_000,  recent: 1_940, bytes: 54_525_952,  days_old: 14 },
-          rails_pulse_exception_occurrences: { count: 4_118,   limit: 50_000,  recent: 40,    bytes: 18_874_368,  days_old: 14 },
-          rails_pulse_summaries:             { count: 1_240,   limit: nil,     recent: 48,    bytes: 4_612_096,   days_old: 14 },
-          rails_pulse_queries:               { count: 812,     limit: 10_000,  recent: 12,    bytes: 3_250_176,   days_old: 90 },
-          rails_pulse_routes:                { count: 268,     limit: 1_000,   recent: 2,     bytes: 491_520,     days_old: 90 },
-          rails_pulse_jobs:                  { count: 41,      limit: 1_000,   recent: 0,     bytes: 106_496,     days_old: 90 },
-          rails_pulse_exception_groups:      { count: 91,      limit: 10_000,  recent: 3,     bytes: 225_280,     days_old: 90 },
-          rails_pulse_deployments:           { count: 18,      limit: nil,     recent: 1,     bytes: 65_536,      days_old: 90 }
-        },
-        critical: {
-          rails_pulse_operations:            { count: 104_280, limit: 100_000, recent: 8_110, bytes: 224_395_264, days_old: 18 },
-          rails_pulse_requests:              { count: 48_902,  limit: 50_000,  recent: 3_040, bytes: 106_954_752, days_old: 18 },
-          rails_pulse_job_runs:              { count: 46_118,  limit: 50_000,  recent: 2_280, bytes: 84_934_656,  days_old: 18 },
-          rails_pulse_exception_occurrences: { count: 8_640,   limit: 50_000,  recent: 90,    bytes: 25_165_824,  days_old: 18 },
-          rails_pulse_summaries:             { count: 1_410,   limit: nil,     recent: 24,    bytes: 5_033_984,   days_old: 18 },
-          rails_pulse_queries:               { count: 1_204,   limit: 10_000,  recent: 18,    bytes: 4_300_800,   days_old: 120 },
-          rails_pulse_routes:                { count: 312,     limit: 1_000,   recent: 4,     bytes: 552_960,     days_old: 120 },
-          rails_pulse_jobs:                  { count: 44,      limit: 1_000,   recent: 0,     bytes: 114_688,     days_old: 120 },
-          rails_pulse_exception_groups:      { count: 128,     limit: 10_000,  recent: 5,     bytes: 286_720,     days_old: 120 },
-          rails_pulse_deployments:           { count: 22,      limit: nil,     recent: 1,     bytes: 73_728,      days_old: 120 }
-        }
-      }.freeze
-
       def initialize
         @config = RailsPulse.configuration
         @pressure = StoragePressure.new
@@ -178,33 +136,13 @@ module RailsPulse
         RailsPulse::ApplicationRecord.connection
       end
 
-      def screenshot_row(table_name)
-        return unless SCREENSHOT
-
-        row = SCREENSHOT_TABLES.dig(SCREENSHOT_STATE, table_name)
-        return unless row
-
-        oldest_at = row[:days_old].days.ago
-        {
-          count: row[:count],
-          limit: row[:limit],
-          recent_count: row[:recent],
-          bytes: row[:bytes],
-          oldest_at: oldest_at,
-          newest_at: 8.minutes.ago
-        }
-      end
-
       def build_table(definition)
-        screenshot = screenshot_row(definition[:name])
-        unless screenshot
-          model = definition[:model].safe_constantize
-          return unless model
-          return unless connection.table_exists?(definition[:name])
-        end
+        model = definition[:model].safe_constantize
+        return unless model
+        return unless connection.table_exists?(definition[:name])
 
-        stats = screenshot || fetch_counts(definition[:model].constantize, definition)
-        limit = screenshot ? screenshot[:limit] : @config.max_table_records&.[](definition[:name])
+        stats = fetch_counts(model, definition)
+        limit = @config.max_table_records&.[](definition[:name])
         count = stats[:count]
         percent = limit.to_i.positive? ? ((count.to_f / limit) * 100).round(1) : nil
         severity = fill_severity(percent, count, limit)
@@ -223,7 +161,7 @@ module RailsPulse
           newest_at: stats[:newest_at],
           recent_count: stats[:recent_count],
           runway_label: runway_label(count, limit, stats[:recent_count]),
-          bytes: screenshot ? screenshot[:bytes] : table_bytes(definition[:name]),
+          bytes: table_bytes(definition[:name]),
           history_label: history_label(stats[:oldest_at], stats[:newest_at])
         }
       rescue => error
