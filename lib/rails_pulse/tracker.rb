@@ -1,4 +1,17 @@
 module RailsPulse
+  # Persists the data RequestCollector gathers for one request: the route,
+  # the request row and its operations.
+  #
+  # With `config.async` (the default) the middleware hands the payload to a
+  # single per-process Writer thread through a bounded queue and returns
+  # immediately. The writer drains the queue in batches on one connection
+  # checked out of the Rails Pulse pool, so tracking never holds more than one
+  # of the host's connections and a traffic burst never fans out into a thread
+  # per request. When the queue is full the payload is dropped and counted;
+  # losing a sample is the intended trade for never slowing the host down.
+  #
+  # With `config.async = false`, or whenever the pool's connection is pinned
+  # to the current thread (transactional tests), writes happen inline.
   module Tracker
     # PG::Connection::PQTRANS_INERROR (libpq enum value 3) — the connection's transaction
     # was aborted by a DB-level error and no ROLLBACK has been issued yet. Defined as a
@@ -7,20 +20,161 @@ module RailsPulse
     PG_TRANSACTION_INERROR = 3
     private_constant :PG_TRANSACTION_INERROR
 
+    # The background writer: one thread, one bounded queue, one connection.
+    class Writer
+      BATCH_SIZE = 50
+      DROP_LOG_INTERVAL = 60 # seconds between "queue full" log lines
+      SHUTDOWN_TIMEOUT = 5   # seconds to wait for the queue to drain at exit
+
+      attr_reader :queue_size, :dropped
+
+      def initialize(queue_size:, auto_start: true)
+        @queue_size = queue_size
+        @auto_start = auto_start
+        @mutex = Mutex.new
+        @queue = SizedQueue.new(queue_size)
+        @thread = nil
+        @pid = Process.pid
+        @dropped = 0
+        @drop_window_count = 0
+        @drop_window_started = nil
+        @exit_hook_installed = false
+      end
+
+      # Never blocks. Returns false (and counts a drop) when the queue is full.
+      def enqueue(data)
+        ensure_thread!
+        @queue.push(data, true)
+        true
+      rescue ThreadError, ClosedQueueError
+        record_drop
+        false
+      end
+
+      def size
+        @queue.size
+      end
+
+      def running?
+        @thread&.alive? || false
+      end
+
+      # Persist everything queued so far on the calling thread. Used by
+      # shutdown when the writer thread is gone, and by tests.
+      def drain
+        batch = []
+        batch << @queue.pop(true) while !@queue.empty?
+        Tracker.perform_tracking_batch(batch) unless batch.empty?
+        batch.size
+      rescue ThreadError
+        batch.size
+      end
+
+      # Stop accepting work, let the thread finish what is queued (up to
+      # `timeout` seconds), then persist any remainder inline. Safe to call
+      # more than once; the next enqueue starts a fresh queue and thread.
+      def shutdown(timeout: SHUTDOWN_TIMEOUT)
+        thread = nil
+        @mutex.synchronize do
+          @queue.close
+          thread = @thread
+          @thread = nil
+        end
+        thread.join(timeout) if thread&.alive?
+        thread.kill if thread&.alive?
+        drain
+      end
+
+      private
+
+      def ensure_thread!
+        return unless @auto_start
+        return if @thread&.alive? && @pid == Process.pid
+
+        @mutex.synchronize do
+          # A forked child inherits the parent's queue contents and a thread
+          # that no longer exists. Start clean; the parent still owns its data.
+          if @pid != Process.pid
+            @pid = Process.pid
+            @queue = SizedQueue.new(@queue_size)
+          elsif @queue.closed?
+            @queue = SizedQueue.new(@queue_size)
+          end
+
+          next if @thread&.alive?
+
+          @thread = Thread.new { run }
+          @thread&.name = "rails_pulse_writer"
+          install_exit_hook
+        end
+      end
+
+      def run
+        # pop returns nil once the queue is closed and empty.
+        while (first = @queue.pop)
+          batch = [ first ]
+          batch << @queue.pop(true) while batch.size < BATCH_SIZE && !@queue.empty?
+          Tracker.perform_tracking_batch(batch)
+        end
+      rescue => e
+        # perform_tracking_batch rescues its own errors, so this is a bug in the
+        # loop itself. Report it; the next enqueue starts a fresh thread.
+        RailsPulse.logger.error("Rails Pulse writer thread stopped: #{e.class} - #{e.message}")
+      end
+
+      def install_exit_hook
+        return if @exit_hook_installed
+
+        @exit_hook_installed = true
+        at_exit { shutdown }
+      end
+
+      def record_drop
+        @mutex.synchronize do
+          @dropped += 1
+          @drop_window_count += 1
+          now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          next if @drop_window_started && now - @drop_window_started < DROP_LOG_INTERVAL
+
+          RailsPulse.logger.warn(
+            "Rails Pulse writer queue is full (#{@queue_size}); dropped #{@drop_window_count} " \
+            "request(s) since the last notice. Raise config.async_queue_size or check database latency."
+          )
+          @drop_window_started = now
+          @drop_window_count = 0
+        end
+      end
+    end
+
     class << self
       def track_request(data)
         return if RequestStore.store[:skip_recording_rails_pulse_activity]
         return unless RailsPulse::SchemaCheck.tracking_allowed?
 
         if RailsPulse.configuration.async && !connection_shared_across_threads?
-          Thread.new do
-            perform_tracking(data)
-          rescue => e
-            log_error(e)
-          end
+          writer.enqueue(data)
+          nil
         else
           perform_tracking(data)
         end
+      end
+
+      # Queue depth and lifetime drop count of the background writer, for
+      # health output. Zeros before the writer has been used.
+      def stats
+        current = @writer
+        { queue_size: current&.size || 0, dropped: current&.dropped || 0, running: current&.running? || false }
+      end
+
+      # Persist everything queued so far and stop the writer thread. The next
+      # tracked request starts it again.
+      def flush!
+        @writer&.shutdown
+      end
+
+      # Discard the writer, queue contents included. For tests.
+      def reset_writer!
+        @writer_mutex.synchronize { @writer = nil }
       end
 
       def healthy?
@@ -30,37 +184,96 @@ module RailsPulse
         false
       end
 
+      # Marks SQL operations that repeat within one request with the
+      # normalized statement they share and how many times it ran. Runs on the
+      # writer so the normalisation cost stays off the request thread.
+      def detect_n_plus_one(operations)
+        sql_ops = operations.select { |op| op[:operation_type] == "sql" }
+        return if sql_ops.size < 2
+
+        groups = sql_ops.group_by { |op| RailsPulse::SqlQueryNormalizer.normalize(op[:actual_sql].to_s) }
+        groups.each do |normalized_sql, ops|
+          next if ops.size < 2
+          ops.each do |op|
+            op[:repeated_query_group] = normalized_sql
+            op[:repetition_count] = ops.size
+          end
+        end
+      end
+
+      # One connection checkout for the whole batch. A request that fails to
+      # persist is logged and skipped; the others in the batch still land, and
+      # their operations go in with a single insert.
+      def perform_tracking_batch(batch)
+        with_writer_connection do
+          persisted = batch.filter_map do |data|
+            request = persist_request(data)
+            [ request, data[:operations] ]
+          rescue => e
+            log_error(e)
+            nil
+          end
+
+          rows = persisted.flat_map { |request, operations| operation_rows(request, operations) }
+          RailsPulse::Operation.persist_bulk(rows, {}) unless rows.empty?
+        end
+      rescue => e
+        log_error(e)
+        nil
+      end
+
       private
 
+      def writer
+        @writer_mutex.synchronize do
+          @writer ||= Writer.new(queue_size: RailsPulse.configuration.async_queue_size)
+        end
+      end
+
       def perform_tracking(data)
-        RailsPulse::ApplicationRecord.connection_pool.with_connection do |conn|
-          clear_aborted_transaction(conn)
-          RequestStore.store[:skip_recording_rails_pulse_activity] = true
-
-          route = RailsPulse::Route.find_or_create_for_request(data[:method], data[:path], controller_action: data[:controller_action])
-
-          request = RailsPulse::Request.create!(
-            route: route,
-            method: data[:method],
-            duration: data[:duration],
-            status: data[:status],
-            is_error: data[:is_error],
-            request_uuid: data[:request_uuid],
-            controller_action: data[:controller_action],
-            occurred_at: data[:occurred_at],
-            response_size_bytes: data[:response_size_bytes]
-          )
-
-          ops = data[:operations] || []
-          RailsPulse::Operation.persist_bulk(ops, request_id: request.id)
-
+        with_writer_connection do
+          request = persist_request(data)
+          rows = operation_rows(request, data[:operations])
+          RailsPulse::Operation.persist_bulk(rows, {}) unless rows.empty?
           request
         end
       rescue => e
         log_error(e)
         nil
+      end
+
+      def with_writer_connection
+        RailsPulse::ApplicationRecord.connection_pool.with_connection do |conn|
+          clear_aborted_transaction(conn)
+          RequestStore.store[:skip_recording_rails_pulse_activity] = true
+          yield
+        end
       ensure
         RequestStore.store[:skip_recording_rails_pulse_activity] = false
+      end
+
+      def persist_request(data)
+        route = RailsPulse::Route.find_or_create_for_request(data[:method], data[:path], controller_action: data[:controller_action])
+
+        RailsPulse::Request.create!(
+          route: route,
+          method: data[:method],
+          duration: data[:duration],
+          status: data[:status],
+          is_error: data[:is_error],
+          request_uuid: data[:request_uuid],
+          controller_action: data[:controller_action],
+          occurred_at: data[:occurred_at],
+          response_size_bytes: data[:response_size_bytes]
+        )
+      end
+
+      def operation_rows(request, operations)
+        operations = Array(operations)
+        return [] if operations.empty?
+
+        detect_n_plus_one(operations)
+        operations.map { |op| op.merge(request_id: request.id, job_run_id: nil) }
       end
 
       # Transactional tests pin one connection per pool and hand that same
@@ -93,5 +306,8 @@ module RailsPulse
         RailsPulse.logger.error(error.backtrace.join("\n")) if RailsPulse.logger.debug?
       end
     end
+
+    @writer = nil
+    @writer_mutex = Mutex.new
   end
 end

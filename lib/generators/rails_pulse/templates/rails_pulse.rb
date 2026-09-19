@@ -430,9 +430,14 @@ RailsPulse.configure do |config|
   # Use a custom logger (default: Rails.logger)
   # config.logger = Logger.new("log/rails_pulse.log")
 
-  # Perform tracking writes in a background thread (default: true).
+  # Perform tracking writes on a background thread (default: true).
   # When false, writes happen inline before the response is sent.
   # config.async = true
+
+  # How many requests the background writer may hold before it starts dropping
+  # the newest ones instead of slowing the app down (default: 1000). Drops are
+  # counted and logged at most once a minute.
+  # config.async_queue_size = 1000
 
   # Show a dashboard banner when summary data is stale (default: true)
   # config.warn_on_stale_summaries = true
