@@ -12,7 +12,9 @@ module RailsPulse
     def perform
       RailsPulse.logger.info "Starting #{period_type} summary for #{start_time}"
 
-      ActiveRecord::Base.transaction do
+      # The engine's own connection: on a separate-database install
+      # ActiveRecord::Base would open the transaction on the host's primary.
+      RailsPulse::ApplicationRecord.transaction do
         aggregate_requests  # Overall system metrics
         aggregate_routes    # Per-route metrics
         aggregate_queries   # Per-query metrics
