@@ -34,9 +34,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       name: "User Load"
     }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-      sleep(0.01) # Ensure measurable duration
-    end
+    publish_event("sql.active_record", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -59,9 +57,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
     ]
 
     schema_queries.each do |payload|
-      ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-        sleep(0.001)
-      end
+      publish_event("sql.active_record", payload)
     end
 
     operations = RequestStore.store[:rails_pulse_operations]
@@ -75,9 +71,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       name: "RailsPulse::Request Load"
     }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-      sleep(0.001)
-    end
+    publish_event("sql.active_record", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -91,9 +85,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       cached: true
     }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-      sleep(0.001)
-    end
+    publish_event("sql.active_record", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -107,9 +99,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       cached: false
     }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-      sleep(0.001)
-    end
+    publish_event("sql.active_record", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -122,9 +112,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     payload = { sql: "SELECT 1", name: "SQL" }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-      sleep(0.001)
-    end
+    publish_event("sql.active_record", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -139,9 +127,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     payload = { sql: "SELECT * FROM \"schema_migrations\"", name: "SQL" }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-      sleep(0.001)
-    end
+    publish_event("sql.active_record", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -156,9 +142,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     payload = { sql: "SELECT * FROM users", name: "User Load" }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-      sleep(0.001)
-    end
+    publish_event("sql.active_record", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -172,9 +156,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       identifier: "/app/views/users/show.html.erb"
     }
 
-    ActiveSupport::Notifications.instrument("render_template.action_view", payload) do
-      sleep(0.01)
-    end
+    publish_event("render_template.action_view", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -193,9 +175,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       action: "show"
     }
 
-    ActiveSupport::Notifications.instrument("process_action.action_controller", payload) do
-      sleep(0.01)
-    end
+    publish_event("process_action.action_controller", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -243,9 +223,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       identifier: "/app/views/users/_user.html.erb"
     }
 
-    ActiveSupport::Notifications.instrument("render_partial.action_view", payload) do
-      sleep(0.001)
-    end
+    publish_event("render_partial.action_view", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -262,9 +240,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       key: "user/123/profile"
     }
 
-    ActiveSupport::Notifications.instrument("cache_read.active_support", payload) do
-      sleep(0.001)
-    end
+    publish_event("cache_read.active_support", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -283,9 +259,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
     }
 
     start_time = Time.current
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-      sleep(0.01)
-    end
+    publish_event("sql.active_record", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -312,9 +286,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       name: "User Load"
     }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-      sleep(0.001)
-    end
+    publish_event("sql.active_record", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -330,9 +302,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     payload = { sql: "SELECT 1", name: "Job SQL" }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-      sleep(0.001)
-    end
+    publish_event("sql.active_record", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -347,9 +317,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       name: "User Load"
     }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-      sleep(0.001)
-    end
+    publish_event("sql.active_record", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -364,9 +332,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       uri: "https://api.example.com/users"
     }
 
-    ActiveSupport::Notifications.instrument("request.net_http", payload) do
-      sleep(0.001)
-    end
+    publish_event("request.net_http", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -389,9 +355,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       job: job_class.new
     }
 
-    ActiveSupport::Notifications.instrument("perform.active_job", payload) do
-      sleep(0.001)
-    end
+    publish_event("perform.active_job", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
 
@@ -408,9 +372,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
     payload = { sql: nil, name: "User Load" }
 
     assert_nothing_raised do
-      ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-        sleep(0.001)
-      end
+      publish_event("sql.active_record", payload)
     end
 
     # Should have captured the operation even with nil SQL
@@ -430,9 +392,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
     }
 
     start_time = Time.current
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) do
-      sleep(0.001)
-    end
+    publish_event("sql.active_record", payload)
 
     operations = RequestStore.store[:rails_pulse_operations]
     operation = operations.first
@@ -447,7 +407,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
   test "captures row_count from SQL payload" do
     payload = { sql: "SELECT * FROM users", name: "User Load", row_count: 42 }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) { sleep(0.001) }
+    publish_event("sql.active_record", payload)
 
     operation = RequestStore.store[:rails_pulse_operations].first
 
@@ -457,7 +417,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
   test "row_count is nil when not present in SQL payload" do
     payload = { sql: "SELECT * FROM users", name: "User Load" }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) { sleep(0.001) }
+    publish_event("sql.active_record", payload)
 
     operation = RequestStore.store[:rails_pulse_operations].first
 
@@ -467,7 +427,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
   test "row_count zero is captured correctly" do
     payload = { sql: "SELECT * FROM users WHERE id = 99999", name: "User Load", row_count: 0 }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) { sleep(0.001) }
+    publish_event("sql.active_record", payload)
 
     operation = RequestStore.store[:rails_pulse_operations].first
 
@@ -477,7 +437,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
   test "non-SQL operations do not have row_count" do
     payload = { identifier: "/app/views/users/index.html.erb" }
 
-    ActiveSupport::Notifications.instrument("render_template.action_view", payload) { sleep(0.001) }
+    publish_event("render_template.action_view", payload)
 
     operation = RequestStore.store[:rails_pulse_operations].first
 
@@ -490,7 +450,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
   test "captures cache_hit true when cache read hits" do
     payload = { key: "users/count", hit: true }
 
-    ActiveSupport::Notifications.instrument("cache_read.active_support", payload) { sleep(0.001) }
+    publish_event("cache_read.active_support", payload)
 
     operation = RequestStore.store[:rails_pulse_operations].first
 
@@ -501,7 +461,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
   test "captures cache_hit false when cache read misses" do
     payload = { key: "users/count", hit: false }
 
-    ActiveSupport::Notifications.instrument("cache_read.active_support", payload) { sleep(0.001) }
+    publish_event("cache_read.active_support", payload)
 
     operation = RequestStore.store[:rails_pulse_operations].first
 
@@ -511,7 +471,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
   test "cache_hit is nil when not present in cache_read payload" do
     payload = { key: "users/count" }
 
-    ActiveSupport::Notifications.instrument("cache_read.active_support", payload) { sleep(0.001) }
+    publish_event("cache_read.active_support", payload)
 
     operation = RequestStore.store[:rails_pulse_operations].first
 
@@ -521,7 +481,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
   test "cache_write operations do not have cache_hit" do
     payload = { key: "users/count" }
 
-    ActiveSupport::Notifications.instrument("cache_write.active_support", payload) { sleep(0.001) }
+    publish_event("cache_write.active_support", payload)
 
     operation = RequestStore.store[:rails_pulse_operations].first
 
@@ -534,7 +494,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
   test "extra data is merged into operation for SQL" do
     payload = { sql: "SELECT 1", name: "Test", row_count: 5 }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) { sleep(0.001) }
+    publish_event("sql.active_record", payload)
 
     operation = RequestStore.store[:rails_pulse_operations].first
 
@@ -549,7 +509,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     payload = { sql: "SELECT * FROM users", name: "User Load", row_count: 10 }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) { sleep(0.001) }
+    publish_event("sql.active_record", payload)
 
     operation = RequestStore.store[:rails_pulse_operations].first
 
@@ -567,7 +527,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     payload = { sql: "SELECT * FROM users", name: "User Load" }
 
-    ActiveSupport::Notifications.instrument("sql.active_record", payload) { sleep(0.001) }
+    publish_event("sql.active_record", payload)
 
     operation = RequestStore.store[:rails_pulse_operations].first
 
@@ -578,5 +538,15 @@ class OperationSubscriberTest < ActiveSupport::TestCase
     assert_equal "SELECT * FROM users", operation[:actual_sql]
   ensure
     RailsPulse.configuration.capture_actual_sql = original
+  end
+  private
+
+  # Deliver an event with a fixed 5 ms duration. Instrumenting a block around
+  # sleep made every test wait on the clock and only proved the duration was
+  # non-negative; a published event proves the subscriber records what it was
+  # given.
+  def publish_event(name, payload, duration: 0.005)
+    started = Time.current
+    ActiveSupport::Notifications.publish(name, started, started + duration, SecureRandom.hex(5), payload)
   end
 end
