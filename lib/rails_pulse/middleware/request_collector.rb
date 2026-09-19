@@ -36,10 +36,9 @@ module RailsPulse
         status, headers, response = @app.call(env)
         duration = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round(2)
 
-        # Collect all tracking data
-        # Deep copy operations array to prevent race condition in async mode
+        # Collect all tracking data. Operations are copied because the writer
+        # thread annotates them (N+1 detection) after this request has moved on.
         operations = RequestStore.store[:rails_pulse_operations] || []
-        detect_n_plus_one(operations)
         path_params = env["action_dispatch.request.path_parameters"] || {}
         controller_action = [ path_params[:controller], path_params[:action] ].compact.join("#").presence
         tracking_data = {
@@ -84,20 +83,6 @@ module RailsPulse
         body.bytesize if body.is_a?(String)
       rescue
         nil
-      end
-
-      def detect_n_plus_one(operations)
-        sql_ops = operations.select { |op| op[:operation_type] == "sql" }
-        return if sql_ops.size < 2
-
-        groups = sql_ops.group_by { |op| RailsPulse::SqlQueryNormalizer.normalize(op[:actual_sql].to_s) }
-        groups.each do |normalized_sql, ops|
-          next if ops.size < 2
-          ops.each do |op|
-            op[:repeated_query_group] = normalized_sql
-            op[:repetition_count] = ops.size
-          end
-        end
       end
 
       def should_ignore_route?(req)

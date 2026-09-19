@@ -369,6 +369,21 @@ module RailsPulse
       assert_nothing_raised { config.validate_configuration! }
     end
 
+    test "async_queue_size defaults to 1000" do
+      config = Configuration.new
+
+      assert_equal 1_000, config.async_queue_size
+    end
+
+    test "validate_configuration! raises for a non-positive async_queue_size" do
+      config = Configuration.new
+      config.async_queue_size = 0
+
+      assert_raises ArgumentError do
+        config.validate_configuration!
+      end
+    end
+
     test "validate_configuration! raises for non-boolean async" do
       config = Configuration.new
       config.instance_variable_set(:@async, "true")
