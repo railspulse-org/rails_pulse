@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Services now autoload through Zeitwerk.** `app/services` was hidden from the Rails autoloader and wired up by hand, so services never reloaded in development and every new one had to be registered in the engine. They now load and reload like the rest of `app/`.
+
 ### Fixed
 
 - **Standalone dashboard no longer 404s on the time range and global filters pickers.** Those forms submit `POST` with a hidden `_method=patch` field — the standard verb-override trick — which the mounted engine translates via the host app's default middleware stack. The standalone server (`rails_pulse_server`) builds its own minimal Rack stack and never added `Rack::MethodOverride`, so the request reached routing as a plain `POST` and 404'd against the `PATCH`-only route.
