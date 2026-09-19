@@ -49,6 +49,43 @@ module RailsPulse
         assert_equal status.tables.sum { |table| table[:count] }, status.overview[:total_records]
       end
 
+      test "cached sizes are measured once per table within the cache window" do
+        StorageStatus.reset_size_cache!
+        size_statements = lambda do
+          count = 0
+          subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+            count += 1 if payload[:sql] =~ /dbstat|pg_total_relation_size|information_schema/i
+          end
+          yield_result = StorageStatus.new(cached_sizes: true).tables
+          ActiveSupport::Notifications.unsubscribe(subscriber)
+          [ count, yield_result ]
+        end
+
+        first_count, first_tables = size_statements.call
+        second_count, second_tables = size_statements.call
+
+        assert_operator first_count, :>, 0
+        assert_equal 0, second_count
+        assert_equal first_tables.map { |t| t[:bytes] }, second_tables.map { |t| t[:bytes] }
+      ensure
+        StorageStatus.reset_size_cache!
+      end
+
+      test "uncached status measures sizes on every call" do
+        StorageStatus.reset_size_cache!
+        count = 0
+        subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+          count += 1 if payload[:sql] =~ /dbstat|pg_total_relation_size|information_schema/i
+        end
+
+        StorageStatus.new.tables
+        StorageStatus.new.tables
+
+        assert_operator count, :>=, 2
+      ensure
+        ActiveSupport::Notifications.unsubscribe(subscriber)
+      end
+
       # Calculation Tests
 
       test "reports fill percent against the configured table limit" do

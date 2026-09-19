@@ -116,9 +116,35 @@ module RailsPulse
         }
       }.freeze
 
-      def initialize
+      # Table sizes come from dbstat / pg_total_relation_size /
+      # information_schema, one statement per table. The dashboard only shows
+      # a headline total, so it reads them through a short-lived per-process
+      # cache; the Storage page itself always measures afresh.
+      SIZE_CACHE_TTL = 5.minutes
+      @size_cache = {}
+      @size_cache_mutex = Mutex.new
+
+      class << self
+        def cached_table_bytes(table_name)
+          @size_cache_mutex.synchronize do
+            entry = @size_cache[table_name]
+            return entry[:bytes] if entry && entry[:measured_at] > SIZE_CACHE_TTL.ago
+
+            bytes = yield
+            @size_cache[table_name] = { bytes: bytes, measured_at: Time.current }
+            bytes
+          end
+        end
+
+        def reset_size_cache!
+          @size_cache_mutex.synchronize { @size_cache.clear }
+        end
+      end
+
+      def initialize(cached_sizes: false)
         @config = RailsPulse.configuration
         @pressure = StoragePressure.new
+        @cached_sizes = cached_sizes
       end
 
       def tables
@@ -223,7 +249,7 @@ module RailsPulse
           newest_at: stats[:newest_at],
           recent_count: stats[:recent_count],
           runway_label: runway_label(count, limit, stats[:recent_count]),
-          bytes: screenshot ? screenshot[:bytes] : table_bytes(definition[:name]),
+          bytes: screenshot ? screenshot[:bytes] : measured_table_bytes(definition[:name]),
           history_label: history_label(stats[:oldest_at], stats[:newest_at])
         }
       rescue => error
@@ -349,6 +375,12 @@ module RailsPulse
 
       def row_value(row, key)
         row[key] || row[key.to_s] || row[key.to_s.upcase] || row[key.to_sym]
+      end
+
+      def measured_table_bytes(table_name)
+        return table_bytes(table_name) unless @cached_sizes
+
+        self.class.cached_table_bytes(table_name) { table_bytes(table_name) }
       end
 
       def table_bytes(table_name)
