@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- `RailsPulse.warm_metric_cache!` (a no-op) and `RailsPulse.clear_metric_cache!` (used `delete_matched`, which some cache stores do not support). Neither was referenced by the dashboard.
+
 ### Fixed
 
+- **Summary aggregation now runs its transaction on the Rails Pulse connection.** On separate-database installs it was opened on the host's primary database, so a failure part-way through a period could leave partial summaries behind.
+- **The dashboard's own HTTP, mailer, job and storage events are no longer recorded.** These subscribers skipped the recursion guard that SQL and template events already honoured.
 - **Storage page reports real table sizes again.** A leftover screenshot fixture replaced every table's live count, size, and age with hard-coded sample numbers in any environment other than `test`.
 - **Standalone dashboard settings forms no longer fail CSRF verification.** The standalone server (`rails_pulse_server`) used the plain `rack-session` gem's `Rack::Session::Cookie`, which knows nothing about Rails' CSRF handling: a token generated for a form is only written into the session by `commit_csrf_token`, a hook that only Rails' own `ActionDispatch::Session::CookieStore` calls. Every generated token was silently discarded, so every submission failed verification. Switched to `ActionDispatch::Cookies` + `ActionDispatch::Session::CookieStore` (seeding the `action_dispatch.*` env Rails normally sets up before reaching the engine).
 - **Standalone dashboard no longer 404s on the time range and global filters pickers.** Those forms submit `POST` with a hidden `_method=patch` field — the standard verb-override trick — which the mounted engine translates via the host app's default middleware stack. The standalone server (`rails_pulse_server`) builds its own minimal Rack stack and never added `Rack::MethodOverride`, so the request reached routing as a plain `POST` and 404'd against the `PATCH`-only route.

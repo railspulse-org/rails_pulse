@@ -133,6 +133,7 @@ module RailsPulse
 
         def store_operation(label:, operation_type:, start:, finish:, codebase_location:)
           return unless RailsPulse.configuration.enabled
+          return if RequestStore.store[:skip_recording_rails_pulse_activity]
 
           request_id = RequestStore.store[:rails_pulse_request_id]
           job_run_id = RequestStore.store[:rails_pulse_job_run_id]
