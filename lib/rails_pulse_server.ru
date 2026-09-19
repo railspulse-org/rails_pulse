@@ -26,11 +26,8 @@ RailsPulse.standalone!
 $stdout.sync = true
 $stderr.sync = true
 
-# Build the Rack app with session support
-require "rack/session/cookie"
 require "rack/static"
 require "rack/method_override"
-require "securerandom"
 require_relative "rails_pulse/rack_compat"
 require_relative "rails_pulse/middleware/asset_server"
 
@@ -63,6 +60,22 @@ class DashboardApp
   end
 end
 
+# Rails::Engine#call is entered directly here, skipping the action_dispatch.*
+# env defaults Rails::Application#call normally seeds before its middleware
+# stack runs. ActionDispatch::Cookies and Session::CookieStore below need
+# those (the encryption key generator, in particular) — without them,
+# ActionController::RequestForgeryProtection#commit_csrf_token never fires,
+# and every CSRF token silently fails to persist to the session.
+class SeedRailsEnv
+  def initialize(app)
+    @app = app
+  end
+
+  def call(env)
+    @app.call(Rails.application.env_config.merge(env))
+  end
+end
+
 # Dashboard assets. RouteHelper#asset_path emits one of two URL shapes: the
 # gem-served fallback (/rails-pulse-assets/<version>/...) or, once
 # assets:precompile has run, the digested copies it installs under the host's
@@ -84,32 +97,28 @@ use Rack::Static,
 # must be added explicitly or the settings forms' PATCH routes 404.
 use Rack::MethodOverride
 
-# Add session middleware for the dashboard. The cookie is signed with
-# SECRET_KEY_BASE when set, otherwise with the host app's own secret_key_base
-# (config/environment.rb is already loaded above) — hosts on encrypted
-# credentials have no SECRET_KEY_BASE environment variable.
-secret_key = ENV["SECRET_KEY_BASE"].to_s
-if secret_key.empty?
-  secret_key = begin
-    Rails.application.secret_key_base.to_s
-  rescue StandardError
-    ""
-  end
-end
-if secret_key.empty?
-  raise "SECRET_KEY_BASE environment variable must be set for standalone dashboard " \
-        "(no Rails secret_key_base was available to fall back to)"
-end
+# Fail fast on boot rather than on the first request. secret_key_base checks
+# SECRET_KEY_BASE, then the host's encrypted credentials.
+Rails.application.secret_key_base.presence || raise(
+  "No secret_key_base available for the standalone dashboard " \
+  "(set SECRET_KEY_BASE, or config/credentials)."
+)
+
+use SeedRailsEnv
+
+# ActionDispatch::Cookies and Session::CookieStore, not the plain rack-session
+# gem's Rack::Session::Cookie: only these know to call commit_csrf_token, so a
+# CSRF token generated for a form actually gets persisted to the session
+# instead of discarded at the end of the request.
+use ActionDispatch::Cookies
 
 # `secure` keeps the session cookie off plain HTTP in production. Set
 # RAILS_PULSE_INSECURE_SESSION=1 only for a deliberately non-TLS deployment
 # (a private network with no reverse proxy in front).
-use Rack::Session::Cookie,
+use ActionDispatch::Session::CookieStore,
   key: "rails_pulse_session",
-  secret: secret_key,
   same_site: :lax,
-  httponly: true,
   secure: Rails.env.production? && ENV["RAILS_PULSE_INSECURE_SESSION"].blank?,
-  max_age: 86400  # 1 day
+  expire_after: 86400  # 1 day
 
 run DashboardApp.new

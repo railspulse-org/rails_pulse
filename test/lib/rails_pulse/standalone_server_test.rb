@@ -174,6 +174,34 @@ module RailsPulse
       assert_not_equal 404, response.status
     end
 
+    # CSRF / Session Persistence Tests
+    #
+    # allow_forgery_protection is off in the test environment, so these force
+    # it on to exercise the same check production requests hit.
+
+    test "a form's CSRF token, issued to one session, verifies on a later request in that same session" do
+      with_forgery_protection do
+        get_response = get("/")
+        cookie = get_response.headers["Set-Cookie"]&.split(";")&.first
+        token = get_response.body[/name="csrf-token" content="([^"]+)"/, 1]
+
+        response = post("/settings/time_range",
+          params: { "preset" => "last_24_hours", "_method" => "patch", "authenticity_token" => token },
+          "HTTP_COOKIE" => cookie)
+
+        assert_equal 302, response.status
+      end
+    end
+
+    test "session data set on one request is readable on the next" do
+      first = post("/settings/time_range", params: { "preset" => "last_7_days", "_method" => "patch" })
+      cookie = first.headers["Set-Cookie"]&.split(";")&.first
+
+      second = get("/", "HTTP_COOKIE" => cookie)
+
+      assert_match(/last 7 days/i, second.body)
+    end
+
     # Server Configuration Tests
 
     test "falls back to the host app's secret_key_base when SECRET_KEY_BASE is not set" do
@@ -311,6 +339,14 @@ module RailsPulse
       yield
     ensure
       Rails.unstub(:env)
+    end
+
+    def with_forgery_protection
+      original = RailsPulse::ApplicationController.allow_forgery_protection
+      RailsPulse::ApplicationController.allow_forgery_protection = true
+      yield
+    ensure
+      RailsPulse::ApplicationController.allow_forgery_protection = original
     end
 
     def get(path, env = {})
