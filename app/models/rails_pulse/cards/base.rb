@@ -5,12 +5,20 @@ module RailsPulse
     class Base
       private
 
+      # nil unless the caller passed both start_time and end_time, so the
+      # "trailing @period days/hours" fallback below still applies by default.
+      def time_window
+        return @time_window if defined?(@time_window)
+
+        @time_window = RailsPulse::TimeWindow.build(@start_time, @end_time)
+      end
+
       def now
-        @now ||= Time.current
+        @now ||= time_window&.end_time || Time.current
       end
 
       def window_days
-        @period || 7
+        time_window&.days || @period || 7
       end
 
       def period_type_hours?
@@ -19,7 +27,9 @@ module RailsPulse
 
       # Enhanced time period helpers (support hour and day)
       def previous_window_start
-        if period_type_hours?
+        if time_window
+          time_window.previous(period_type_hours? ? "hour" : "day").start_time
+        elsif period_type_hours?
           (now - (window_days * 48).hours).beginning_of_hour
         else
           (now - (window_days * 2).days).beginning_of_day
@@ -27,7 +37,9 @@ module RailsPulse
       end
 
       def current_window_start
-        if period_type_hours?
+        if time_window
+          time_window.start_time
+        elsif period_type_hours?
           (now - (window_days * 24).hours).beginning_of_hour
         else
           (now - window_days.days).beginning_of_day
@@ -82,26 +94,15 @@ module RailsPulse
       end
 
       def build_hourly_sparkline(grouped_values)
-        start_time = sparkline_start
-        end_time = now.beginning_of_hour
-
-        {}.tap do |hash|
-          current_time = start_time
-          while current_time <= end_time
-            # Use timestamp in milliseconds for JS compatibility
-            hash[current_time.to_i * 1000] = { value: grouped_values[current_time] || 0 }
-            current_time += 1.hour
-          end
+        sparkline_hours.each_with_object({}) do |current_time, hash|
+          # Use timestamp in milliseconds for JS compatibility
+          hash[current_time.to_i * 1000] = { value: grouped_values[current_time] || 0 }
         end
       end
 
       def build_daily_sparkline(grouped_values)
-        start_date = sparkline_start.to_date
-        end_date = now.to_date
-
-        (start_date..end_date).each_with_object({}) do |day, hash|
-          label = day.strftime("%b %-d")
-          hash[label] = { value: grouped_values[day] || 0 }
+        sparkline_dates.each_with_object({}) do |day, hash|
+          hash[day.strftime("%b %-d")] = { value: grouped_values[day] || 0 }
         end
       end
 
@@ -110,6 +111,27 @@ module RailsPulse
       # Override to range_start for full 2*period view
       def sparkline_start
         current_window_start
+      end
+
+      # Every calendar date in the sparkline window. Via TimeWindow, so a
+      # range not starting on a day boundary skips the leading partial day.
+      def sparkline_dates
+        time_window&.dates || (sparkline_start.to_date..now.to_date).to_a
+      end
+
+      # Same skip-partial semantics as sparkline_dates, for hours.
+      def sparkline_hours
+        time_window&.hour_starts || begin
+          start_time = sparkline_start.beginning_of_hour
+          end_time = now.beginning_of_hour
+          hours = []
+          current_time = start_time
+          while current_time <= end_time
+            hours << current_time
+            current_time += 1.hour
+          end
+          hours
+        end
       end
 
       # Build sparkline query with tag filters and optional subject filter
@@ -135,7 +157,7 @@ module RailsPulse
       end
 
       def period_date_range
-        start_date = current_window_start.to_date
+        start_date = sparkline_dates.first || current_window_start.to_date
         end_date = now.to_date
         if start_date.year == end_date.year
           "#{start_date.strftime("%b %-d")} – #{end_date.strftime("%b %-d")}"

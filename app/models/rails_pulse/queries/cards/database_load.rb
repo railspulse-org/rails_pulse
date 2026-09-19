@@ -2,11 +2,13 @@ module RailsPulse
   module Queries
     module Cards
       class DatabaseLoad < RailsPulse::Cards::Base
-        def initialize(disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day")
+        def initialize(disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
           @disabled_tags = disabled_tags
           @show_non_tagged = show_non_tagged
           @period = period
           @period_type = period_type
+          @start_time = start_time
+          @end_time = end_time
         end
 
         def to_metric_card
@@ -63,8 +65,8 @@ module RailsPulse
 
           # Sparkline data - group by hour or day depending on period_type
           if period_type_hours?
-            start_time = current_window_start
-            end_time = now.beginning_of_hour
+            start_time = sparkline_hours.first
+            end_time = sparkline_hours.last
 
             # Create separate queries for sparkline data using only the current period
             sparkline_query_summaries = RailsPulse::Summary
@@ -91,8 +93,7 @@ module RailsPulse
               .transform_values { |summaries| summaries.sum { |s| s.total_duration || 0 } }
 
             sparkline_data = {}
-            current_time = start_time
-            while current_time <= end_time
+            sparkline_hours.each do |current_time|
               query_time = hourly_query_time[current_time] || 0
               request_time = hourly_request_time[current_time] || 0
               percentage = request_time > 0 ? (query_time.to_f / request_time * 100).round(1) : 0
@@ -111,12 +112,8 @@ module RailsPulse
                 value: percentage,
                 itemStyle: { color: color }
               }
-              current_time += 1.hour
             end
           else
-            start_day = current_window_start.to_date
-            end_day = now.to_date
-
             # Group by day
             daily_query_time = query_summaries.group_by { |s| s.period_start.to_date }
               .transform_values { |summaries| summaries.sum { |s| s.total_duration || 0 } }
@@ -125,7 +122,7 @@ module RailsPulse
               .transform_values { |summaries| summaries.sum { |s| s.total_duration || 0 } }
 
             sparkline_data = {}
-            (start_day..end_day).each do |day|
+            sparkline_dates.each do |day|
               query_time = daily_query_time[day] || 0
               request_time = daily_request_time[day] || 0
               percentage = request_time > 0 ? (query_time.to_f / request_time * 100).round(1) : 0

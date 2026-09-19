@@ -107,6 +107,14 @@ module TimeRangeConcern
 
     time_diff = (end_time.to_i - start_time.to_i) / 3600.0
 
+    # in_time_zone before rounding: a parsed custom-range string carries the
+    # server OS's local offset, not Time.zone, and beginning_of_day/_hour
+    # round in whatever offset the receiver has. Summary data is always
+    # bucketed by Time.zone, so without this the boundary can miss every
+    # summary row and render charts empty. No-op for already-Time.zone values.
+    start_time = start_time.in_time_zone
+    end_time = end_time.in_time_zone
+
     if time_diff <= 25
       start_time = start_time.beginning_of_hour
       end_time = end_time.end_of_hour

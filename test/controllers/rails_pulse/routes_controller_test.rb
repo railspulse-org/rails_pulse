@@ -262,6 +262,37 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil assigns(:table_data)
   end
 
+  test "index action renders chart data for a custom range whose server OS timezone differs from Time.zone" do
+    # Reproduces a real bug report: with a custom date range selected, the
+    # metric cards and routes table showed data but the Response Time
+    # Percentiles chart was blank. Root cause was in TimeRangeConcern, not
+    # this controller, but this is the actual page the user saw it on.
+    original_tz = ENV["TZ"]
+    ENV["TZ"] = "Asia/Bangkok" # UTC+7 — deliberately not Time.zone (UTC in tests)
+    travel_to Time.zone.parse("2026-09-19 12:00")
+    RailsPulse::Summary.delete_all
+    route = rails_pulse_routes(:api_users)
+    [ "2026-09-16", "2026-09-17", "2026-09-18", "2026-09-19" ].each do |day|
+      date = Time.zone.parse(day)
+      RailsPulse::Summary.create!(
+        summarizable: route, period_type: "day", period_start: date.beginning_of_day, period_end: date.end_of_day,
+        count: 40, avg_duration: 90.0, p50_duration: 80.0, p95_duration: 100.0, p99_duration: 110.0
+      )
+    end
+
+    patch rails_pulse.settings_time_range_path, params: { start_time: "2026-09-16 12:00", end_time: "2026-09-19 12:00" }
+    get rails_pulse.routes_path
+
+    assert_response :success
+    chart_data = assigns(:response_time_chart_data)
+    p95_series = chart_data[:series].find { |series| series[:name] == "P95" }
+
+    assert(p95_series[:data].any? { |point| point[1].present? }, "expected the P95 series to have at least one non-nil value")
+  ensure
+    ENV["TZ"] = original_tz
+    travel_back
+  end
+
   test "index action with sorting" do
     setup_basic_test_data
 

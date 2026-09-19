@@ -160,6 +160,12 @@ export default class extends Controller {
       config.xAxis = config.xAxis || {}
       if (isTimePairs) {
         config.xAxis.type = 'time'
+        // Without this, ECharts spaces ticks by pixel width, not by the data's
+        // actual bucket size — a multi-day "time" axis can end up with more
+        // ticks than days, and since the label formatter only shows the date,
+        // adjacent ticks on the same day render as duplicate-looking labels.
+        const bucketMs = this._minTimestampGapMs(data.series)
+        if (bucketMs) config.xAxis.minInterval = bucketMs
       } else {
         config.xAxis.type = 'category'
         config.xAxis.data = data.labels
@@ -238,6 +244,27 @@ export default class extends Controller {
   _usesTimeAxisData(data = this.dataValue) {
     const firstPoint = data?.series?.find(series => Array.isArray(series?.data) && series.data.length > 0)?.data?.[0]
     return Array.isArray(firstPoint) || Array.isArray(firstPoint?.value)
+  }
+
+  // Smallest gap (ms) between any two distinct timestamps across all series,
+  // used as xAxis.minInterval so auto-placed ticks never fall closer together
+  // than the data actually does.
+  _minTimestampGapMs(series) {
+    const timestamps = new Set()
+    series.forEach(s => {
+      (s.data || []).forEach(point => {
+        const pair = Array.isArray(point) ? point : (Array.isArray(point?.value) ? point.value : null)
+        if (pair && typeof pair[0] === 'number') timestamps.add(pair[0])
+      })
+    })
+
+    const sorted = Array.from(timestamps).sort((a, b) => a - b)
+    let minGap = null
+    for (let i = 1; i < sorted.length; i++) {
+      const gap = sorted[i] - sorted[i - 1]
+      if (gap > 0 && (minGap === null || gap < minGap)) minGap = gap
+    }
+    return minGap
   }
 
   deploymentMarkerSeriesId = 'rails-pulse-deployment-markers'

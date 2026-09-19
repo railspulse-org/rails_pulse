@@ -458,6 +458,31 @@ class TimeRangeConcernTest < ActionController::TestCase
 
   # Normalization Tests
 
+  test "setup_time_range normalizes a custom range to Time.zone's day boundary regardless of the server OS timezone" do
+    # Reproduces a real failure mode: parse_time_param deliberately treats a
+    # custom-range string as the server OS's local wall-clock time (see its
+    # comment), but Summary buckets are always anchored to Time.zone. Without
+    # converting into Time.zone before rounding, a server whose OS timezone
+    # differs from Time.zone rounds to a boundary that never matches a stored
+    # summary row's period_start, so every chart on the page renders empty
+    # even though the metric cards and table (which query differently) show
+    # data fine.
+    original_tz = ENV["TZ"]
+    ENV["TZ"] = "Asia/Bangkok" # UTC+7 — deliberately not Time.zone (UTC in tests)
+
+    @controller.session[:time_range_preference] = {
+      "type" => "custom", "start_time" => "2025-01-01 12:00", "end_time" => "2025-01-04 12:00"
+    }
+
+    start_time, end_time, selected_range, _time_diff = @controller.send(:setup_time_range)
+
+    assert_equal "custom", selected_range
+    assert_equal Time.zone.parse("2025-01-01 00:00:00"), Time.zone.at(start_time)
+    assert_equal Time.zone.parse("2025-01-04 23:59:59"), Time.zone.at(end_time)
+  ensure
+    ENV["TZ"] = original_tz
+  end
+
   test "setup_time_range normalizes to hour boundaries when time_diff <= 25 hours" do
     start_at = 20.hours.ago
     end_at = Time.current

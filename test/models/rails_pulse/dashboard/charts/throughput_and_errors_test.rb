@@ -303,6 +303,25 @@ module RailsPulse
           assert_operator zero_points.length, :>, 0, "Expected some zero-value data points for hours with no data"
         end
 
+        # Explicit Range Tests
+
+        test "explicit range buckets exactly the selected days and ignores the trailing window" do
+          travel_to Time.zone.parse("2026-09-19 12:00")
+          route = rails_pulse_routes(:api_users)
+          create_route_day_summary(route, Time.zone.parse("2026-09-15"), count: 9000, error_count: 1000)
+          create_route_day_summary(route, Time.zone.parse("2026-09-16"), count: 50, error_count: 5)
+
+          result = RailsPulse::Dashboard::Charts::ThroughputAndErrors.new(
+            period: 3, period_type: "day",
+            start_time: Time.zone.parse("2026-09-16 00:00").to_i, end_time: Time.zone.parse("2026-09-19 23:59:59").to_i
+          ).to_chart_data
+
+          assert_equal [ "Sep 16", "Sep 17", "Sep 18", "Sep 19" ], result[:labels]
+          requests = result[:series].find { |s| s[:name] == "Requests" }
+
+          assert_equal [ 50, 0, 0, 0 ], requests[:data]
+        end
+
         private
 
         def create_route_day_summary(route, date, count:, error_count:, status_4xx: 0)

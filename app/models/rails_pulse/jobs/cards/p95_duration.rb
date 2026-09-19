@@ -2,12 +2,14 @@ module RailsPulse
   module Jobs
     module Cards
       class P95Duration < RailsPulse::Cards::Base
-        def initialize(job: nil, disabled_tags: [], show_non_tagged: true, period: 14, period_type: "day")
+        def initialize(job: nil, disabled_tags: [], show_non_tagged: true, period: 14, period_type: "day", start_time: nil, end_time: nil)
           @job = job
           @disabled_tags = disabled_tags
           @show_non_tagged = show_non_tagged
           @period = period
           @period_type = period_type
+          @start_time = start_time
+          @end_time = end_time
         end
 
         def to_metric_card
