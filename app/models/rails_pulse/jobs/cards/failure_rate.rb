@@ -54,13 +54,8 @@ module RailsPulse
             )
           sparkline_query = sparkline_query.where(summarizable_id: @job.id) if @job
 
-          if @period_type == "hour"
-            grouped_errors = sparkline_query.group_by_hour(:period_start).sum("rails_pulse_summaries.error_count")
-            grouped_counts = sparkline_query.group_by_hour(:period_start).sum("rails_pulse_summaries.count")
-          else
-            grouped_errors = sparkline_query.group_by_date(:period_start).sum("rails_pulse_summaries.error_count")
-            grouped_counts = sparkline_query.group_by_date(:period_start).sum("rails_pulse_summaries.count")
-          end
+          grouped_errors = bucket_by_period(sparkline_query) { |relation| relation.sum("rails_pulse_summaries.error_count") }
+          grouped_counts = bucket_by_period(sparkline_query) { |relation| relation.sum("rails_pulse_summaries.count") }
 
           sparkline_data = sparkline_from_failure_rates(grouped_errors, grouped_counts)
 

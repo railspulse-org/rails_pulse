@@ -183,8 +183,6 @@ module PerformanceHelpers
 
   def stub_expensive_queries
     return unless defined?(Mocha)
-    RailsPulse::Request.stubs(:group_by_hour).returns(mock_grouped_data)
-    RailsPulse::Request.stubs(:group_by_day).returns(mock_grouped_data)
     RailsPulse::Request.stubs(:ransack).returns(mock_ransack_result)
   end
 

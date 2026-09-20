@@ -34,16 +34,11 @@ module RailsPulse
           trend_icon, trend_amount = trend_for(current_period_avg, previous_period_avg) if show_trend?
 
           # Sparkline data with zero-filled periods
-          grouped_weighted = base_query
-            .group_by_date(:period_start)
-            .sum(Arel.sql("avg_duration * count"))
-
-          grouped_counts = base_query
-            .group_by_date(:period_start)
-            .sum(:count)
+          grouped_weighted = bucket_by_period(base_query) { |relation| relation.sum(Arel.sql("avg_duration * count")) }
+          grouped_counts = bucket_by_period(base_query) { |relation| relation.sum(:count) }
 
           # Calculate weighted averages for each period
-          averages_by_period = grouped_weighted.transform_keys(&:to_date).transform_values.with_index do |(weighted, day), _|
+          averages_by_period = grouped_weighted.transform_values.with_index do |(weighted, day), _|
             count = grouped_counts[day] || 0
             count > 0 ? (weighted.to_f / count).round(0) : 0
           end

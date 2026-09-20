@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Metric card sparklines are now correct in time zones east of UTC.** Daily buckets were computed from the stored UTC timestamp, so in zones such as London, Melbourne or Tokyo every card showed each day's value a day early with the latest day at zero, and half-hour zones got empty hourly sparklines. Grouping now follows `config.time_zone`, and the gem no longer adds `group_by_date` / `group_by_hour` to the host's `ActiveRecord::Relation`.
 - **Summary aggregation now runs its transaction on the Rails Pulse connection.** On separate-database installs it was opened on the host's primary database, so a failure part-way through a period could leave partial summaries behind.
 - **The dashboard's own HTTP, mailer, job and storage events are no longer recorded.** These subscribers skipped the recursion guard that SQL and template events already honoured.
 - **Storage page reports real table sizes again.** A leftover screenshot fixture replaced every table's live count, size, and age with hard-coded sample numbers in any environment other than `test`.
