@@ -222,6 +222,19 @@ class RailsPulse::RouteTest < ActiveSupport::TestCase
     assert_predicate RailsPulse::Route, :needs_action_backfill?
   end
 
+  test "needs_action_backfill? runs a single query when every route has an action" do
+    RailsPulse::Route.where(controller_action: [ nil, "" ]).delete_all
+    statements = 0
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      statements += 1 unless payload[:name] == "SCHEMA" || payload[:cached]
+    end
+
+    assert_not RailsPulse::Route.needs_action_backfill?
+    assert_equal 1, statements
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
   test "needs_action_backfill? is false when blank-action routes are unrecognized" do
     RailsPulse::Route.create!(
       http_methods: '["GET"]',

@@ -126,6 +126,20 @@ class RailsPulse::SummaryTest < ActiveSupport::TestCase
     assert_equal all_count, filtered_count
   end
 
+  test "with_tag_filters applies the tag filter inside the summary query rather than plucking ids first" do
+    statements = []
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      statements << payload[:sql] unless payload[:name] == "SCHEMA" || payload[:cached]
+    end
+
+    RailsPulse::Summary.with_tag_filters([ "api" ], false).count
+
+    assert_equal 1, statements.size, statements.join("\n")
+    assert_match(/IN \(SELECT/, statements.first)
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
   test "with_tag_filters should exclude routes with disabled tags" do
     # api_users has ["api", "users"], api_posts has ["api", "posts"]
     route_summary = rails_pulse_summaries(:route_summary_1)  # links to api_users route
