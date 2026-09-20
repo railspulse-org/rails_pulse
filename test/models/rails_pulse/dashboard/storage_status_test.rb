@@ -62,7 +62,9 @@ module RailsPulse
         size_statements = lambda do
           count = 0
           subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
-            count += 1 if payload[:sql] =~ /dbstat|pg_total_relation_size|information_schema/i
+            # MySQL's table_exists? also reads information_schema, tagged SCHEMA; only
+            # count the size lookups themselves.
+            count += 1 if payload[:name] != "SCHEMA" && payload[:sql] =~ /dbstat|pg_total_relation_size|information_schema/i
           end
           yield_result = StorageStatus.new(cached_sizes: true).tables
           ActiveSupport::Notifications.unsubscribe(subscriber)
@@ -83,7 +85,9 @@ module RailsPulse
         StorageStatus.reset_size_cache!
         count = 0
         subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
-          count += 1 if payload[:sql] =~ /dbstat|pg_total_relation_size|information_schema/i
+            # MySQL's table_exists? also reads information_schema, tagged SCHEMA; only
+            # count the size lookups themselves.
+            count += 1 if payload[:name] != "SCHEMA" && payload[:sql] =~ /dbstat|pg_total_relation_size|information_schema/i
         end
 
         StorageStatus.new.tables
