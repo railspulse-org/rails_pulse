@@ -14,7 +14,7 @@ class RailsPulse::Middleware::RequestCollectorTest < ActiveSupport::TestCase
       { operation_type: "sql", actual_sql: "SELECT * FROM users WHERE id = 3" }
     ]
 
-    @collector.send(:detect_n_plus_one, ops)
+    RailsPulse::Tracker.detect_n_plus_one(ops)
 
     ops.each do |op|
       assert_equal 3, op[:repetition_count]
@@ -28,7 +28,7 @@ class RailsPulse::Middleware::RequestCollectorTest < ActiveSupport::TestCase
       { operation_type: "sql", actual_sql: "SELECT * FROM posts WHERE id = 2" }
     ]
 
-    @collector.send(:detect_n_plus_one, ops)
+    RailsPulse::Tracker.detect_n_plus_one(ops)
 
     group = ops.first[:repeated_query_group]
 
@@ -44,7 +44,7 @@ class RailsPulse::Middleware::RequestCollectorTest < ActiveSupport::TestCase
       { operation_type: "sql", actual_sql: "SELECT COUNT(*) FROM comments" }
     ]
 
-    @collector.send(:detect_n_plus_one, ops)
+    RailsPulse::Tracker.detect_n_plus_one(ops)
 
     ops.each do |op|
       assert_nil op[:repetition_count]
@@ -55,7 +55,7 @@ class RailsPulse::Middleware::RequestCollectorTest < ActiveSupport::TestCase
   test "does not flag operations when fewer than 2 SQL ops total" do
     ops = [ { operation_type: "sql", actual_sql: "SELECT * FROM users" } ]
 
-    @collector.send(:detect_n_plus_one, ops)
+    RailsPulse::Tracker.detect_n_plus_one(ops)
 
     assert_nil ops.first[:repetition_count]
   end
@@ -67,7 +67,7 @@ class RailsPulse::Middleware::RequestCollectorTest < ActiveSupport::TestCase
       { operation_type: "sql", actual_sql: "SELECT * FROM users WHERE id = 2" }
     ]
 
-    @collector.send(:detect_n_plus_one, ops)
+    RailsPulse::Tracker.detect_n_plus_one(ops)
 
     template_op = ops.first
 
@@ -82,7 +82,7 @@ class RailsPulse::Middleware::RequestCollectorTest < ActiveSupport::TestCase
       { operation_type: "sql", actual_sql: "SELECT COUNT(*) FROM posts" }
     ]
 
-    @collector.send(:detect_n_plus_one, ops)
+    RailsPulse::Tracker.detect_n_plus_one(ops)
 
     assert_equal 2, ops[0][:repetition_count]
     assert_equal 2, ops[1][:repetition_count]
@@ -90,7 +90,7 @@ class RailsPulse::Middleware::RequestCollectorTest < ActiveSupport::TestCase
   end
 
   test "handles empty operations array" do
-    assert_nothing_raised { @collector.send(:detect_n_plus_one, []) }
+    assert_nothing_raised { RailsPulse::Tracker.detect_n_plus_one([]) }
   end
 
   test "handles operations with nil actual_sql" do
@@ -99,7 +99,7 @@ class RailsPulse::Middleware::RequestCollectorTest < ActiveSupport::TestCase
       { operation_type: "sql", actual_sql: nil }
     ]
 
-    assert_nothing_raised { @collector.send(:detect_n_plus_one, ops) }
+    assert_nothing_raised { RailsPulse::Tracker.detect_n_plus_one(ops) }
 
     assert_equal 2, ops.first[:repetition_count]
   end
@@ -112,7 +112,7 @@ class RailsPulse::Middleware::RequestCollectorTest < ActiveSupport::TestCase
       { operation_type: "sql", actual_sql: "SELECT * FROM posts WHERE id = 2" }
     ]
 
-    @collector.send(:detect_n_plus_one, ops)
+    RailsPulse::Tracker.detect_n_plus_one(ops)
 
     assert_equal 2, ops[0][:repetition_count]
     assert_equal 2, ops[2][:repetition_count]

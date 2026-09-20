@@ -175,12 +175,14 @@ server {
 
 Rails Pulse persists tracking data on a background thread by default (`config.async = true`), so the database writes for a request do not hold up its response.
 
-- **Production/Development:** writes happen on a background thread once the response has been built
-- **Test:** writes happen inline. The generated initializer sets `config.async = false if Rails.env.test?`, and the tracker also falls back to inline writes on its own whenever it detects a transactional-test connection, because Rails shares that single connection with every thread
+- **Production/Development:** the middleware hands each request's data to one writer thread per process through a bounded queue and returns. The writer drains the queue in batches on a single connection from the Rails Pulse pool, so tracking never holds more than one of your app's connections no matter how bursty traffic gets.
+- **Queue full:** when the writer cannot keep up (`config.async_queue_size`, default 1000 pending requests) the newest request is dropped rather than blocking the app. Drops are counted and logged at most once a minute; `RailsPulse::Tracker.stats` reports the queue depth and lifetime drop count.
+- **Shutdown:** an `at_exit` hook drains the queue (up to 5 seconds) so a graceful restart does not lose the last requests. `RailsPulse::Tracker.flush!` does the same on demand.
+- **Test:** writes happen inline. The generated initializer sets `config.async = false if Rails.env.test?`, and the tracker also falls back to inline writes on its own whenever it detects a transactional-test connection, because Rails shares that single connection with every thread.
 
 **Performance Impact:**
-- The request thread only hands the collected data to the writer thread
-- Database writes happen off the request thread
+- The request thread only pushes the collected data onto the queue; SQL normalisation and N+1 detection run on the writer
+- Database writes happen off the request thread, and a batch of requests shares one connection checkout and one operations insert
 - Set `config.async = false` to write inline before the response is sent
 
 ---

@@ -4,6 +4,7 @@ class RailsPulse::TrackerTest < ActiveSupport::TestCase
   setup do
     # Clear RequestStore to avoid state leakage between tests
     RequestStore.store[:skip_recording_rails_pulse_activity] = false
+    RailsPulse::Tracker.reset_writer!
 
     @tracking_data = {
       method: "GET",
@@ -98,29 +99,23 @@ class RailsPulse::TrackerTest < ActiveSupport::TestCase
     assert_nil RailsPulse::Request.find_by(request_uuid: @tracking_data[:request_uuid])
   end
 
-  test "async mode with fibers processes requests concurrently" do
-    # Temporarily enable async mode
+  test "async mode under a shared test connection still persists every request" do
     original_async = RailsPulse.configuration.async
     RailsPulse.configuration.async = true
 
     begin
-      base_path = "/fiber-test-#{SecureRandom.hex(4)}"
+      base_path = "/async-test-#{SecureRandom.hex(4)}"
       initial_count = RailsPulse::Request.count
 
-      # Create multiple tracking requests
-      tasks = 5.times.map do |i|
+      5.times do |i|
         data = @tracking_data.merge(
-          request_uuid: "fiber-uuid-#{SecureRandom.hex(8)}-#{i}",
+          request_uuid: "async-uuid-#{SecureRandom.hex(8)}-#{i}",
           path: "#{base_path}-#{i}"
         )
         RailsPulse::Tracker.track_request(data)
       end
 
-      # Wait for async fibers to complete
-      sleep 0.5
-
-      # All requests should be created
-      assert_equal initial_count + 5, RailsPulse::Request.count, "Should create 5 requests via async fibers"
+      assert_equal initial_count + 5, RailsPulse::Request.count, "Should create 5 requests"
     ensure
       RailsPulse.configuration.async = original_async
     end
@@ -141,16 +136,40 @@ class RailsPulse::TrackerTest < ActiveSupport::TestCase
     RailsPulse.configuration.async = original_async
   end
 
-  test "spawns a background thread when async is enabled and the connection is not shared" do
+  test "enqueues on the background writer when async is enabled and the connection is not shared" do
     original_async = RailsPulse.configuration.async
     RailsPulse.configuration.async = true
     RailsPulse::Tracker.stubs(:connection_shared_across_threads?).returns(false)
     Thread.expects(:new).once
 
     assert_nil RailsPulse::Tracker.track_request(@tracking_data)
+    assert_equal 1, RailsPulse::Tracker.stats[:queue_size]
+    assert_nil RailsPulse::Request.find_by(request_uuid: @tracking_data[:request_uuid])
   ensure
     RailsPulse.configuration.async = original_async
     RailsPulse::Tracker.unstub(:connection_shared_across_threads?)
+  end
+
+  test "background writer drains the queue on its own thread" do
+    original_async = RailsPulse.configuration.async
+    RailsPulse.configuration.async = true
+    RailsPulse::Tracker.stubs(:connection_shared_across_threads?).returns(false)
+
+    3.times do |i|
+      RailsPulse::Tracker.track_request(@tracking_data.merge(request_uuid: "writer-#{i}-#{SecureRandom.hex(4)}"))
+    end
+    RailsPulse::Tracker.flush!
+
+    assert_equal 3, RailsPulse::Request.where("request_uuid LIKE 'writer-%'").count
+    assert_equal 0, RailsPulse::Tracker.stats[:queue_size]
+    assert_equal 0, RailsPulse::Tracker.stats[:dropped]
+  ensure
+    RailsPulse.configuration.async = original_async
+    RailsPulse::Tracker.unstub(:connection_shared_across_threads?)
+  end
+
+  test "stats report zeros before the writer has been used" do
+    assert_equal({ queue_size: 0, dropped: 0, running: false }, RailsPulse::Tracker.stats)
   end
 
   test "persists response_size_bytes to request record" do
@@ -197,17 +216,13 @@ class RailsPulse::TrackerTest < ActiveSupport::TestCase
     assert_not_nil operation.repeated_query_group
   end
 
-  test "handles deep copied operations in async mode" do
+  test "persists operations in async mode" do
     # Temporarily enable async mode
     original_async = RailsPulse.configuration.async
     RailsPulse.configuration.async = true
 
     begin
-      # Track request with operations
       RailsPulse::Tracker.track_request(@tracking_data)
-
-      # Wait for async fiber
-      sleep 0.3
 
       request = RailsPulse::Request.find_by(request_uuid: @tracking_data[:request_uuid])
 
@@ -325,6 +340,45 @@ class RailsPulse::TrackerTest < ActiveSupport::TestCase
     assert_nil result
   ensure
     RailsPulse::Request.unstub(:create!)
+  end
+
+  # Batch Persistence
+
+  test "perform_tracking_batch skips a request that fails and keeps the rest" do
+    good = @tracking_data.merge(request_uuid: "batch-good-#{SecureRandom.hex(4)}")
+    bad = @tracking_data.merge(request_uuid: "batch-bad-#{SecureRandom.hex(4)}", status: nil)
+
+    RailsPulse::Tracker.perform_tracking_batch([ bad, good ])
+
+    assert_nil RailsPulse::Request.find_by(request_uuid: bad[:request_uuid])
+    request = RailsPulse::Request.find_by(request_uuid: good[:request_uuid])
+
+    assert_not_nil request
+    assert_equal 1, request.operations.count
+  end
+
+  test "perform_tracking_batch inserts operations for every request in one batch" do
+    batch = 3.times.map { |i| @tracking_data.merge(request_uuid: "batch-#{i}-#{SecureRandom.hex(4)}") }
+    inserts = 0
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      inserts += 1 if payload[:sql].start_with?("INSERT INTO \"rails_pulse_operations\"", "INSERT INTO `rails_pulse_operations`")
+    end
+
+    RailsPulse::Tracker.perform_tracking_batch(batch)
+
+    assert_equal 1, inserts
+    assert_equal 3, RailsPulse::Operation.where(request_id: RailsPulse::Request.where(request_uuid: batch.map { |d| d[:request_uuid] }).select(:id)).count
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
+  test "detect_n_plus_one runs on the writer side" do
+    ops = 3.times.map { |i| { operation_type: "sql", duration: 1.0, label: "q", actual_sql: "SELECT * FROM users WHERE id = #{i}", occurred_at: Time.current } }
+    data = @tracking_data.merge(operations: ops)
+
+    request = RailsPulse::Tracker.track_request(data)
+
+    assert_equal [ 3, 3, 3 ], request.operations.pluck(:repetition_count)
   end
 
   # Aborted Transaction Recovery

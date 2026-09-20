@@ -30,6 +30,7 @@ module RailsPulse
                   :mount_dashboard,
                   :logger,
                   :async,
+                  :async_queue_size,
                   :service_level_objectives,
                   :query_service_level_objectives,
                   :warn_on_stale_summaries,
@@ -126,8 +127,11 @@ module RailsPulse
       @mount_dashboard = true
       @logger = nil
 
-      # Tracking mode settings
+      # Tracking mode settings. With async, one writer thread per process
+      # drains a queue of this many pending requests; when it is full the
+      # newest request is dropped rather than blocking the host.
       @async = true
+      @async_queue_size = 1_000
 
       # Service Level Objectives (default: [] = no SLOs configured)
       @service_level_objectives = []
@@ -396,6 +400,10 @@ module RailsPulse
     def validate_tracking_settings!
       unless [ true, false ].include?(@async)
         raise ArgumentError, "async must be true or false, got #{@async}"
+      end
+
+      unless @async_queue_size.is_a?(Integer) && @async_queue_size.positive?
+        raise ArgumentError, "async_queue_size must be a positive integer, got #{@async_queue_size.inspect}"
       end
     end
 
