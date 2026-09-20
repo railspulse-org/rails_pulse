@@ -25,10 +25,10 @@ module RailsPulse
             .where(first_seen_at: current_window_start..now)
             .count
 
-          grouped = RailsPulse::ExceptionGroup
-            .where(first_seen_at: current_window_start..now)
-            .group_by_date(:first_seen_at)
-            .count
+          grouped = bucket_by_period(
+            RailsPulse::ExceptionGroup.where(first_seen_at: current_window_start..now),
+            column: :first_seen_at
+          ) { |relation| relation.count }
 
           {
             id: "exceptions_open_groups",

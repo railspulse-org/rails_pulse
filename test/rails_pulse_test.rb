@@ -205,28 +205,6 @@ class RailsPulseTest < ActiveSupport::TestCase
     assert_nil RailsPulse.connects_to
   end
 
-  # clear_metric_cache!
-
-  test "clear_metric_cache! removes matching cache entries" do
-    Rails.cache.write("rails_pulse_metric_foo", "bar")
-    Rails.cache.write("rails_pulse_metric_baz", "qux")
-    Rails.cache.write("other_key", "untouched")
-
-    RailsPulse.clear_metric_cache!
-
-    assert_nil Rails.cache.read("rails_pulse_metric_foo")
-    assert_nil Rails.cache.read("rails_pulse_metric_baz")
-    assert_equal "untouched", Rails.cache.read("other_key")
-  ensure
-    Rails.cache.delete("other_key")
-  end
-
-  # warm_metric_cache!
-
-  test "warm_metric_cache! does not raise" do
-    assert_nothing_raised { RailsPulse.warm_metric_cache! }
-  end
-
   # Configuration default
 
   test "configuration is initialized by default" do

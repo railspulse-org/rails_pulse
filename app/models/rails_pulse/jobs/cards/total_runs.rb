@@ -34,9 +34,7 @@ module RailsPulse
 
           trend_icon, trend_amount = trend_for(current_runs, previous_runs) if show_trend?
 
-          grouped_runs = base_query
-            .group_by_date(:period_start)
-            .sum("rails_pulse_summaries.count")
+          grouped_runs = bucket_by_period(base_query) { |relation| relation.sum("rails_pulse_summaries.count") }
 
           {
             id: "jobs_total_runs",

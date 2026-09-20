@@ -378,6 +378,16 @@ class OperationSubscriberTest < ActiveSupport::TestCase
     assert_equal "GET https://api.example.com/users", operation[:label]
   end
 
+  test "does not record HTTP operations while Rails Pulse activity is suppressed" do
+    RequestStore.store[:skip_recording_rails_pulse_activity] = true
+
+    ActiveSupport::Notifications.instrument("request.net_http", method: "GET", uri: "https://api.example.com/users") { }
+
+    assert_empty RequestStore.store[:rails_pulse_operations]
+  ensure
+    RequestStore.store[:skip_recording_rails_pulse_activity] = false
+  end
+
   test "should handle Active Job operations" do
     job_class = Class.new do
       def self.name
