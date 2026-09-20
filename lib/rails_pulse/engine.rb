@@ -12,44 +12,6 @@ require "rack/static"
 require "ransack"
 
 module RailsPulse
-  # Manually load services to avoid Zeitwerk autoload issues
-  autoload :SqlQueryNormalizer, File.expand_path("../../app/services/rails_pulse/sql_query_normalizer", __dir__)
-  autoload :SummaryService, File.expand_path("../../app/services/rails_pulse/summary_service", __dir__)
-  autoload :QueryAnalysisService, File.expand_path("../../app/services/rails_pulse/query_analysis_service", __dir__)
-  autoload :TagFilterService, File.expand_path("../../app/services/rails_pulse/tag_filter_service", __dir__)
-  autoload :ExceptionCaptureService, File.expand_path("../../app/services/rails_pulse/exception_capture_service", __dir__)
-  autoload :ExceptionMessageSanitizer, File.expand_path("../../app/services/rails_pulse/exception_message_sanitizer", __dir__)
-  autoload :OperationSuggestions, File.expand_path("../../app/services/rails_pulse/operation_suggestions", __dir__)
-  autoload :RoutePathNormalizer,             File.expand_path("../../app/services/rails_pulse/route_path_normalizer", __dir__)
-  autoload :RouteRecognizer,                 File.expand_path("../../app/services/rails_pulse/route_recognizer", __dir__)
-  autoload :RouteMerger,                     File.expand_path("../../app/services/rails_pulse/route_merger", __dir__)
-  autoload :RouteMigrator,                   File.expand_path("../../app/services/rails_pulse/route_migrator", __dir__)
-  autoload :RouteControllerActionBackfiller, File.expand_path("../../app/services/rails_pulse/route_controller_action_backfiller", __dir__)
-
-  # Historical comparison operations. This namespace is the read-only interface
-  # for "what changed?" — everything else in the codebase, and anything built on
-  # top of Rails Pulse later, should ask these rather than querying summaries
-  # directly.
-  module Operations
-    autoload :ChangePoint, File.expand_path("../../app/services/rails_pulse/operations/change_point", __dir__)
-    autoload :Compare,     File.expand_path("../../app/services/rails_pulse/operations/compare", __dir__)
-    autoload :Comparison,  File.expand_path("../../app/services/rails_pulse/operations/comparison", __dir__)
-    autoload :Metric,      File.expand_path("../../app/services/rails_pulse/operations/metric", __dir__)
-    autoload :Series,      File.expand_path("../../app/services/rails_pulse/operations/series", __dir__)
-    autoload :Subject,     File.expand_path("../../app/services/rails_pulse/operations/subject", __dir__)
-  end
-
-  # Analysis services
-  module Analysis
-    autoload :BacktraceAnalyzer, File.expand_path("../../app/services/rails_pulse/analysis/backtrace_analyzer", __dir__)
-    autoload :BaseAnalyzer, File.expand_path("../../app/services/rails_pulse/analysis/base_analyzer", __dir__)
-    autoload :ExplainPlanAnalyzer, File.expand_path("../../app/services/rails_pulse/analysis/explain_plan_analyzer", __dir__)
-    autoload :IndexRecommendationEngine, File.expand_path("../../app/services/rails_pulse/analysis/index_recommendation_engine", __dir__)
-    autoload :NPlusOneDetector, File.expand_path("../../app/services/rails_pulse/analysis/n_plus_one_detector", __dir__)
-    autoload :QueryCharacteristicsAnalyzer, File.expand_path("../../app/services/rails_pulse/analysis/query_characteristics_analyzer", __dir__)
-    autoload :SuggestionGenerator, File.expand_path("../../app/services/rails_pulse/analysis/suggestion_generator", __dir__)
-  end
-
   # Installer services
   module Installers
     autoload :MigrationInstaller, File.expand_path("installers/migration_installer", __dir__)
@@ -71,9 +33,20 @@ module RailsPulse
   class Engine < ::Rails::Engine
     isolate_namespace RailsPulse
 
-    # Tell Zeitwerk to ignore services directory since we manually autoload them
-    initializer "rails_pulse.ignore_services", before: :set_autoload_paths do
-      Rails.autoloaders.main.ignore(root.join("app/services")) if Rails.respond_to?(:autoloaders)
+    # Zeitwerk derives constant names from file names through the host's
+    # inflections. A host that declares `inflect.acronym "SQL"` (or "CSP")
+    # would expect sql_query_normalizer.rb to define SQLQueryNormalizer and
+    # fail to eager load in production. Pin the names of the files whose
+    # basenames contain a common acronym so the gem's constants do not depend
+    # on the host's inflections.
+    ACRONYM_SAFE_INFLECTIONS = {
+      "sql_query_normalizer" => "SqlQueryNormalizer",
+      "csp_helper" => "CspHelper",
+      "csp_test_controller" => "CspTestController"
+    }.freeze
+
+    initializer "rails_pulse.inflections", before: :set_autoload_paths do
+      Rails.autoloaders.main.inflector.inflect(ACRONYM_SAFE_INFLECTIONS) if Rails.respond_to?(:autoloaders)
     end
 
     # Load Rake tasks

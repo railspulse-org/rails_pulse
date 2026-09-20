@@ -88,7 +88,9 @@ Naming conventions:
 
 ## Architecture Gotchas
 
-**Services are NOT autoloaded by Zeitwerk.** The engine explicitly tells Zeitwerk to ignore `app/services/` and manually autoloads them. If you add a new service, register it in `lib/rails_pulse/engine.rb`.
+**`app/` is Zeitwerk-managed; `lib/` is not.** Services, models, controllers and jobs under `app/` autoload and reload by file path like any Rails app. Code under `lib/rails_pulse/` (installers, stats, task runners, middleware, subscribers) is loaded with explicit `require` / `autoload` entries in `lib/rails_pulse/engine.rb`; a new file there needs an entry.
+
+**Zeitwerk uses the host's inflections.** A host with `inflect.acronym "SQL"` expects `sql_query_normalizer.rb` to define `SQLQueryNormalizer`. Any file under `app/` whose basename contains a common acronym (sql, csp, http, api, json, …) must be pinned in `ACRONYM_SAFE_INFLECTIONS` in `lib/rails_pulse/engine.rb`; `test/lib/rails_pulse/zeitwerk_test.rb` eager-loads with `SQL` and `CSP` declared to catch omissions.
 
 **RequestStore is thread-local.** Operations are deep-copied before async tracking to prevent race conditions. The `skip_recording_rails_pulse_activity` flag prevents recursive tracking on Rails Pulse's own requests.
 
@@ -107,7 +109,7 @@ Naming conventions:
 3. Add `ransackable_attributes` to any new model
 4. Add fixtures to `test/fixtures/rails_pulse_*.yml`
 5. Write tests following conventions in `docs/testing.md`
-6. If adding a service, register it manually in the engine
+6. Services under `app/services/` autoload; only new `lib/` files need an engine entry
 
 ## Frontend / Assets
 
