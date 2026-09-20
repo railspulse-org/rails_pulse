@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0.pre.5] - 2026-09-20
+
 ### Changed
 
 - **Services now autoload through Zeitwerk.** `app/services` was hidden from the Rails autoloader and wired up by hand, so services never reloaded in development and every new one had to be registered in the engine. They now load and reload like the rest of `app/`, with the few acronym-prone file names pinned so a host's `inflect.acronym` declarations cannot change the constants the gem expects.
