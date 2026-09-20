@@ -1,0 +1,7 @@
+# Dashboard metrics come from summaries that `SummaryJob` precomputes, not from raw rows at read time
+
+`RailsPulse::SummaryJob` runs hourly and writes one `Summary` row per subject and period type (hour, then day, week and month at their boundaries) through `SummaryService`, which upserts all rows for a period in bulk. Charts, metric cards and the health bar read summaries only. Raw requests and operations are kept for drill-down and are deleted by retention long before summaries are.
+
+Computing percentiles from raw rows at read time was rejected. P95 over a week of requests for every route on one page is a sort of millions of rows per load, on the host's own database (see 0006), and it gets slower as the app gets busier, which is exactly when someone opens the dashboard.
+
+Three consequences are deliberate. Data is up to an hour stale, and the dashboard says so with a banner when the job has not run (`warn_on_stale_summaries`). The overall request rollup (type `RailsPulse::Request`, id 0) is written even for an empty hour so its timestamp is a heartbeat that the banner, `rails_pulse:status`, storage pressure and cleanup all read. Hourly rows are pruned after `hourly_summary_retention` (two days) because only the one-day view reads them; the trade is precision of change-point detection against table size. `rake rails_pulse:backfill_summaries` rebuilds summaries from whatever raw rows still exist.

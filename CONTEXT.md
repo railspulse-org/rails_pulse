@@ -4,6 +4,76 @@ A Rails engine that instruments a host app's requests, queries, jobs, and except
 
 ## Language
 
+### Traffic
+
+**Route**:
+One row per `[controller_action, path]` pair, for example `posts#show` at `/posts/:id`. A route carries every HTTP verb seen for that pair in `http_methods`; GET and POST on the same path are the same route when they resolve to the same action. Routes are the unit the dashboard ranks and tags.
+_Avoid_: endpoint, URL, action (on its own)
+
+**Unrecognised route**:
+A Route whose `controller_action` is nil because the host router did not match the request (404s, middleware short-circuits). These are grouped by path alone and kept unique by a partial index on `path WHERE controller_action IS NULL`.
+_Avoid_: unknown route, 404 route
+
+**Request**:
+One recorded HTTP request: duration, status, HTTP method, response size, error flag, and the Route it belongs to. Requests are the raw data that summaries aggregate, and cleanup deletes them first.
+_Avoid_: hit, call, transaction
+
+**Operation**:
+One timed step inside a Request or JobRun: `sql`, `controller`, `template`, `partial`, `layout`, `collection`, `cache_read`, `cache_write`, `http`, `job`, `mailer` or `storage`. Together an entry's operations form its timeline. A `sql` operation also points at the Query it ran.
+_Avoid_: span, event, segment
+
+**Query**:
+One normalised SQL statement, identified by `hashed_sql` over `normalized_sql` (literals replaced with placeholders). N+1 detection, EXPLAIN analysis and index suggestions hang off the Query, not the Operation.
+_Avoid_: statement, SQL (as a noun for the row)
+
+### Jobs
+
+**Job**:
+One row per background job class, with lifetime aggregates (`runs_count`, `failures_count`, P95 and P99 duration).
+_Avoid_: worker, task
+
+**JobRun**:
+One execution of a Job with a status from `enqueued`, `running`, `success`, `failed`, `discarded` or `retried`. The last four are final. A JobRun owns Operations just as a Request does.
+_Avoid_: execution, attempt (an attempt is a counter on the run)
+
+### Aggregation
+
+**Summary**:
+A pre-aggregated row for one subject (a Route, Query, Job, or the overall request rollup, marked by `summarizable_type` Request with `summarizable_id` 0) over one period: count, average, P50, P95, P99, error count. `SummaryJob` writes them each hour, and writes the overall row even for an empty period so its timestamp doubles as the job's heartbeat.
+_Avoid_: rollup, metric, stat
+
+**Period type**:
+The bucket size of a Summary: `hour`, `day`, `week` or `month`. Hourly summaries are pruned after `hourly_summary_retention` (default two days); the others follow the full retention period.
+_Avoid_: granularity, interval, resolution
+
+**Baseline and comparison window**:
+The historical comparison compares the traffic-weighted metric across `baseline_window` (default 28 days) of day summaries against `comparison_window` (default one day). A change is a **regression** only when it clears both the ratio and the absolute floor in `regression_thresholds`.
+_Avoid_: trend (that word is reserved for the metric-card arrow against the previous period)
+
+**Performance status**:
+The bucket a route, request, query or job falls into against its thresholds hash: `healthy`, `slow`, `very_slow` or `critical`. The dashboard health bar folds `very_slow` into `slow` and reports three counts.
+_Avoid_: severity, level, grade
+
+### Organisation
+
+**Tag**:
+A label from `config.tags` attached to a Route, Request, Query, Job or JobRun through the `Taggable` concern. Tags are stored serialised on the row and filter every index page. The defaults are only suggestions; no tag name has special behaviour.
+_Avoid_: label, category, flag
+
+**Deployment**:
+A row recorded by the rake tasks or the deployments API with a revision, `started_at` and optional `finished_at` and metadata. Charts draw deployments as vertical markers so a change lines up with a release.
+_Avoid_: release, deploy marker (the marker is how a Deployment is drawn, not the row)
+
+### Collection
+
+**Tracker**:
+The single background writer per process. The middleware pushes each request's collected data onto a bounded queue (`async_queue_size`, default 1000); the Tracker drains it on one connection and drops the newest request when the queue is full. With `config.async = false`, or on a transactional-test connection, it writes inline.
+_Avoid_: worker, collector (that is the middleware), reporter
+
+**Schema check**:
+The once-per-process test that every table and each sentinel column the running gem expects is present. When the database is behind, tracking pauses and the dashboard answers 503 until the upgrade commands are run.
+_Avoid_: migration check, version check
+
 ### Exception tracking
 
 **ExceptionGroup**:

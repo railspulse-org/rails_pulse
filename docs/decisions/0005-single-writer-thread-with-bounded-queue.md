@@ -1,0 +1,9 @@
+# Tracking writes go through one writer thread per process with a bounded queue
+
+`config.async = true` used to spawn a thread per request. Under a traffic burst that fanned out into as many writer threads as requests, each checking out one of the host's database connections, so the app's own request threads waited on the pool. The setting also did not deliver what its name promised: normalisation and N+1 detection still ran on the request thread before the hand-off.
+
+Now the middleware pushes the collected data for a request onto a queue and returns. One writer thread per process drains that queue in batches on a single connection from the Rails Pulse pool, and SQL normalisation and N+1 detection run on the writer. The queue is bounded by `config.async_queue_size` (default 1000). When it is full the newest request is dropped, counted and logged at most once a minute; `RailsPulse::Tracker.stats` exposes queue depth and the lifetime drop count. An `at_exit` hook drains the queue for up to five seconds so a graceful restart keeps the last requests, and `Tracker.flush!` does the same on demand.
+
+We chose drop-newest over blocking because monitoring must never slow the thing it monitors; a gap in the data is preferable to a slow app. We chose a single thread over a small pool because one connection is the strongest guarantee we can give a host with a tight pool, and the batched inserts keep one thread comfortably ahead of any realistic request rate.
+
+Transactional tests share one connection across threads, so the tracker writes inline whenever it detects that connection, and the generated initializer sets `config.async = false if Rails.env.test?` as belt and braces. Exception capture is not on this path (see ADR 0002); it still runs synchronously.

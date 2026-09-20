@@ -1,41 +1,67 @@
 <div align="center">
-  <img src="app/assets/images/rails_pulse/rails-pulse-logo.png" alt="Rails Pulse" width="200" />
+  <img src="app/assets/images/rails_pulse/rails-pulse-logo.png" alt="Rails Pulse" width="160" />
 </div>
-
----
 
 # Rails Pulse
 
-**Self-hosted performance monitoring for Rails apps**
+**Performance monitoring that lives inside your Rails app.** Slow requests, N+1 queries, background jobs and exceptions, stored in your own database. No agent, no account, no data leaving your servers.
 
 ![Gem Version](https://img.shields.io/gem/v/rails_pulse)
 ![Rails Version](https://img.shields.io/badge/Rails-7.2%2B-blue)
+![Ruby Version](https://img.shields.io/badge/Ruby-3.1%2B-red)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Ruby Version](https://img.shields.io/badge/Ruby-3.0%2B-red)
 
-Rails Pulse is a Rails engine that monitors your app's performance from the inside. It tracks slow requests, N+1 queries, SQL performance, background jobs, and unhandled exceptions. All data stays in your own database, no third-party cloud, no SaaS subscription, no data leaving your servers.
+Rails Pulse is a Rails engine. It hooks into the instrumentation Rails already emits, writes what it sees to a handful of tables, and mounts a dashboard that shows you where the time went. Install the gem, run one migration, schedule two jobs, and you have monitoring that works the same on SQLite, PostgreSQL and MySQL.
 
-<table border="0">
-  <tr border="0" style="border:0">
-    <td border="0" style="border:0">
-    <img src="app/assets/images/rails_pulse/dashboard.png" alt="Dashboard" width="400" /></td>
-    <td style="border:0"><img src="app/assets/images/rails_pulse/request-show.png" alt="Request detail" width="400" /></td>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/images/dashboard-dark.png">
+  <img src=".github/images/dashboard-light.png" alt="Rails Pulse dashboard: health bar for routes, queries, jobs, exceptions and storage; P95 response time, request rate and error rate with sparklines; response time percentiles against service level objective lines; and a ranked list of jobs and routes needing attention" width="100%">
+</picture>
+
+## What you get
+
+- **The state of the app in one screen.** A health bar counts healthy, slow and critical routes, queries, jobs and exception groups. A ranked "needs attention" list tells you what to fix first.
+- **Every request, broken down.** Each request stores its route, status, duration and a timeline of the SQL, view, cache, HTTP, mailer and Active Storage operations inside it.
+- **Queries you can act on.** SQL is normalised and fingerprinted, so you see execution counts and P95 per statement shape, N+1 patterns, an EXPLAIN plan and index suggestions.
+- **Jobs and exceptions in the same place.** Duration, queue wait and failure rate for every Active Job class on any adapter. Unhandled exceptions from requests and jobs grouped by class and location, with filtered params and backtraces.
+- **Numbers over time.** Hourly, daily, weekly and monthly summaries with P50, P95 and P99, your service level objectives drawn as lines on the charts, and a marker for every deploy so a regression lines up with the release that caused it.
+- **Built for production.** Tracking is queued off the request thread and dropped rather than blocked under load. If the gem is deployed before its migrations, tracking pauses and tells you what to run. Retention is enforced by age and by row count so the tables never grow without bound.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset=".github/images/request-dark.png">
+        <img src=".github/images/request-light.png" alt="Request detail: duration, status and response size, a performance breakdown by database, view and application time, and a request trace showing action, view and database operations on a timeline">
+      </picture>
+      <p align="center"><sub>A request and where its time went</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset=".github/images/query-dark.png">
+        <img src=".github/images/query-light.png" alt="Query diagnostics: query characteristics, an issue detected, an optimisation suggestion to add a composite index, and the execution plan">
+      </picture>
+      <p align="center"><sub>Diagnostics and an index suggestion for one query</sub></p>
+    </td>
   </tr>
   <tr>
-    <td style="border:0"><img src="app/assets/images/rails_pulse/query-show.png" alt="Query detail" width="400" /></td>
-    <td style="border:0"><img src="app/assets/images/rails_pulse/route-show.png" alt="Route detail" width="400" /></td>
+    <td colspan="2">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset=".github/images/route-dark.png">
+        <img src=".github/images/route-light.png" alt="Route detail: P95 response time, request rate and error rate cards, and a two-week P95 and P99 chart with service level objective lines and vertical deploy markers">
+      </picture>
+      <p align="center"><sub>One route over two weeks, with objective lines and deploy markers</sub></p>
+    </td>
   </tr>
 </table>
 
-## Installation
-
-Add to your Gemfile:
+## Quick start
 
 ```ruby
-gem 'rails_pulse'
+# Gemfile
+gem "rails_pulse"
 ```
-
-Run the installer:
 
 ```bash
 bundle install
@@ -43,86 +69,33 @@ rails generate rails_pulse:install
 rails db:migrate
 ```
 
-Mount the dashboard in `config/routes.rb`:
-
 ```ruby
-Rails.application.routes.draw do
-  mount RailsPulse::Engine => "/rails_pulse"
-end
+# config/routes.rb
+mount RailsPulse::Engine => "/rails_pulse"
 ```
 
-Schedule the background jobs:
+Schedule the summary job hourly and the cleanup job daily with whatever your queue adapter provides. With Solid Queue:
 
-```ruby
-RailsPulse::SummaryJob.perform_later  # cron: 5 * * * *
-RailsPulse::CleanupJob.perform_later  # cron: 0 1 * * *
+```yaml
+# config/recurring.yml
+production:
+  rails_pulse_summary:
+    class: RailsPulse::SummaryJob
+    schedule: "5 * * * *"
+  rails_pulse_cleanup:
+    class: RailsPulse::CleanupJob
+    schedule: "0 1 * * *"
 ```
 
-Your dashboard is now at `http://localhost:3000/rails_pulse`.
+Open `http://localhost:3000/rails_pulse`. That's the whole setup.
 
-## Upgrading
+Requirements: Ruby 3.1+, Rails 7.1+ (tested on 7.2, 8.0 and 8.1), SQLite, PostgreSQL or MySQL. Until 0.4.0 ships, pin the pre-release with `gem "rails_pulse", "~> 0.4.0.pre"`.
 
-From 0.3.3:
+Full install guide, including a separate database and plain cron: [railspulse.com/documentation/installation](https://railspulse.com/documentation/installation)
 
-```bash
-bundle update rails_pulse
-rails generate rails_pulse:upgrade
-rails db:migrate                  # or: rails db:migrate:rails_pulse
-rails rails_pulse:migrate_routes  # required — fills Action and merges same-action paths
-```
+## Going further
 
-Restart all processes after migrate. This release changes how routes are stored (`method` moves off the route onto each request), so mixed old/new processes are not supported.
-
-The upgrade generator appends new settings to `config/initializers/rails_pulse.rb` without rewriting what you already set. Review with `git diff` and keep or discard hunks.
-
-To see where an install stands at any point — schema, unrun migration files, route backfill, initializer — run `rails rails_pulse:status`. It exits 1 when something needs action, so it can gate a deploy.
-
-Exception tracking is **off** for existing installs. The generator inserts `config.track_exceptions = false`; set it to `true` after migrating to opt in:
-
-```ruby
-config.track_exceptions = true
-config.capture_exception_params = true  # params are filtered via Rails' filter_parameters
-```
-
-Separate-database hosts: set `schema_dump: false` on the `rails_pulse` entry in `config/database.yml` and delete `db/rails_pulse_structure.sql` if that file exists.
-
-If you previously added `rails-pulse.js` / `rails-pulse.css` to `config.assets.precompile`, remove those entries — the gem no longer registers dashboard assets with Sprockets (that re-minify OOMs small hosts). Production deploys that use `config.asset_host` or a CDN-only CSP should run `assets:precompile` so `rails_pulse:install_assets` copies digested files into `public/assets`.
-
-Full install guide: [railspulse.com/documentation/installation](https://railspulse.com/documentation/installation)
-
-Separate database setup: [railspulse.com/documentation/database](https://railspulse.com/documentation/database)
-
-## Configuration
-
-Rails Pulse works out of the box with sensible defaults. To customise, edit `config/initializers/rails_pulse.rb`:
-
-```ruby
-RailsPulse.configure do |config|
-  config.enabled = true
-
-  config.request_thresholds = {
-    slow: 700,
-    very_slow: 2000,
-    critical: 4000
-  }
-
-  config.track_jobs = true
-  config.capture_job_arguments = false  # keep false to protect sensitive data
-
-  config.track_exceptions = true
-  config.capture_exception_params = true  # params are filtered via Rails' filter_parameters
-
-  config.full_retention_period = 30.days
-end
-```
-
-Full configuration reference: [railspulse.com/documentation/advanced](https://railspulse.com/documentation/advanced)
-
-## Authentication
-
-Rails Pulse has no built-in user accounts; you protect the dashboard using your app's existing auth. Authentication is on by default outside development and test, and with nothing configured it falls back to HTTP Basic against `RAILS_PULSE_USERNAME` / `RAILS_PULSE_PASSWORD` (denying everything if the password is unset).
-
-The simplest hook is a predicate that receives the controller and returns `true` to allow — anything else is a 403:
+**Lock it down.** The dashboard is authenticated by default outside development and test. Point it at your own auth with a predicate; anything but `true` is a 403.
 
 ```ruby
 RailsPulse.configure do |config|
@@ -130,37 +103,36 @@ RailsPulse.configure do |config|
 end
 ```
 
-If you need to redirect to a login page instead, use `authentication_method`, which runs inside the controller and denies by rendering or redirecting:
+With nothing configured it falls back to HTTP Basic against `RAILS_PULSE_USERNAME` and `RAILS_PULSE_PASSWORD`. [Authentication guide](https://railspulse.com/documentation/authentication)
 
-```ruby
-RailsPulse.configure do |config|
-  config.authentication_redirect_path = "/login"
+**Tune it.** Thresholds for slow, very slow and critical, service level objectives per percentile, what to ignore, what to tag, how long to keep. All in `config/initializers/rails_pulse.rb`. [Configuration reference](https://railspulse.com/documentation/advanced)
 
-  config.authentication_method = proc {
-    unless user_signed_in? && current_user.admin?
-      redirect_to main_app.root_path, alert: "Access denied"
-    end
-  }
-end
+**Run the dashboard on its own.** `bundle exec rails_pulse_server` serves the UI from a separate process with its own health endpoint, so a slow report never competes with your app for a thread. [Deployment modes](https://railspulse.com/documentation/deployment-modes)
+
+**Mark your deploys.** `rails rails_pulse:record_deployment[sha]` from a release script, or `POST /rails_pulse/deployments` with a token from CI, and every chart draws a line at that moment.
+
+**Keep it in its own database.** `rails generate rails_pulse:install --database=separate` puts the tables somewhere your primary never has to vacuum. [Database setup](https://railspulse.com/documentation/database)
+
+## Upgrading
+
+```bash
+bundle update rails_pulse
+rails generate rails_pulse:upgrade
+rails db:migrate                  # separate Pulse database: rails db:migrate:rails_pulse
+rails rails_pulse:status          # exits 1 while anything still needs action
 ```
 
-Returning `false` from `authentication_method` without responding is also treated as a denial, but `nil` (what `unless … end` returns on success) allows the request — so keep predicate-style checks in `authorize`.
-
-Authentication guide: [railspulse.com/documentation/authentication](https://railspulse.com/documentation/authentication)
-
-## Features
-
-- **Request monitoring** — every request is timed and stored with its route, status, SQL count, and duration. Slow requests are flagged automatically based on thresholds you control.
-- **Query analysis** — captures the queries behind each request, detects N+1 patterns, and tracks normalized SQL across requests so you can see which queries are hurting you in production, not just in development.
-- **Job tracking** — monitors background job duration, queue wait time, and failure rates. Works with any Active Job adapter.
-- **Exception tracking** — captures unhandled exceptions from web requests and background jobs, groups them by class and location, and shows full backtraces with filtered request params. See recurring errors in production without a separate error monitoring service.
-- **System health bar** — at-a-glance dashboard summary showing healthy, slow, and critical counts across your routes, queries, jobs, and storage. Lets you see the overall state of your app before drilling into specifics.
-- **No data leaves your app** — everything is stored in your own database. No third-party cloud, no SaaS subscription, no outbound connections.
-- **Low overhead** — tracking is async and uses a thread-local flag to skip recording Rails Pulse's own internal requests.
+Upgrading from 0.3.x to 0.4? **Back up first**, run `rails rails_pulse:migrate_routes` after migrating, and restart every process together. The details are in the [changelog](CHANGELOG.md).
 
 ## Contributing
 
-Bug reports and pull requests are welcome on [GitHub](https://github.com/railspulse/rails_pulse).
+Bug reports and pull requests are welcome on [GitHub](https://github.com/railspulse/rails_pulse). `docs/` explains how the pieces fit and why they are built the way they are.
+
+```bash
+git config core.hooksPath .githooks   # once, after cloning
+DB=sqlite3 rake test                  # or DB=postgresql / DB=mysql2
+bundle exec rubocop
+```
 
 ## License
 

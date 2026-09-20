@@ -1,0 +1,7 @@
+# When the tables are behind the gem, tracking pauses and the dashboard answers 503
+
+`RailsPulse::SchemaCheck` runs once per process, the first time the gem needs to write or render. It checks that every table exists and that the sentinel columns in `SENTINEL_COLUMNS` (one per incremental migration that added a column) are present. If anything is missing, tracking stops after one logged warning that lists what is missing, and every dashboard page renders `shared/schema_outdated` with a 503 and the upgrade commands. `config.schema_check_enabled = false` turns it off.
+
+The alternative was to let the first missing-column error raise. A monitoring gem that raises `UndefinedColumn` inside the host's middleware turns a missed `db:migrate` into a full outage of the host app, on every request, until someone reads the stack trace. That happened to users during the 0.3 to 0.4 rollout and is the reason this exists.
+
+The check is presence-only, never types, and a database error during the check is treated as "not outdated" so a booting app without a database (`assets:precompile`, `db:create`) is never blocked. The cost is that a column added by a migration but not listed in `SENTINEL_COLUMNS` is not protected; `test/lib/rails_pulse/schema_check_test.rb` verifies each listed column exists in the schema file, but nothing verifies the list is complete. Adding a column means adding it to the list.

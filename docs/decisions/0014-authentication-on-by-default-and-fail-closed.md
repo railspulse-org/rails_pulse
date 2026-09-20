@@ -1,0 +1,7 @@
+# The dashboard is authenticated by default and every hook fails closed
+
+`config.authentication_enabled` defaults to true everywhere except development and test. With nothing configured, access is HTTP Basic against `RAILS_PULSE_USERNAME` and `RAILS_PULSE_PASSWORD`, and an unset password denies everyone. `config.authorize` is a predicate: anything but `true` is a 403. `config.authentication_method` denies by rendering, redirecting or returning `false`; only `nil` allows, because `nil` is what `unless … end` returns on the success path. The standalone server ignores both and uses `standalone_authentication_method` or the Basic fallback.
+
+Before 0.4 the default was open outside production, and a hook that returned a falsy-but-not-`false` value allowed the request. Both were reversed after review. A performance dashboard exposes SQL text, request params and exception messages; an open default on staging, or a hook that passes on a typo, leaks all of it. The alternative of leaving defaults open and documenting the risk was rejected because the people who read that documentation are not the ones who get breached.
+
+The costs: an upgrade can lock a staging dashboard until credentials are set, which the changelog and status task call out; and predicate-style checks written into `authentication_method` now deny where they used to allow, which is why `authorize` exists and is the documented recommendation.

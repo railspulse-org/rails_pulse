@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Services now autoload through Zeitwerk.** `app/services` was hidden from the Rails autoloader and wired up by hand, so services never reloaded in development and every new one had to be registered in the engine. They now load and reload like the rest of `app/`, with the few acronym-prone file names pinned so a host's `inflect.acronym` declarations cannot change the constants the gem expects.
+
 ### Removed
 
 - `RailsPulse.warm_metric_cache!` (a no-op) and `RailsPulse.clear_metric_cache!` (used `delete_matched`, which some cache stores do not support). Neither was referenced by the dashboard.
@@ -37,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Standalone auth notice logged once per process.** The "standalone dashboard ignores config.authentication_method / config.authorize" notice kept its once-only flag on each controller class, so it repeated for every engine controller a visitor reached. The flag now lives on `RailsPulse::Standalone` and the notice is logged once per process.
 
 ## [0.4.0.pre.4] - 2026-09-07
+
+### Fixed
+
+- Dependency and packaging fixes only; no user-facing changes beyond 0.4.0.pre.3.
 
 ## [0.4.0.pre.3] - 2026-09-06
 

@@ -86,8 +86,11 @@ module RailsPulse
           db/rails_pulse_structure.sql. Keep database_tasks enabled so
           rails db:migrate:rails_pulse still runs upgrades.
 
-          2. Run: rails db:prepare (creates database and loads schema)
-          3. Restart your Rails server
+          2. Uncomment config.connects_to in config/initializers/rails_pulse.rb
+             so Rails Pulse models use the rails_pulse connection. Without it
+             every model keeps writing to your primary database.
+          3. Run: rails db:prepare (creates database and loads schema)
+          4. Restart your Rails server
 
           The schema file db/rails_pulse_schema.rb is your single source of truth.
           Future upgrades will automatically copy new migrations to db/rails_pulse_migrate/

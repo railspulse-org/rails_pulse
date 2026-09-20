@@ -13,7 +13,7 @@ This guides you through the entire release process automatically.
 To capture the full session as an HTML report (useful for reviewing step output afterward):
 
 ```bash
-bin/release-log   # requires: brew install aha
+bin/release-log   # requires aha: brew install aha / sudo pacman -S aha / apt install aha
 ```
 
 Output is saved to `tmp/release-YYYYMMDD-HHMMSS.html` and opened automatically when the session ends.
@@ -30,18 +30,24 @@ Run comprehensive pre-release tests:
 rake test_release
 ```
 
-This validates (14 steps total):
-- Appraisal gemfile sync
-- Test schema sync
-- Dummy app migration verification
-- Git status (clean working directory)
-- Code linting (RuboCop)
-- Brakeman security scan
-- JavaScript unit tests (`npm run test:js`)
-- Asset building
-- Gem build verification
-- Generator tests (install + upgrade)
-- Full test matrix (all databases × Rails versions + system tests)
+This runs 14 steps, in order:
+
+1. Git status (clean working directory)
+2. Appraisal gemfile sync
+3. Test schema sync
+4. Dummy app migration verification
+5. RuboCop
+6. Brakeman security scan
+7. Node dependency install
+8. ESLint (`npm run lint:js`)
+9. JavaScript unit tests (`npm run test:js`)
+10. Production asset build
+11. Gem build verification
+12. Generator tests (install + upgrade)
+13. Migration regression tests (`rake test_migrations`)
+14. Full test matrix (all databases × Rails versions)
+
+The list lives in `Rakefile` under `test_release`; keep this section in step with it.
 
 #### Separate-DB Upgrade Smoke Test
 
@@ -87,10 +93,12 @@ separate-database upgrade path before shipping:
    bin/rails rails_pulse:migrate_routes
    ```
 
-6. Verify new columns exist and the backfill ran correctly:
+6. Verify the schema is current and the backfill ran correctly:
    ```bash
-   bin/rails runner "puts RailsPulse::Operation.first&.actual_sql"
-   # Expected: the SQL string that was in the label column
+   bin/rails rails_pulse:status
+   # Expected: "Schema: up to date", "Routes: actions backfilled, unrecognised-path index present", exit 0
+   bin/rails runner "puts RailsPulse::Route.first&.controller_action"
+   # Expected: a controller#action string, not blank
    ```
 
 7. Restore the initializer: comment `connects_to` back out and delete the temporary
@@ -207,7 +215,7 @@ bin/push_release --wait-ci
 bin/publish_gem
 ```
 
-**Quick patch (skip tests):**
+**Emergency patch only (skips `rake test_release`; CLAUDE.md requires it for every normal release):**
 ```bash
 bin/bump_version X.Y.Z
 bin/commit_release X.Y.Z

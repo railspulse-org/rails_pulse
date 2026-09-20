@@ -1,0 +1,7 @@
+# Cleanup deletes by age first, then by row count, and `preserve` is the only exemption
+
+`CleanupService` runs from `CleanupJob` or `rake rails_pulse:cleanup`. It first deletes rows older than `full_retention_period` (operations, then requests, then queries and routes that no longer have children, then job runs and jobs, then exception occurrences). It then enforces `max_table_records` per table, deleting the oldest rows until each table is under its cap. Orphan checks use correlated `NOT EXISTS` so large tables do not time out. An `ExceptionGroup` with `preserve` set is exempt from every stage, including deletion of its occurrences, so a kept group keeps its backtraces.
+
+Two alternatives were rejected. Age-only retention leaves table size unbounded on a busy app, and the whole point of storing data in the host's database (0006) is that the gem must protect that database from itself. Count-only retention deletes recent data on a busy day and keeps stale data on a quiet one, which makes the dashboard's time range lie.
+
+The order matters for foreign keys and for meaning: age-based runs first so count-based only ever trims what retention would keep, and summaries are never deleted by count because they are the long-term record. The known gap is that the exception-group cap counts preserved and ignored groups but cannot delete them, so a host with many preserved groups can sit permanently over the cap.
