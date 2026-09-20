@@ -8,6 +8,11 @@ module RailsPulse
       RailsPulse::Summary.delete_all
       RailsPulse::Operation.delete_all
       RailsPulse::Request.delete_all
+      # Job run and exception fixtures use relative timestamps (e.g. 30.minutes.ago)
+      # that fall inside the current hour late in the hour, which would add rows
+      # and statements the assertions below do not expect.
+      RailsPulse::JobRun.delete_all
+      RailsPulse::ExceptionOccurrence.delete_all
       @route = rails_pulse_routes(:api_users)
       @hour_start = Time.current.beginning_of_hour
     end
