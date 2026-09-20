@@ -90,6 +90,8 @@ Naming conventions:
 
 **`app/` is Zeitwerk-managed; `lib/` is not.** Services, models, controllers and jobs under `app/` autoload and reload by file path like any Rails app. Code under `lib/rails_pulse/` (installers, stats, task runners, middleware, subscribers) is loaded with explicit `require` / `autoload` entries in `lib/rails_pulse/engine.rb`; a new file there needs an entry.
 
+**Zeitwerk uses the host's inflections.** A host with `inflect.acronym "SQL"` expects `sql_query_normalizer.rb` to define `SQLQueryNormalizer`. Any file under `app/` whose basename contains a common acronym (sql, csp, http, api, json, …) must be pinned in `ACRONYM_SAFE_INFLECTIONS` in `lib/rails_pulse/engine.rb`; `test/lib/rails_pulse/zeitwerk_test.rb` eager-loads with `SQL` and `CSP` declared to catch omissions.
+
 **RequestStore is thread-local.** Operations are deep-copied before async tracking to prevent race conditions. The `skip_recording_rails_pulse_activity` flag prevents recursive tracking on Rails Pulse's own requests.
 
 **Engine initializer ordering matters.** The initializers in `lib/rails_pulse/engine.rb` use `before:`/`after:` constraints — don't add new initializers without checking order dependencies.

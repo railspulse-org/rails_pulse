@@ -33,6 +33,22 @@ module RailsPulse
   class Engine < ::Rails::Engine
     isolate_namespace RailsPulse
 
+    # Zeitwerk derives constant names from file names through the host's
+    # inflections. A host that declares `inflect.acronym "SQL"` (or "CSP")
+    # would expect sql_query_normalizer.rb to define SQLQueryNormalizer and
+    # fail to eager load in production. Pin the names of the files whose
+    # basenames contain a common acronym so the gem's constants do not depend
+    # on the host's inflections.
+    ACRONYM_SAFE_INFLECTIONS = {
+      "sql_query_normalizer" => "SqlQueryNormalizer",
+      "csp_helper" => "CspHelper",
+      "csp_test_controller" => "CspTestController"
+    }.freeze
+
+    initializer "rails_pulse.inflections", before: :set_autoload_paths do
+      Rails.autoloaders.main.inflector.inflect(ACRONYM_SAFE_INFLECTIONS) if Rails.respond_to?(:autoloaders)
+    end
+
     # Load Rake tasks
     rake_tasks do
       Dir.glob(File.expand_path("../tasks/**/*.rake", __FILE__)).each { |file| load file }

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Services now autoload through Zeitwerk.** `app/services` was hidden from the Rails autoloader and wired up by hand, so services never reloaded in development and every new one had to be registered in the engine. They now load and reload like the rest of `app/`.
+- **Services now autoload through Zeitwerk.** `app/services` was hidden from the Rails autoloader and wired up by hand, so services never reloaded in development and every new one had to be registered in the engine. They now load and reload like the rest of `app/`, with the few acronym-prone file names pinned so a host's `inflect.acronym` declarations cannot change the constants the gem expects.
 ### Removed
 
 - `RailsPulse.warm_metric_cache!` (a no-op) and `RailsPulse.clear_metric_cache!` (used `delete_matched`, which some cache stores do not support). Neither was referenced by the dashboard.
