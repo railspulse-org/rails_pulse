@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.4.0] - 2026-09-22
+### Fixed
+
+- **Metric card headline numbers now honour the global tag filter.** Disabling a tag changed each card's sparkline but not the number beside it, so the two disagreed. Both are now computed over the same summaries. (#274)
+
+## [0.4.0.pre.6] - 2026-09-20
 
 ## [0.4.0] - 2026-09-22
 

@@ -62,10 +62,10 @@ module RailsPulse
           period_start: range_start..now
         )
 
-        # Apply tag filters if available
-        if respond_to?(:disabled_tags, true) && respond_to?(:show_non_tagged, true)
-          query = query.with_tag_filters(@disabled_tags, @show_non_tagged)
-        end
+        # The same tag filter the sparkline applies, so the headline number and
+        # the sparkline beside it are computed over the same summaries. Cards
+        # receive the filter as instance variables; nil means unfiltered.
+        query = query.with_tag_filters(@disabled_tags || [], @show_non_tagged != false)
 
         # Filter to specific resource if provided
         query = query.where(summarizable_id: subject_id) if subject_id
