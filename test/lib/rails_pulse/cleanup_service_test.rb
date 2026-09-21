@@ -607,9 +607,10 @@ module RailsPulse
 
     test "count-based cleanup skips preserved and ignored exception groups" do
       RailsPulse.configuration.instance_variable_set(:@full_retention_period, nil)
-      # 4 groups total; max 3 means one deletion. Only open_old is eligible among the oldest.
+      # Two deletable groups against a cap of 1: the older one goes. The preserved
+      # and ignored groups sit outside the cap and are never counted or deleted.
       RailsPulse.configuration.max_table_records = {
-        rails_pulse_exception_groups: 3
+        rails_pulse_exception_groups: 1
       }
       RailsPulse::ExceptionOccurrence.delete_all
       RailsPulse::ExceptionGroup.delete_all
@@ -636,6 +637,30 @@ module RailsPulse
       assert RailsPulse::ExceptionGroup.exists?(ignored.id)
       assert_not RailsPulse::ExceptionGroup.exists?(open_old.id)
       assert RailsPulse::ExceptionGroup.exists?(keeper.id)
+    end
+
+    test "exception-group cap applies to deletable groups only, so exempt groups cannot pin it over the cap" do
+      RailsPulse.configuration.instance_variable_set(:@full_retention_period, nil)
+      RailsPulse.configuration.max_table_records = {
+        rails_pulse_exception_groups: 2
+      }
+      RailsPulse::ExceptionOccurrence.delete_all
+      RailsPulse::ExceptionGroup.delete_all
+
+      3.times do |i|
+        group = create_exception_group
+        group.update!(preserve: true, last_seen_at: (10 + i).days.ago)
+        create_exception_occurrence(group, occurred_at: (10 + i).days.ago)
+      end
+      deletable = create_exception_group
+      deletable.update!(last_seen_at: 1.day.ago)
+      create_exception_occurrence(deletable, occurred_at: 1.day.ago)
+
+      # 4 groups total is over the cap of 2, but only 1 is deletable and 1 <= 2.
+      assert_no_difference -> { RailsPulse::ExceptionGroup.count } do
+        CleanupService.perform
+      end
+      assert RailsPulse::ExceptionGroup.exists?(deletable.id)
     end
 
     test "time-based cleanup keeps occurrences belonging to a preserved group" do
