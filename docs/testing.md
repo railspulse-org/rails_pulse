@@ -4,6 +4,7 @@
 
 ```bash
 DB=sqlite3 rake test                 # default; also runs test/migrations in a separate process afterwards
+                                     # refuses to run if the last test_setup was for another adapter
 DB=postgresql rake test              # needs POSTGRES_USERNAME/PASSWORD/HOST/PORT (port 5434 locally)
 DB=mysql2 rake test                  # needs MYSQL_USERNAME/PASSWORD/HOST/PORT
 BROWSER=true DB=sqlite3 rake test    # include system tests; disables parallelisation

@@ -142,6 +142,44 @@ def pulse_steps(title, meta, steps)
   failed
 end
 
+# rake test_setup regenerates test/dummy/db/schema.rb from whichever adapter it
+# ran for, and Rails loads that file, not the migrations, when it prepares the
+# parallel-worker databases. A schema.rb dumped from MySQL has no partial-index
+# predicate, so the SQLite suite then fails RouteIndexesTest for no visible
+# reason. test_setup records the adapter it ran for and `rake test` refuses to
+# run against a different one.
+TEST_SETUP_MARKER = "tmp/test_setup_adapter"
+
+def normalize_adapter(database)
+  case database.to_s.downcase
+  when "sqlite", "sqlite3"      then "sqlite3"
+  when "mysql", "mysql2"        then "mysql2"
+  when "postgres", "postgresql" then "postgresql"
+  else database.to_s
+  end
+end
+
+def record_test_setup_adapter(database)
+  FileUtils.mkdir_p(File.dirname(TEST_SETUP_MARKER))
+  File.write(TEST_SETUP_MARKER, normalize_adapter(database))
+end
+
+def verify_test_setup_adapter!(database)
+  wanted = normalize_adapter(database)
+  recorded = File.exist?(TEST_SETUP_MARKER) ? File.read(TEST_SETUP_MARKER).strip : nil
+  return if recorded == wanted
+
+  puts
+  if recorded
+    puts RailsPulseConsole.line(:fail, "the test database was last set up for #{recorded}, not #{wanted}; its schema.rb would be loaded into the #{wanted} suite")
+  else
+    puts RailsPulseConsole.line(:fail, "the test database has not been set up for #{wanted}")
+  end
+  puts "  Run: DB=#{wanted} rake test_setup"
+  puts
+  exit 1
+end
+
 desc "Verify dummy app migrations are in sync with gem migrations"
 task :verify_dummy_migrations do
   # Check if db/rails_pulse_migrate directory exists (separate database setup)
@@ -214,6 +252,7 @@ task :test_setup do
     end
 
     sh command, verbose: false
+    record_test_setup_adapter(database)
     puts RailsPulseConsole.line(:ok, "#{database} database ready")
     puts
     puts "  Ready to run: rake test"
@@ -242,6 +281,8 @@ end
 
 desc "Run test suite"
 task :test do
+  verify_test_setup_adapter!(ENV["DB"] || "sqlite3")
+
   pulse_session(pulse_meta) do
     pulse_phase("main suite", "main", "rails test test/controllers test/generators test/helpers test/instrumentation test/jobs test/lib test/middleware test/models test/services test/rails_pulse_test.rb test/tracker_test.rb")
     Rake::Task[:test_migrations].invoke
@@ -287,6 +328,7 @@ def perform_test_setup_for_version(database, rails_version, quiet: false)
     # different rdoc versions across the root and per-Rails-version Gemfile.locks.
     pulse_sh("bundle exec appraisal #{rails_version} rails db:drop db:create db:migrate RAILS_ENV=test",
       "DB" => database, "RUBYOPT" => "-W0")
+    record_test_setup_adapter(database)
     puts RailsPulseConsole.line(:ok, "#{database} + #{rails_version.tr('-', ' ')} database ready") unless quiet
   rescue => e
     if quiet
