@@ -16,6 +16,26 @@ class RailsPulse::DashboardControllerTest < ActionDispatch::IntegrationTest
 
   # Health Bar Tests
 
+  test "health bar shows a tracking badge once a writer has reported" do
+    RailsPulse::Event.where(subject: "web-2:202").update_all(value: 7)
+
+    get rails_pulse.root_path
+
+    assert_response :success
+    assert_select ".dashboard-health-bar", /Tracking/
+    assert_select ".dashboard-health-bar", /1 writing · 0 backlogged ·/
+    assert_select ".dashboard-health-bar", /1 dropping/
+  end
+
+  test "health bar omits the tracking badge before any writer has reported" do
+    RailsPulse::Event.delete_all
+
+    get rails_pulse.root_path
+
+    assert_response :success
+    assert_select ".dashboard-health-bar", { text: /Tracking/, count: 0 }
+  end
+
   test "health bar shows an exceptions badge counting only open groups" do
     get rails_pulse.root_path
 

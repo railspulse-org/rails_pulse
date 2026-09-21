@@ -71,6 +71,13 @@ module RailsPulse
           label: "Deployments",
           description: "Deploy markers shown on charts",
           time_column: :started_at
+        },
+        {
+          name: :rails_pulse_events,
+          model: "RailsPulse::Event",
+          label: "Events",
+          description: "What Pulse noticed: writer heartbeats every minute (pruned after a day) and, with Rails Pulse Pro, alerts and regression checks kept for event_retention_period",
+          time_column: :occurred_at
         }
       ].freeze
 
@@ -135,6 +142,27 @@ module RailsPulse
           size_available: size_available?,
           size_note: size_note
         }
+      end
+
+      # The background writers: totals for the last hour and one row per
+      # live process, for the Tracking panel.
+      def tracking
+        @tracking ||= begin
+          summary = RailsPulse::WriterHeartbeat.summary
+          dropped_by_process = RailsPulse::WriterHeartbeat.dropped_by_process(window: 1.hour)
+          processes = RailsPulse::WriterHeartbeat.live_processes.map do |process|
+            {
+              label: process.process_label,
+              queue_depth: process.queue_depth,
+              queue_size: process.queue_size,
+              dropped_last_hour: dropped_by_process.fetch(process.process_label, 0),
+              last_seen_at: process.sampled_at
+            }
+          end
+          summary.merge(processes: processes, live_count: processes.size)
+        end
+      rescue ActiveRecord::ActiveRecordError
+        { processes: [], live_count: 0, queue_depth: 0, queue_size: 0, dropped: 0, last_sampled_at: nil }
       end
 
       def dashboard_tables

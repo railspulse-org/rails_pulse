@@ -22,6 +22,7 @@ module RailsPulse
           queries:  query_counts,
           jobs:     job_counts,
           exceptions: exception_counts,
+          tracking: tracking_counts,
           storage:  storage_counts
         }
       end
@@ -91,6 +92,41 @@ module RailsPulse
 
       def storage_counts
         StoragePressure.new.storage_counts
+      end
+
+      # One count per writer process: healthy when its queue is under half
+      # full and it dropped nothing in the last hour, slow (backlogged) when
+      # the queue is at least half full, critical (dropping) when it dropped
+      # requests in the last hour. A process that dropped and has since gone
+      # away still counts as critical for that hour. Nil until any writer has
+      # reported: with async off there are no writers, and the badge would
+      # only say so.
+      def tracking_counts
+        return nil unless events_available?
+
+        live = RailsPulse::WriterHeartbeat.live_processes
+        dropped_by_process = RailsPulse::WriterHeartbeat.dropped_by_process(window: 1.hour).select { |_, n| n.positive? }
+        return nil if live.empty? && dropped_by_process.empty?
+
+        critical = dropped_by_process.size
+        healthy = slow = 0
+        live.each do |process|
+          next if dropped_by_process.key?(process.process_label)
+
+          if process.queue_depth * 2 >= process.queue_size
+            slow += 1
+          else
+            healthy += 1
+          end
+        end
+
+        { healthy: healthy, slow: slow, critical: critical }
+      end
+
+      def events_available?
+        RailsPulse::Event.table_exists?
+      rescue ActiveRecord::ActiveRecordError
+        false
       end
 
       def job_counts

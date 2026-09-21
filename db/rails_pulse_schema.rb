@@ -7,7 +7,7 @@ require "rails_pulse/route_indexes" unless defined?(RailsPulse::RouteIndexes)
 RailsPulse::Schema = lambda do |connection|
   adapter = connection.adapter_name.downcase
   # Skip if all tables already exist to prevent conflicts
-  required_tables = [ :rails_pulse_routes, :rails_pulse_queries, :rails_pulse_requests, :rails_pulse_operations, :rails_pulse_jobs, :rails_pulse_job_runs, :rails_pulse_summaries, :rails_pulse_deployments, :rails_pulse_exception_groups, :rails_pulse_exception_occurrences ]
+  required_tables = [ :rails_pulse_routes, :rails_pulse_queries, :rails_pulse_requests, :rails_pulse_operations, :rails_pulse_jobs, :rails_pulse_job_runs, :rails_pulse_summaries, :rails_pulse_deployments, :rails_pulse_exception_groups, :rails_pulse_exception_occurrences, :rails_pulse_events ]
 
   # Check which tables already exist
   existing_tables = required_tables.select { |table| connection.table_exists?(table) }
@@ -257,6 +257,24 @@ RailsPulse::Schema = lambda do |connection|
 
     connection.add_index :rails_pulse_exception_occurrences, :occurred_at,        name: "index_rp_exception_occurrences_on_occurred_at"
     connection.add_index :rails_pulse_exception_occurrences, :exception_group_id, name: "index_rp_exception_occurrences_on_group_id"
+  end
+
+  unless connection.table_exists?(:rails_pulse_events)
+    connection.create_table :rails_pulse_events do |t|
+      t.string   :kind,        null: false, comment: "What noticed it: writer_heartbeat; rails_pulse_pro adds alert_rule, deployment_regression, exception_alert, job_heartbeat"
+      t.string   :subject,                  comment: "Who it is about: host:pid, rule name, job name, exception class"
+      t.string   :outcome,     null: false, comment: "sampled, triggered, clean, insufficient_data, ran"
+      t.decimal  :value,       precision: 15, scale: 6, comment: "The number behind it: requests dropped since the last sample, or the triggered metric value"
+      t.datetime :occurred_at, null: false
+      t.text     :message
+      t.text     :metadata,                 comment: "JSON with the kind-specific detail"
+      t.timestamps
+    end
+
+    connection.add_index :rails_pulse_events, [ :kind, :occurred_at ],
+      name: "index_rp_events_on_kind_and_occurred_at"
+    connection.add_index :rails_pulse_events, [ :kind, :subject, :occurred_at ],
+      name: "index_rp_events_on_kind_subject_and_occurred_at"
   end
 
   # Add indexes to existing tables for efficient aggregation

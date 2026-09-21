@@ -376,6 +376,11 @@ RailsPulse.configure do |config|
   # Time-based retention - delete records older than this period
   config.full_retention_period = 30.days
 
+  # How long rows in rails_pulse_events are kept: the background writer's heartbeats
+  # (pruned after a day regardless) and, with Rails Pulse Pro, alert triggers,
+  # regression checks and exception alerts.
+  config.event_retention_period = 90.days
+
   # Count-based retention - maximum records to keep per table
   # After time-based cleanup, if tables still exceed these limits,
   # the oldest remaining records will be deleted to stay under the limit

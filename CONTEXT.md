@@ -70,6 +70,14 @@ _Avoid_: release, deploy marker (the marker is how a Deployment is drawn, not th
 The single background writer per process. The middleware pushes each request's collected data onto a bounded queue (`async_queue_size`, default 1000); the Tracker drains it on one connection and drops the newest request when the queue is full. With `config.async = false`, or on a transactional-test connection, it writes inline.
 _Avoid_: worker, collector (that is the middleware), reporter
 
+**Event**:
+A row in `rails_pulse_events`: something Rails Pulse noticed rather than measured, tagged by `kind` with a `subject`, a `value`, `occurred_at` and JSON `metadata`. The free gem writes writer heartbeats; Rails Pulse Pro writes its alert triggers, regression checks, exception alerts and job heartbeats into the same table. Pruned by `event_retention_period`, except kinds in `event_retention_exempt_kinds`.
+_Avoid_: log, audit row, notification (that is a Pro Delivery)
+
+**Writer heartbeat**:
+The Event of kind `writer_heartbeat` each writer records once a minute: `host:pid` as subject, requests dropped since the previous heartbeat as value, queue depth and capacity in metadata. A writer silent for three minutes is treated as gone; heartbeats are pruned after a day. The dashboard's Tracking badge, the Storage page and `rails_pulse:status` add them up across processes.
+_Avoid_: ping, stats row, health check (that is `Tracker.healthy?`)
+
 **Schema check**:
 The once-per-process test that every table and each sentinel column the running gem expects is present. When the database is behind, tracking pauses and the dashboard answers 503 until the upgrade commands are run.
 _Avoid_: migration check, version check

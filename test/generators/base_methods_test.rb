@@ -42,8 +42,8 @@ class BaseMethodsTest < ActiveSupport::TestCase
     assert_predicate RailsPulse::Generators::BaseMethods::RAILS_PULSE_TABLES, :frozen?
   end
 
-  test "RAILS_PULSE_TABLES has 10 entries" do
-    assert_equal 10, RailsPulse::Generators::BaseMethods::RAILS_PULSE_TABLES.size
+  test "RAILS_PULSE_TABLES has 11 entries" do
+    assert_equal 11, RailsPulse::Generators::BaseMethods::RAILS_PULSE_TABLES.size
   end
 
   # next_migration_number Tests

@@ -31,6 +31,7 @@ class UpgradeMigrationTest < ActiveSupport::TestCase
     ChangeRailsPulseRoutesToMultiVerbModel
     AddNullActionUniqueIndexToRoutes
     AddLocationToExceptionGroups
+    CreateRailsPulseEvents
   ].freeze
 
   def setup
@@ -269,6 +270,16 @@ class UpgradeMigrationTest < ActiveSupport::TestCase
 
     assert @conn.column_exists?(:rails_pulse_jobs, :p95_duration), "p95_duration missing on jobs"
     assert @conn.column_exists?(:rails_pulse_jobs, :p99_duration), "p99_duration missing on jobs"
+  end
+
+  test "upgrade from v0.2.7 creates the events table" do
+    load_baseline(RailsPulse::TestSchemas::V027)
+    run_all_migrations
+
+    assert @conn.table_exists?(:rails_pulse_events), "events table missing"
+    %w[kind subject outcome value occurred_at message metadata].each do |column|
+      assert @conn.column_exists?(:rails_pulse_events, column), "#{column} missing on events"
+    end
   end
 
   test "upgrade from v0.2.7 creates deployments table" do

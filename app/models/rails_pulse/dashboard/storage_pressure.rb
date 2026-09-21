@@ -9,11 +9,13 @@ module RailsPulse
       end
 
       def pressure_items
-        summary_staleness_items + stuck_records_items + sub_hour_retention_items
+        summary_staleness_items + stuck_records_items + sub_hour_retention_items + writer_drop_items
       end
 
+      # The Storage health badge counts storage signals only; dropped
+      # requests have their own Tracking badge.
       def storage_counts
-        items    = pressure_items
+        items    = pressure_items.reject { |i| i[:type] == "TRACKING" }
         critical = items.any? { |i| i[:severity] == :critical } ? 1 : 0
         slow     = (critical.zero? && items.any? { |i| i[:severity] == :warning }) ? 1 : 0
         healthy  = (critical.zero? && slow.zero?) ? 1 : 0
@@ -105,6 +107,35 @@ module RailsPulse
                          "<strong>How to fix:</strong> Update your Rails Pulse configuration to set <code>full_retention_period</code> " \
                          "to at least <code>1.hour</code>. For most applications, a value of <code>7.days</code> or <code>30.days</code> is recommended."
         } ]
+      end
+
+      # Signal D — the background writer is discarding requests
+      def writer_drop_items
+        return [] unless RailsPulse::Event.table_exists?
+
+        summary = RailsPulse::WriterHeartbeat.summary
+        dropped = summary[:dropped].to_i
+        return [] if dropped.zero?
+
+        [ {
+          type:          "TRACKING",
+          name:          "Writer queue dropping requests",
+          reason:        "#{dropped} #{"request".pluralize(dropped)} dropped in the last hour — charts are missing samples",
+          metric:        "#{dropped} dropped",
+          metric_sub:    "last hour, #{summary[:processes]} live #{"writer".pluralize(summary[:processes])}",
+          link:          "#",
+          severity:      :critical,
+          sort_score:    dropped.to_f,
+          popover_title: "The tracking queue is overflowing",
+          popover_body:  "Each process queues tracked requests for one background writer. When the queue (#{summary[:queue_size]} requests, " \
+                         "<code>config.async_queue_size</code>) is full the newest request is dropped rather than slowing the app, so the " \
+                         "dashboard undercounts traffic while this lasts.<br><br>" \
+                         "<strong>How to fix:</strong> raise <code>config.async_queue_size</code> in the Rails Pulse initializer, or find out " \
+                         "why the writer cannot keep up: database latency, a saturated connection pool, or a burst far above normal traffic. " \
+                         "<code>rails rails_pulse:status</code> reports the same numbers from the shell."
+        } ]
+      rescue ActiveRecord::ActiveRecordError
+        []
       end
 
       def stale_item(severity, reason, metric, metric_sub)

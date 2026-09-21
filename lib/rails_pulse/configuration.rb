@@ -16,6 +16,8 @@ module RailsPulse
                   :custom_asset_patterns,
                   :mount_path,
                   :full_retention_period,
+                  :event_retention_period,
+                  :event_retention_exempt_kinds,
                   :archiving_enabled,
                   :connects_to,
                   :authentication_enabled,
@@ -88,6 +90,10 @@ module RailsPulse
       @custom_asset_patterns = []
       @mount_path = nil
       @full_retention_period = 30.days
+      # Rows in rails_pulse_events older than this are deleted by cleanup, except
+      # kinds a writer updates in place (rails_pulse_pro registers its job heartbeats).
+      @event_retention_period = 90.days
+      @event_retention_exempt_kinds = []
       @archiving_enabled = true
       @max_table_records = {
         rails_pulse_operations: 100_000,
@@ -260,6 +266,14 @@ module RailsPulse
     def validate_retention_settings!
       unless @full_retention_period.respond_to?(:seconds)
         raise ArgumentError, "full_retention_period must be a time duration (e.g., 2.weeks), got #{@full_retention_period}"
+      end
+
+      unless @event_retention_period.is_a?(ActiveSupport::Duration)
+        raise ArgumentError, "event_retention_period must be a time duration (e.g., 90.days), got #{@event_retention_period.inspect}"
+      end
+
+      unless @event_retention_exempt_kinds.is_a?(Array) && @event_retention_exempt_kinds.all?(String)
+        raise ArgumentError, "event_retention_exempt_kinds must be an array of strings, got #{@event_retention_exempt_kinds.inspect}"
       end
 
       @max_table_records.each do |table, count|

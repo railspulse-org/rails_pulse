@@ -6,7 +6,8 @@ module RailsPulse
       fixtures :rails_pulse_routes, :rails_pulse_queries, :rails_pulse_requests,
                :rails_pulse_operations, :rails_pulse_summaries, :rails_pulse_jobs,
                :rails_pulse_job_runs, :rails_pulse_exception_groups,
-               :rails_pulse_exception_occurrences, :rails_pulse_deployments
+               :rails_pulse_exception_occurrences, :rails_pulse_deployments,
+               :rails_pulse_events
 
       def setup
         @original_max_records = RailsPulse.configuration.max_table_records
@@ -21,6 +22,35 @@ module RailsPulse
       end
 
       # Structure Tests
+
+      # Tracking Tests
+
+      test "tracking lists live writers with their queue depth and hourly drops" do
+        rails_pulse_events(:web_two_latest).update!(value: 7)
+        tracking = StorageStatus.new.tracking
+
+        assert_equal 2, tracking[:live_count]
+        assert_equal 15, tracking[:queue_depth]
+        assert_equal 7, tracking[:dropped]
+        web_two = tracking[:processes].find { |p| p[:label] == "web-2:202" }
+
+        assert_equal 7, web_two[:dropped_last_hour]
+        assert_equal 3, web_two[:queue_depth]
+        assert_equal 1000, web_two[:queue_size]
+      end
+
+      test "tracking reports nothing live when there are no heartbeats" do
+        RailsPulse::Event.delete_all
+        tracking = StorageStatus.new.tracking
+
+        assert_equal 0, tracking[:live_count]
+        assert_empty tracking[:processes]
+        assert_nil tracking[:last_sampled_at]
+      end
+
+      test "tables include the events table" do
+        assert_includes StorageStatus.new.tables.map { |table| table[:label] }, "Events"
+      end
 
       test "tables includes each pulse table" do
         labels = StorageStatus.new.tables.map { |table| table[:label] }

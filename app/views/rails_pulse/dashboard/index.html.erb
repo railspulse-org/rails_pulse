@@ -29,6 +29,16 @@
         critical_label: "critical",
         link_url: exceptions_path %>
       <% end %>
+      <%# Nil until a background writer has reported a heartbeat. %>
+      <% if @health_summary[:tracking] %>
+        <%= render "rails_pulse/dashboard/health_badge",
+        name: "Tracking",
+        health: @health_summary[:tracking],
+        healthy_label: "writing",
+        slow_label: "backlogged",
+        critical_label: "dropping",
+        link_url: storage_path %>
+      <% end %>
       <%= render "rails_pulse/dashboard/health_badge",
       name: "Storage",
       health: @health_summary[:storage],

@@ -35,6 +35,7 @@ module RailsPulse
         print_route_backfill
         print_initializer
         print_tracking
+        print_writer
         print_summaries
         print_actions
 
@@ -149,6 +150,30 @@ module RailsPulse
         output.puts "Tracking:   enabled=#{config.enabled} requests=#{config.enabled} jobs=#{config.track_jobs} " \
                     "exceptions=#{config.track_exceptions} async=#{config.async}"
         output.puts "Dashboard:  mount_dashboard=#{config.mount_dashboard} authentication=#{auth}"
+      end
+
+      # Adds up every process's background writer from its heartbeats; the
+      # process running this task has no writer of its own to ask.
+      def print_writer
+        unless RailsPulse::Event.table_exists?
+          output.puts "Writer:     (skipped — events table missing, schema is behind)"
+          return
+        end
+
+        summary = RailsPulse::WriterHeartbeat.summary
+        if summary[:last_sampled_at].nil?
+          output.puts "Writer:     no heartbeats yet (they start when a process with config.async tracks its first request)"
+          return
+        end
+
+        dropped = summary[:dropped].to_i
+        output.puts "Writer:     #{summary[:processes]} live process(es), queue depth #{summary[:queue_depth]}/#{summary[:queue_size]}, " \
+                    "#{dropped} request(s) dropped in the last hour, last heartbeat #{time_ago(summary[:last_sampled_at])}"
+        return if dropped.zero?
+
+        action "The writer dropped #{dropped} request(s) in the last hour. Raise config.async_queue_size or check database latency."
+      rescue StandardError => e
+        output.puts "Writer:     could not check (#{e.class}: #{e.message})"
       end
 
       def print_summaries

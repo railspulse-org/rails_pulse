@@ -1,7 +1,7 @@
 require "test_helper"
 
 class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
-  fixtures :rails_pulse_summaries
+  fixtures :rails_pulse_summaries, :rails_pulse_events
 
   def setup
     super
@@ -20,7 +20,7 @@ class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
     report
 
     assert_match(/\ARails Pulse #{Regexp.escape(RailsPulse::VERSION)}/, @output.string)
-    %w[Database: Schema: Migrations: Routes: Initializer: Tracking: Dashboard: Summaries:].each do |label|
+    %w[Database: Schema: Migrations: Routes: Initializer: Tracking: Dashboard: Writer: Summaries:].each do |label|
       assert_includes @output.string, label
     end
   end
@@ -35,7 +35,31 @@ class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
     assert_not_includes @output.string, "Action needed"
   end
 
+  test "writer heartbeats are summed across processes" do
+    assume_clean_install
+
+    assert report
+    assert_match(/Writer:     2 live process\(es\), queue depth 15\/1000, 0 request\(s\) dropped in the last hour/, @output.string)
+  end
+
+  test "no heartbeats yet is called out but is not an action" do
+    assume_clean_install
+    RailsPulse::Event.delete_all
+
+    assert report
+    assert_includes @output.string, "Writer:     no heartbeats yet"
+  end
+
   # Action Tests
+
+  test "requests dropped in the last hour fail the report" do
+    assume_clean_install
+    rails_pulse_events(:web_two_latest).update!(value: 7)
+
+    assert_not report
+    assert_match(/Writer:     2 live process\(es\).*7 request\(s\) dropped in the last hour/, @output.string)
+    assert_match(/Action needed:.*dropped 7 request\(s\) in the last hour. Raise config.async_queue_size/m, @output.string)
+  end
 
   test "schema drift is reported with the upgrade commands and fails the report" do
     assume_clean_install
