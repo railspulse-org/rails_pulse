@@ -71,6 +71,8 @@ Naming conventions:
 
 **Standalone dashboard.** `exe/rails_pulse_server` boots the host's `config/environment.rb` and serves the engine at `/` with its own session middleware. It ignores `authentication_method` and `authorize` and uses `standalone_authentication_method` or HTTP Basic. `RailsPulse.standalone?` is true there, and links are generated root-relative. See `docs/architecture.md` and decision 0010.
 
+**Nothing under `app/` branches on `Rails.env`.** A `Rails.env.test?` guard in app code is a path the suite cannot see; a screenshot fixture hid behind one for four pre-releases. Environment-dependent behaviour goes in `lib/rails_pulse/configuration.rb` defaults or the install template, which are legitimately environment-aware. `rake check_app_env_branching` enforces it in `rake test_release` and the CI lint job; recording the environment name (`Rails.env.to_s`) is allowed.
+
 **Requests index shows individual records, not aggregates.** Routes and Queries controllers use `Tables::Index` classes to query aggregated summary data, but RequestsController queries individual `RailsPulse::Request` records directly. This is intentional — the requests page displays per-request details (occurred_at, status, tags, route links) that would be lost in aggregation.
 
 ## Adding a New Feature

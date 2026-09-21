@@ -142,6 +142,30 @@ def pulse_steps(title, meta, steps)
   failed
 end
 
+# Environment-dependent behaviour belongs in Configuration defaults or the
+# install template, never in app/: a `Rails.env.test?` branch there is a code
+# path the suite cannot see (a screenshot fixture hid behind one for four
+# pre-releases). Recording the environment name (Rails.env.to_s) is fine;
+# branching on it is not.
+APP_ENV_BRANCHING = /Rails\.env(\.\w+\?|\s*==|\s*!=)/
+
+desc "Fail if anything under app/ branches on Rails.env"
+task :check_app_env_branching do
+  hits = Dir["app/**/*.{rb,erb}"].flat_map do |file|
+    File.foreach(file).with_index(1).filter_map do |line, number|
+      "#{file}:#{number}: #{line.strip}" if line.match?(APP_ENV_BRANCHING)
+    end
+  end
+
+  if hits.any?
+    puts RailsPulseConsole.line(:fail, "app/ branches on Rails.env; move the environment dependence to Configuration defaults or the install template")
+    hits.each { |hit| puts "        #{hit}" }
+    exit 1
+  end
+
+  puts RailsPulseConsole.line(:ok, "nothing under app/ branches on Rails.env")
+end
+
 desc "Verify dummy app migrations are in sync with gem migrations"
 task :verify_dummy_migrations do
   # Check if db/rails_pulse_migrate directory exists (separate database setup)
@@ -379,6 +403,7 @@ task :test_release do
     [ "Syncing test schema", -> { sh "rake sync_test_schema", verbose: false } ],
     [ "Verifying dummy app migrations", -> { sh "rake verify_dummy_migrations", verbose: false } ],
     [ "Running RuboCop linting", -> { pulse_sh("bundle exec rubocop") } ],
+    [ "Checking app/ for Rails.env branching", -> { pulse_sh("bundle exec rake check_app_env_branching") } ],
     [ "Running Brakeman security scanner", -> { sh "rake brakeman", verbose: false } ],
     [ "Installing Node dependencies", -> { pulse_sh("npm install --no-fund --no-audit") } ],
     [ "Running ESLint JS linting", -> { pulse_sh("npm run lint:js --silent") } ],

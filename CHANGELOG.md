@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.4.0] - 2026-09-22
+### Changed
+
+- The release gate and CI now fail if anything under `app/` branches on `Rails.env`, so a code path the test suite cannot reach can no longer ship. (#273)
+
+## [0.4.0.pre.6] - 2026-09-20
 
 ## [0.4.0] - 2026-09-22
 
