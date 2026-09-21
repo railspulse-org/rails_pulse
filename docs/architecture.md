@@ -27,6 +27,21 @@ How a request, a job, and an hour of data move through Rails Pulse. Read before 
 5. On the writer: `Route.find_or_create_for_request` resolves `[controller_action, path]` (decision 0004), `Request` is inserted, `SqlQueryNormalizer` (`app/services/rails_pulse/sql_query_normalizer.rb`) fingerprints each SQL operation into a `Query` (decision 0008), `Tracker.detect_n_plus_one` flags repeated fingerprints, and `Operation` rows are bulk-inserted.
 6. `ExceptionSubscriber` (`lib/rails_pulse/subscribers/exception_subscriber.rb`) runs on `process_action.action_controller` when the payload carries an exception, and calls `ExceptionCaptureService.capture` (`app/services/rails_pulse/exception_capture_service.rb`) synchronously (decision 0015).
 
+### What a tracked request costs
+
+Two costs, on two threads. On the request thread: the middleware's own work plus, per instrumentation event, one hash appended to the operations array and a lazy stack walk that stops at the first frame under `app/` (`OperationSubscriber#find_app_frame`), then one push onto the writer queue after the response. On the writer thread: the route lookup, the request insert, SQL normalisation, N+1 detection and one bulk insert of the operations. `bin/benchmark` measures the request-thread side against a pass-through Rack app, so the `async: true` row is the fixed per-request overhead and the `async: false` row is what the writer thread absorbs when it runs inline. Measured 2026-09-21 on Ruby 3.3.6, Rails 8.1.3.1, 200 iterations (`bin/benchmark --iterations=200`; `--markdown` reprints the table from `benchmarks/results/`, which is not tracked):
+
+| DB | Scenario | Median (ms) | P95 (ms) | P99 (ms) | DB writes |
+|---|---|---|---|---|---|
+| sqlite3 | Baseline (disabled) | 0.001 | 0.001 | 0.001 | 0 |
+| sqlite3 | Enabled, async: true | 0.025 | 0.032 | 0.042 | 0 |
+| sqlite3 | Enabled, async: false | 5.319 | 9.789 | 22.411 | 2 |
+| postgresql | Baseline (disabled) | 0.001 | 0.001 | 0.001 | 0 |
+| postgresql | Enabled, async: true | 0.026 | 0.033 | 0.155 | 0 |
+| postgresql | Enabled, async: false | 5.624 | 8.654 | 22.757 | 2 |
+
+The per-event subscriber cost is not in this table because the pass-through app emits no events; it scales with the number of SQL, template and cache events in a request, at a few microseconds each since the stack walk became lazy (#265).
+
 ## Job path
 
 `ActiveJobExtensions` (`lib/rails_pulse/active_job_extensions.rb`) wraps `perform` in `JobRunCollector.track` (`lib/rails_pulse/job_run_collector.rb`), which creates the `Job` aggregate row and a `JobRun`, collects operations exactly as the request path does, records status, attempts and queue wait, and on failure calls `ExceptionCaptureService` before re-raising. Adapters that bypass Active Job get their own hook: `adapters/sidekiq_middleware.rb`, `adapters/delayed_job_plugin.rb`, `adapters/job_wrapper.rb`. `config.job_adapters` switches each one off.

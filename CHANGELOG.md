@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.4.0] - 2026-09-22
+### Changed
+
+- Documented what a tracked request costs, measured against the bounded writer: about 25 microseconds of request-thread overhead per request on SQLite and PostgreSQL. (#275)
+
+## [0.4.0.pre.6] - 2026-09-20
 
 ## [0.4.0] - 2026-09-22
 
