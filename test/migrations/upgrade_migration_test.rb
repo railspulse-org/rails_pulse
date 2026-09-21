@@ -356,6 +356,30 @@ class UpgradeMigrationTest < ActiveSupport::TestCase
     assert_can_insert_job_run
   end
 
+  test "upgrade from v0.3.2 keeps its deployments and actual_sql and adds everything since" do
+    load_baseline(RailsPulse::TestSchemas::V032)
+    run_all_migrations
+
+    assert @conn.table_exists?(:rails_pulse_deployments)
+    assert @conn.column_exists?(:rails_pulse_operations, :actual_sql)
+    assert @conn.table_exists?(:rails_pulse_exception_groups)
+    assert @conn.column_exists?(:rails_pulse_exception_groups, :location)
+    assert @conn.column_exists?(:rails_pulse_routes, :controller_action)
+    assert @conn.column_exists?(:rails_pulse_routes, :http_methods)
+    assert_not @conn.column_exists?(:rails_pulse_routes, :method), "old method column should be removed"
+    assert @conn.column_exists?(:rails_pulse_requests, :method)
+  end
+
+  test "can insert records after upgrading from v0.3.2" do
+    load_baseline(RailsPulse::TestSchemas::V032)
+    run_all_migrations
+
+    assert_can_insert_core_records
+    assert_can_insert_deployment
+    assert_can_insert_exception
+    assert_can_insert_job_run
+  end
+
   test "can insert records after upgrading from v0.3.1" do
     load_baseline(RailsPulse::TestSchemas::V031)
     run_all_migrations

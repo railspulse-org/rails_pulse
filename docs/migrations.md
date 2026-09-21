@@ -48,5 +48,5 @@ Read before any schema change. The short checklist is in `CLAUDE.md`; this file 
 ## Testing migrations
 
 - `rake test` excludes `test/migrations/` and runs it afterwards in its own process, because the upgrade test rebuilds the database from a v0.2.7 snapshot and destroys fixtures for anything that follows. Never run a bare `rails test` across the repo.
-- Baselines live in `test/support/schemas/` (`v0_2_7`, `v0_3_1`, `v0_3_3`). Add one when a release has a schema no existing baseline covers.
-- `docs/releasing.md` has the manual separate-database smoke test, required for any release that adds a migration; CI only covers single-database upgrades.
+- Baselines live in `test/support/schemas/` (`v0_2_7`, `v0_3_1`, `v0_3_2`, `v0_3_3`). Add one when a release has a schema no existing baseline covers.
+- `bin/test_separate_database_upgrade` boots the dummy app with `config.connects_to`, loads a baseline into the separate database and runs upgrade generator, `db:migrate:rails_pulse`, `rails_pulse:migrate_routes` and `rails_pulse:status` end to end. CI runs it on SQLite and PostgreSQL; run it locally before any release that adds a migration.

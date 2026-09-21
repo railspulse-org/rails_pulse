@@ -13,11 +13,12 @@ rake test_matrix                     # 3 Rails versions (Appraisals) × 3 databa
 rake test_migrations                 # upgrade regression tests only
 npm run test:js                      # Vitest + JSDOM for Stimulus controllers
 bin/test_generators                  # install + upgrade generators against a scratch app
+bin/test_separate_database_upgrade   # upgrade from a schema baseline with config.connects_to; BASELINE=V027 for the oldest
 ```
 
 Never run a bare `rails test` over the repo: it includes `test/migrations/`, whose non-transactional upgrade test rebuilds the database from a v0.2.7 snapshot mid-suite and breaks every fixture-dependent test after it.
 
-CI (`.github/workflows/test.yml`) runs the Ruby × Rails matrix on SQLite and PostgreSQL, a MySQL job, system tests, RuboCop, Brakeman, ESLint, JS tests, generator tests, a gem build, and a changelog check. One matrix cell sets `COVERAGE=true` so the SimpleCov thresholds are enforced.
+CI (`.github/workflows/test.yml`) runs the Ruby × Rails matrix on SQLite and PostgreSQL, a MySQL job, system tests, the separate-database upgrade smoke test on SQLite and PostgreSQL, RuboCop, Brakeman, ESLint, JS tests, generator tests, a gem build, and a changelog check. One matrix cell sets `COVERAGE=true` so the SimpleCov thresholds are enforced.
 
 ## Rules
 

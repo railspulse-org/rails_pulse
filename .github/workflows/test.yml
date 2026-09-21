@@ -144,6 +144,54 @@ jobs:
         DB=mysql2 BUNDLE_GEMFILE=gemfiles/rails_8_0.gemfile \
           bundle exec appraisal rails-8-0 rake test
 
+  separate-database-upgrade:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        database: ["sqlite3", "postgresql"]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rails_pulse_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      RAILS_ENV: test
+      DB: ${{ matrix.database }}
+      CI: true
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.4'
+        bundler-cache: true
+
+    # The upgrade path a host on a separate Rails Pulse database takes; the
+    # single-database matrix cannot reach it.
+    - name: Upgrade a separate database from the 0.3.2 baseline
+      run: bin/test_separate_database_upgrade
+
+    - name: Upgrade a separate database from the 0.2.7 baseline
+      run: BASELINE=V027 bin/test_separate_database_upgrade
+
   system:
     runs-on: ubuntu-latest
 
