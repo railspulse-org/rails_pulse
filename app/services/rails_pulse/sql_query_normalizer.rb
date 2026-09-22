@@ -82,18 +82,20 @@ module RailsPulse
     def replace_literal_values(query)
       normalized = query.dup
 
+      # Replace string literals (single quotes) FIRST so a very long literal
+      # collapses to a single "?" before any other regex in this method has
+      # to scan across it — see LONG_QUERY_THRESHOLD and issue #286.
+      normalized = replace_quoted_literals(normalized, "'")
+
+      # Replace double-quoted string literals (not protected identifiers)
+      normalized = replace_quoted_literals(normalized, '"')
+
       # Replace floating-point numbers FIRST (before integers) to avoid double replacement
       normalized = normalized.gsub(/(?<![a-zA-Z_])\b\d+\.\d+\b(?![a-zA-Z_])/, "?")
 
       # Replace integer literals with placeholders, but preserve identifiers containing numbers
       # Negative lookbehind/lookahead prevents replacing numbers in table/column names
       normalized = normalized.gsub(/(?<![a-zA-Z_])\b\d+\b(?![a-zA-Z_])/, "?")
-
-      # Replace string literals (single quotes)
-      normalized = replace_quoted_literals(normalized, "'")
-
-      # Replace double-quoted string literals (not protected identifiers)
-      normalized = replace_quoted_literals(normalized, '"')
 
       # Handle boolean literals
       normalized = normalized.gsub(/\b(true|false)\b/i, "?")
