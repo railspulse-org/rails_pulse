@@ -1,5 +1,15 @@
 module RailsPulse
   class SqlQueryNormalizer
+    # Above this length, skip the regex-based literal scan in favor of a
+    # slower-per-char but backtracking-free manual scan. Regex matching here
+    # is linear (benchmarked at ~0.4s for an 8,000,000-char literal under a
+    # 1s Regexp.timeout), but a host app can configure Regexp.timeout far
+    # below that, and very long queries are rare enough that the fast path
+    # isn't worth the risk. 100_000 chars leaves generous headroom below
+    # where even an aggressive timeout config could plausibly trip — see
+    # issue #286.
+    LONG_QUERY_THRESHOLD = 100_000
+
     # Smart normalization: preserve table/column names, replace only literal values
     def self.normalize(query_string)
       new(query_string).normalize
@@ -80,15 +90,81 @@ module RailsPulse
       normalized = normalized.gsub(/(?<![a-zA-Z_])\b\d+\b(?![a-zA-Z_])/, "?")
 
       # Replace string literals (single quotes)
-      normalized = normalized.gsub(/'(?:[^']|'')*'/, "?")
+      normalized = replace_quoted_literals(normalized, "'")
 
       # Replace double-quoted string literals (not protected identifiers)
-      normalized = normalized.gsub(/"(?:[^"]|"")*"/, "?")
+      normalized = replace_quoted_literals(normalized, '"')
 
       # Handle boolean literals
       normalized = normalized.gsub(/\b(true|false)\b/i, "?")
 
       normalized
+    end
+
+    # Replaces quote_char-delimited string literals with a single placeholder.
+    # Uses a regex for the common case (fast — see benchmarks in
+    # LONG_QUERY_THRESHOLD's comment) and falls back to a manual scan for
+    # very long queries, where that regex risks Regexp::TimeoutError under
+    # an aggressively configured Regexp.timeout — see issue #286.
+    def replace_quoted_literals(query, quote_char)
+      if query.length < LONG_QUERY_THRESHOLD
+        pattern = quote_char == "'" ? /'(?:[^']|'')*'/ : /"(?:[^"]|"")*"/
+        query.gsub(pattern, "?")
+      else
+        scan_quoted_literals(query, quote_char)
+      end
+    end
+
+    # Linear, non-regex scan used above LONG_QUERY_THRESHOLD. A quote left
+    # unterminated for the rest of the string is left untouched rather than
+    # rescanned from every possible start position, which is what would make
+    # a naive manual reimplementation quadratic.
+    def scan_quoted_literals(query, quote_char)
+      result = +""
+      i = 0
+      len = query.length
+
+      while i < len
+        char = query[i]
+
+        unless char == quote_char
+          result << char
+          i += 1
+          next
+        end
+
+        close_index = find_closing_quote(query, i + 1, quote_char)
+
+        if close_index
+          result << "?"
+          i = close_index + 1
+        else
+          result << query[i..]
+          break
+        end
+      end
+
+      result
+    end
+
+    # Returns the index of the unescaped closing quote_char starting the
+    # search at `start`, treating a doubled quote_char (e.g. '') as an
+    # escaped literal quote rather than a terminator. Returns nil if the
+    # string is never closed.
+    def find_closing_quote(query, start, quote_char)
+      j = start
+      len = query.length
+
+      while j < len
+        if query[j] == quote_char
+          return j unless query[j + 1] == quote_char
+          j += 2
+        else
+          j += 1
+        end
+      end
+
+      nil
     end
 
     def handle_special_constructs(query)

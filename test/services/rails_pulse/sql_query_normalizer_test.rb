@@ -1,4 +1,5 @@
 require "test_helper"
+require "benchmark"
 
 module RailsPulse
   class SqlQueryNormalizerTest < ActiveSupport::TestCase
@@ -238,6 +239,68 @@ module RailsPulse
       result = normalizer.normalize
 
       assert_equal expected, result
+    end
+
+    # Regression Tests
+
+    test "normalize does not raise Regexp::TimeoutError on long SQL under a tight global Regexp.timeout" do
+      # Issue #286: a long query string could trip Ruby's global Regexp.timeout
+      # inside the old regex-based literal replacement ('(?:[^']|'')*'),
+      # raising Regexp::TimeoutError and failing the whole request. Above
+      # SqlQueryNormalizer::LONG_QUERY_THRESHOLD, literal replacement now
+      # falls back to a manual character scan with no Regexp involved, so it
+      # cannot raise this error no matter how tight the configured timeout is.
+      # This query is long enough to cross that threshold.
+      skip "Regexp.timeout requires Ruby 3.2+" unless Regexp.respond_to?(:timeout=)
+
+      original_timeout = Regexp.timeout
+      long_value = "x" * 2_000_000
+      query = "SELECT * FROM logs WHERE message = '#{long_value}'"
+
+      begin
+        Regexp.timeout = 0.05
+        result = RailsPulse::SqlQueryNormalizer.normalize(query)
+      ensure
+        Regexp.timeout = original_timeout
+      end
+
+      assert_equal "SELECT * FROM logs WHERE message = ?", result
+    end
+
+    test "normalize completes quickly on strings with many unpaired quotes" do
+      pathological_value = "'" * 200_000
+      query = "SELECT * FROM logs WHERE message = #{pathological_value}"
+
+      result = nil
+      elapsed = Benchmark.realtime do
+        result = RailsPulse::SqlQueryNormalizer.normalize(query)
+      end
+
+      assert_operator elapsed, :<, 1, "normalize took too long (#{elapsed}s) on pathological input"
+      assert_kind_of String, result
+    end
+
+    test "regex fast path and manual scan fallback agree on the same input" do
+      normalizer = RailsPulse::SqlQueryNormalizer.new("")
+      query = "message = 'hello' OR note = \"it's a \"\"quoted\"\" word\" OR flag = 'it''s escaped'"
+
+      regex_result = query.gsub(/'(?:[^']|'')*'/, "?").gsub(/"(?:[^"]|"")*"/, "?")
+      scan_result = normalizer.send(:scan_quoted_literals, query, "'")
+      scan_result = normalizer.send(:scan_quoted_literals, scan_result, '"')
+
+      assert_equal regex_result, scan_result
+    end
+
+    test "normalize completes quickly on a long unterminated string literal" do
+      long_unterminated = "SELECT * FROM logs WHERE message = 'unterminated #{"x" * 200_000}"
+
+      result = nil
+      elapsed = Benchmark.realtime do
+        result = RailsPulse::SqlQueryNormalizer.normalize(long_unterminated)
+      end
+
+      assert_operator elapsed, :<, 1, "normalize took too long (#{elapsed}s) on unterminated literal"
+      assert_kind_of String, result
     end
 
     test "service is stateless and reusable" do

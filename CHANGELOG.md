@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- SQL normalization no longer raises `Regexp::TimeoutError` on long queries, which could fail the whole request when N+1 detection ran during collection.
+
 ## [0.4.0] - 2026-09-22
 
 ## [0.4.0] - 2026-09-22
