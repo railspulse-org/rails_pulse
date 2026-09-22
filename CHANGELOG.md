@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Loosened the `ransack` dependency from `~> 4.0` to `>= 4.0, < 6` so host apps can upgrade to ransack 5 without dropping Rails Pulse.
+
 ## [0.4.0] - 2026-09-22
 
 ## [0.4.0] - 2026-09-22
