@@ -30,22 +30,23 @@ Run comprehensive pre-release tests:
 rake test_release
 ```
 
-This runs 14 steps, in order:
+This runs 15 steps, in order:
 
 1. Git status (clean working directory)
 2. Appraisal gemfile sync
 3. Test schema sync
 4. Dummy app migration verification
 5. RuboCop
-6. Brakeman security scan
-7. Node dependency install
-8. ESLint (`npm run lint:js`)
-9. JavaScript unit tests (`npm run test:js`)
-10. Production asset build
-11. Gem build verification
-12. Generator tests (install + upgrade)
-13. Migration regression tests (`rake test_migrations`)
-14. Full test matrix (all databases × Rails versions)
+6. Rails.env branching check under `app/` (`rake check_app_env_branching`)
+7. Brakeman security scan
+8. Node dependency install
+9. ESLint (`npm run lint:js`)
+10. JavaScript unit tests (`npm run test:js`)
+11. Production asset build
+12. Gem build verification
+13. Generator tests (install + upgrade)
+14. Migration regression tests (`rake test_migrations`)
+15. Full test matrix (all databases × Rails versions)
 
 The list lives in `Rakefile` under `test_release`; keep this section in step with it.
 
