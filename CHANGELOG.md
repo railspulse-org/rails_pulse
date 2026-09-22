@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- SQL normalization no longer raises `Regexp::TimeoutError` on long queries, which could fail the whole request when N+1 detection ran during collection.
+
 ### Changed
 
 - Loosened the `ransack` dependency from `~> 4.0` to `>= 4.0, < 6` so host apps can upgrade to ransack 5 without dropping Rails Pulse.
