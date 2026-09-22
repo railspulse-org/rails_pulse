@@ -27,6 +27,8 @@ BROWSER=true rake test_matrix  # Include system tests
 
 Tests are parallelized by default. System tests (`BROWSER=true`) disable parallelization automatically.
 
+`rake test_setup` records which adapter it prepared the dummy database for (`tmp/test_setup_adapter`), and `rake test` refuses to run for a different `DB` until `test_setup` is run again: the dummy `schema.rb` is dumped from whichever adapter migrated last, and Rails loads that file, not the migrations, into the parallel-worker databases.
+
 Never run a bare `rails test` over the whole repo: it picks up `test/migrations/`, whose non-transactional upgrade test rebuilds the DB from a v0.2.7 snapshot mid-suite and destroys fixtures for every test after it, causing hundreds of seed-dependent `RecordNotFound` errors. `rake test` runs the main suite with `test/migrations` excluded, then runs `rake test_migrations` in a separate process.
 
 ## Testing Conventions
@@ -70,6 +72,8 @@ Naming conventions:
 **Schema drift guard.** `RailsPulse::SchemaCheck` runs once per process and pauses tracking (dashboard answers 503) when a table or sentinel column is missing. A new column that older installs will lack must go in `SENTINEL_COLUMNS` or the guard will not protect it. `rails rails_pulse:status` reports schema, migrations, route backfill and initializer state and exits 1 when something needs action.
 
 **Standalone dashboard.** `exe/rails_pulse_server` boots the host's `config/environment.rb` and serves the engine at `/` with its own session middleware. It ignores `authentication_method` and `authorize` and uses `standalone_authentication_method` or HTTP Basic. `RailsPulse.standalone?` is true there, and links are generated root-relative. See `docs/architecture.md` and decision 0010.
+
+**Nothing under `app/` branches on `Rails.env`.** A `Rails.env.test?` guard in app code is a path the suite cannot see; a screenshot fixture hid behind one for four pre-releases. Environment-dependent behaviour goes in `lib/rails_pulse/configuration.rb` defaults or the install template, which are legitimately environment-aware. `rake check_app_env_branching` enforces it in `rake test_release` and the CI lint job; recording the environment name (`Rails.env.to_s`) is allowed.
 
 **Requests index shows individual records, not aggregates.** Routes and Queries controllers use `Tables::Index` classes to query aggregated summary data, but RequestsController queries individual `RailsPulse::Request` records directly. This is intentional — the requests page displays per-request details (occurred_at, status, tags, route links) that would be lost in aggregation.
 

@@ -161,6 +161,22 @@ module RailsPulse
           end
         end
 
+        test "headline total honours the global tag filter like the sparkline does" do
+          RailsPulse::Summary.delete_all
+          day = 1.day.ago.beginning_of_day
+          create_day_summary(rails_pulse_routes(:api_users), day, count: 10) # tagged api, users
+          create_day_summary(rails_pulse_routes(:api_other), day, count: 5)  # untagged
+
+          unfiltered = RailsPulse::Routes::Cards::RequestCountTotals.new(period: 7).to_metric_card
+          users_disabled = RailsPulse::Routes::Cards::RequestCountTotals.new(disabled_tags: [ "users" ], show_non_tagged: true, period: 7).to_metric_card
+          tagged_only = RailsPulse::Routes::Cards::RequestCountTotals.new(disabled_tags: [], show_non_tagged: false, period: 7).to_metric_card
+
+          assert_equal "15 requests", unfiltered[:period_stat]
+          assert_equal "5 requests", users_disabled[:period_stat]
+          assert_equal 5, users_disabled[:chart_data].values.sum { |point| point[:value] }
+          assert_equal "10 requests", tagged_only[:period_stat]
+        end
+
         test "uses daily summaries for period_type day" do
           card = RailsPulse::Routes::Cards::RequestCountTotals.new(period: 7, period_type: "day").to_metric_card
 
@@ -172,6 +188,17 @@ module RailsPulse
           card[:chart_data].keys.each do |label|
             assert_match(/[A-Z][a-z]{2} \d{1,2}/, label)
           end
+        end
+
+        private
+
+        def create_day_summary(route, day, count:)
+          RailsPulse::Summary.create!(
+            summarizable_type: "RailsPulse::Route", summarizable_id: route.id,
+            period_type: "day", period_start: day, period_end: day.end_of_day,
+            count: count, success_count: count, error_count: 0,
+            avg_duration: 100.0, p95_duration: 100.0
+          )
         end
       end
     end
