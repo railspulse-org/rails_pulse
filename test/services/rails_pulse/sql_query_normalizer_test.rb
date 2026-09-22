@@ -244,7 +244,7 @@ module RailsPulse
     # Regression Tests
 
     test "normalize does not raise Regexp::TimeoutError on long SQL under a tight global Regexp.timeout" do
-      # Issue #286: a long query string could trip Ruby's global Regexp.timeout
+      # A long query string could trip Ruby's global Regexp.timeout
       # inside the old regex-based literal replacement ('(?:[^']|'')*'),
       # raising Regexp::TimeoutError and failing the whole request. Above
       # SqlQueryNormalizer::LONG_QUERY_THRESHOLD, literal replacement now
