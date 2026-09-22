@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.0] - 2026-09-22
 
+## [0.4.0] - 2026-09-22
+
 Route identity changes in this release and the schema migration is irreversible, so upgrading from any 0.3.x release needs a backup and a one-time data migration. Start with "Upgrading from 0.3.x" below.
 
 ### Upgrading from 0.3.x

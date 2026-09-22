@@ -1,3 +1,3 @@
 module RailsPulse
-  VERSION = "0.4.0.pre.6"
+  VERSION = "0.4.0"
 end
