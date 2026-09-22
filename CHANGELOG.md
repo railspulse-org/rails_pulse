@@ -10,12 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - SQL normalization no longer raises `Regexp::TimeoutError` on long queries, which could fail the whole request when N+1 detection ran during collection.
+- **Metric card headline numbers now honour the global tag filter.** Disabling a tag changed each card's sparkline but not the number beside it, so the two disagreed. Both are now computed over the same summaries. (#274)
 
 ### Changed
 
 - Loosened the `ransack` dependency from `~> 4.0` to `>= 4.0, < 6` so host apps can upgrade to ransack 5 without dropping Rails Pulse.
-
-## [0.4.0] - 2026-09-22
 
 ## [0.4.0] - 2026-09-22
 
