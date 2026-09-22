@@ -56,3 +56,6 @@ vendor/assets/javascripts/*.map
 test/reports/
 
 PLAN.md
+
+# bin/benchmark output; the current table lives in docs/architecture.md
+/benchmarks/results/
