@@ -7,132 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.4.0.pre.6] - 2026-09-20
+## [0.4.0] - 2026-09-22
 
-## [0.4.0.pre.5] - 2026-09-20
-
-### Changed
-
-- **Services now autoload through Zeitwerk.** `app/services` was hidden from the Rails autoloader and wired up by hand, so services never reloaded in development and every new one had to be registered in the engine. They now load and reload like the rest of `app/`, with the few acronym-prone file names pinned so a host's `inflect.acronym` declarations cannot change the constants the gem expects.
-
-### Removed
-
-- `RailsPulse.warm_metric_cache!` (a no-op) and `RailsPulse.clear_metric_cache!` (used `delete_matched`, which some cache stores do not support). Neither was referenced by the dashboard.
-
-### Fixed
-
-- **Dashboard pages issue fewer queries.** Tag filtering now runs as subqueries inside each card and chart query instead of plucking every route, query and job id first; the route-backfill check is a single indexed query once every route has an action; and the dashboard's storage headline reuses table sizes for five minutes instead of measuring every table on every load.
-- **Lower per-query capture overhead.** The SQL, template and cache subscribers materialised the whole call stack on every event to find the calling app file; they now walk it lazily and stop at the first app frame, which cuts the per-event cost by half to two thirds on a typical controller stack.
-- **Summary aggregation writes each period in a handful of statements.** Every route, query and job summary used to be found and saved individually, so an hour with a few hundred routes and queries cost over 700 SQL statements; rows are now upserted in bulk against the summaries unique index.
-- **Background tracking no longer spawns a thread per request.** A burst of traffic used to fan out into one writer thread per request, each holding one of the app's database connections, so the app's own request threads could wait seconds for a connection. One writer thread per process now drains a bounded queue on a single connection; when the queue is full the newest request is dropped and counted rather than slowing the app. Adds `config.async_queue_size` (default 1000), `RailsPulse::Tracker.stats`, and an exit hook that drains the queue on restart. SQL normalisation and N+1 detection have moved off the request thread as well.
-- **Metric card sparklines are now correct in time zones east of UTC.** Daily buckets were computed from the stored UTC timestamp, so in zones such as London, Melbourne or Tokyo every card showed each day's value a day early with the latest day at zero, and half-hour zones got empty hourly sparklines. Grouping now follows `config.time_zone`, and the gem no longer adds `group_by_date` / `group_by_hour` to the host's `ActiveRecord::Relation`.
-- **Summary aggregation now runs its transaction on the Rails Pulse connection.** On separate-database installs it was opened on the host's primary database, so a failure part-way through a period could leave partial summaries behind.
-- **The dashboard's own HTTP, mailer, job and storage events are no longer recorded.** These subscribers skipped the recursion guard that SQL and template events already honoured.
-- **Storage page reports real table sizes again.** A leftover screenshot fixture replaced every table's live count, size, and age with hard-coded sample numbers in any environment other than `test`.
-- **Standalone dashboard settings forms no longer fail CSRF verification.** The standalone server (`rails_pulse_server`) used the plain `rack-session` gem's `Rack::Session::Cookie`, which knows nothing about Rails' CSRF handling: a token generated for a form is only written into the session by `commit_csrf_token`, a hook that only Rails' own `ActionDispatch::Session::CookieStore` calls. Every generated token was silently discarded, so every submission failed verification. Switched to `ActionDispatch::Cookies` + `ActionDispatch::Session::CookieStore` (seeding the `action_dispatch.*` env Rails normally sets up before reaching the engine).
-- **Standalone dashboard no longer 404s on the time range and global filters pickers.** Those forms submit `POST` with a hidden `_method=patch` field — the standard verb-override trick — which the mounted engine translates via the host app's default middleware stack. The standalone server (`rails_pulse_server`) builds its own minimal Rack stack and never added `Rack::MethodOverride`, so the request reached routing as a plain `POST` and 404'd against the `PATCH`-only route.
-- **Cleanup no longer risks statement timeouts on large tables.** `CleanupService`'s orphan checks for queries, routes, jobs, and exception groups used a `NOT IN` subquery, which some databases (notably PostgreSQL at scale) execute by materializing and rescanning the full subquery result instead of using an index. Switched to a correlated `NOT EXISTS`, which lets the planner use an index per row. A stalled cleanup stage previously blocked all later stages, including hourly summary pruning. (#253)
-- **Idle periods no longer trigger false "summary job not running" warnings.** `SummaryJob` now records a zero-count overall summary for hours/days with no requests, so the dashboard banner, `rails_pulse:status`, the storage-pressure card, and count-based cleanup no longer mistake "no traffic" for "job stopped running." (#250)
-- **Custom date range charts on the Routes, Queries, and Jobs pages no longer render blank when the server's OS timezone differs from `config.time_zone`.** A custom range was rounded to a day/hour boundary in whatever offset the parsed time happened to carry rather than `Time.zone`, so the boundary could land hours away from where summary data is actually bucketed — every chart series came back all-nil while the metric cards and table (queried differently) kept showing data, which was the visible symptom.
-- **Dashboard charts and metric cards now honor a custom date range instead of always showing the trailing days.** The dashboard collapsed the selected range to a day count and had every chart, card, and sparkline re-derive "the last N days ending now" from it, so a range in the past rendered recent data under the selected range's labels, and the day count itself was truncated by integer division. Charts and cards now bucket the exact selected range.
-- **Custom date range no longer 500s the dashboard on Marshal-backed session stores.** The custom range was written with symbol keys but read back expecting string keys, so stores that preserve symbols (e.g. `activerecord-session_store`) broke every page until the session was cleared; both shapes are now accepted and unreadable preferences fall back to the default range. (#252)
-- **`config.logger` is now honored.** `RailsPulse.logger` previously ignored a custom logger set in the initializer and always wrote to the tagged `Rails.logger`; the configured logger now receives all Rails Pulse log output. (#244)
-- **Cached SQL reads no longer captured as operations.** Query-cache hits were going through the same stack-walk and operation-allocation path as real queries, adding measurable overhead on requests with heavy cache reuse. `config.ignored_queries` now also works — it was previously validated but never consulted when collecting SQL operations.
-- **Dashboard status bar badges are now all clickable.** Routes, Queries, and Jobs badges link to their respective pages, matching Exceptions and Storage.
-- **Standalone auth notice logged once per process.** The "standalone dashboard ignores config.authentication_method / config.authorize" notice kept its once-only flag on each controller class, so it repeated for every engine controller a visitor reached. The flag now lives on `RailsPulse::Standalone` and the notice is logged once per process.
-
-## [0.4.0.pre.4] - 2026-09-07
-
-### Fixed
-
-- Dependency and packaging fixes only; no user-facing changes beyond 0.4.0.pre.3.
-
-## [0.4.0.pre.3] - 2026-09-06
-
-### Added
-
-- **Shell-based deployment tracking.** `rake rails_pulse:record_deployment` and the new `rake rails_pulse:finish_deployment[revision]` let release scripts record and close deployments without the HTTP API or a token.
-- **Standalone mode improvements.** Dashboard links now resolve correctly when served at `/`, and a new `config.standalone_authentication_method` (with an HTTP Basic fallback) replaces host-app authentication, which the standalone process can't use.
-- **`rails rails_pulse:status`.** Reports schema, migration, and tracking/auth config state in one command, and exits 1 if anything needs action before deploying.
-- **Schema drift guard.** `RailsPulse::SchemaCheck` detects tables or columns the running gem expects but that haven't been migrated yet, and pauses tracking (dashboard returns 503) with a clear warning instead of erroring. Disable with `config.schema_check_enabled = false`.
-
-### Fixed
-
-- Fixed breadcrumb links becoming protocol-relative (`//queries`) when the engine is mounted at `/`.
-- Fixed the standalone dashboard server 404ing on its own stylesheets and scripts.
-- Fixed asset responses using mixed-case headers, which `Rack::Lint` rejects under Rack 3.
-- Fixed `rails_pulse_server` ignoring `RAILS_ENV`/`RACK_ENV` and always booting `rackup` in development mode.
-- Fixed the standalone server requiring a literal `SECRET_KEY_BASE` instead of falling back to the host app's.
-
-### Security
-
-- Updated development dependencies mail, net-imap, and json for several CVEs (gem dev/CI only).
-- Updated development dependencies nokogiri, loofah, and rails-html-sanitizer for several CVEs (gem dev/CI only).
-- Updated development dependencies Rails, puma, websocket-driver, and concurrent-ruby for Dependabot's critical/high alerts. Host apps should update their own Rails to 8.1.3.1.
-
-### Changed
-
-- `rails generate rails_pulse:upgrade` now reports unrun migrations and outstanding route backfill instead of saying everything is up to date.
-- Cleaned up `rake test` output — no more RDoc warnings, stray blank lines, or leaked log noise.
-
-## [0.4.0.pre.2] - 2026-09-04
-
-### Fixed
-
-- Fixed `rails generate rails_pulse:upgrade` writing a migration that failed to parse when a column comment contained an escaped quote.
-- Fixed background tracking writes corrupting the test database connection under transactional tests. Existing installs should add `config.async = false if Rails.env.test?` to their initializer.
-
-## [0.4.0.pre.1] - 2026-09-03
-
-This release contains a **breaking schema change** and requires a one-time data migration. Back up your database first — the route migration is irreversible. See "Upgrading from 0.3.x" below.
-
-### Security
-
-- Job failure messages (`rails_pulse_job_runs.error_message`) are now redacted the same way exception messages are.
-- CSRF protection is now declared directly by the engine instead of depending on the host's `load_defaults` version.
-- Fixed `authentication_method` granting access when it returned a falsy-but-not-`false`/redirect value; it's now fail-closed.
-- Hardened EXPLAIN analysis against SQL injection and added a statement timeout.
-- Bounded deployment API input (revision length, metadata size, future timestamps) and capped the `rails_pulse_deployments` row count.
-- Backtrace source snippets are now limited to `app/`, `lib/`, and `config/routes.rb`, instead of any file under `Rails.root`.
-- The standalone dashboard's session cookie is now `Secure` in production.
-
-### Added
-
-- **Exception tracking.** Captures unhandled exceptions from requests and jobs, with grouping, backtraces, and redacted params in a new Exceptions tab.
-- **`track_exceptions` config option**, off by default for existing installs and on by default for new ones.
-- **`capture_exception_params` config option** to include filtered request params with each exception occurrence.
-- **`exception_message_filter` config option** for app-specific redaction beyond the built-in rules.
-- **`authorize` config option** — a fail-closed predicate for gating dashboard access; now the recommended approach.
-- **The upgrade generator now syncs new initializer settings** into the host's config file without overwriting existing values.
-
-### Changed
-
-- **BREAKING — route identity is now `[controller_action, path]`**, so different HTTP methods on the same path are tracked as distinct routes.
-- **A one-time `rails rails_pulse:migrate_routes` backfill is required** after migrating; a schema migrate alone leaves the Action column empty.
-- **The JavaScript bundle is 66% smaller** (2.19 MB → 759 KB) after tree-shaking ECharts.
-
-### Removed
-
-- **BREAKING — `rails_pulse_routes.method` is dropped**; the HTTP verb now lives on each request. Restart all processes together after migrating.
-- **BREAKING — the route migration is irreversible.** Back up your database first.
-- Removed three unused Stimulus controllers (`form`, `timezone`, `period_selector`).
-- Removed `theme.js`, a chart theme that was immediately overwritten and would have defeated ECharts tree-shaking.
-- Removed dead CSS: unused css-zero ports, old period-selector styles, and a disabled toolbox option.
-- `csp-test.js` is no longer shipped in the published gem.
-
-### Fixed
-
-- Fixed tag filters not matching tags containing `_` on SQLite.
-- Fixed various hand-edited or malformed query strings causing 500s instead of falling back to defaults.
-- Fixed chart click/zoom handlers accumulating on every chart tab switch, slowing clicks down over time.
-- Fixed zooming to the first column of a category chart resetting the range instead of applying it.
-- Fixed hover popovers throwing after a table refresh replaced the underlying element.
-- Fixed the time range selector's hover border being invisible due to an undefined CSS variable.
-- Fixed a duplicate CSS rule that made popover placement depend on file load order.
-- Fixed upgrading when using a separate database installation.
-- Separate-database installs now set `schema_dump: false` so `db:migrate` doesn't dump or load `db/rails_pulse_structure.sql` (#189).
-- Fixed `assets:precompile` OOMing on memory-constrained hosts by not registering dashboard assets with Sprockets.
-- Fixed SQLite's `schema.rb` dropping the partial unique index on unrecognised routes, which over-constrained paths on `db:schema:load`.
+Route identity changes in this release and the schema migration is irreversible, so upgrading from any 0.3.x release needs a backup and a one-time data migration. Start with "Upgrading from 0.3.x" below.
 
 ### Upgrading from 0.3.x
 
@@ -143,16 +20,76 @@ bundle update rails_pulse
 rails generate rails_pulse:upgrade
 rails db:migrate                  # separate Pulse database: rails db:migrate:rails_pulse
 rails rails_pulse:migrate_routes  # required — schema migrate alone leaves Action empty
+rails rails_pulse:status          # exits 1 while anything still needs action
 ```
 
-Then restart **all** processes together, not as a rolling deploy.
+Then restart **all** processes together, not as a rolling deploy. A 0.3.x process left running against the migrated schema stops tracking and 500s on the routes page. If the new gem is deployed before its migrations run, tracking pauses and the dashboard answers 503 with these commands until the schema is current.
 
-Separate-database hosts: add `schema_dump: false` to the `rails_pulse` entry in
-`config/database.yml` and delete `db/rails_pulse_structure.sql` if it exists. Do not
-run `db:setup` / `db:prepare` as a substitute for `db:migrate:rails_pulse`.
+Separate-database hosts: add `schema_dump: false` to the `rails_pulse` entry in `config/database.yml` and delete `db/rails_pulse_structure.sql` if it exists. Do not run `db:setup` / `db:prepare` as a substitute for `db:migrate:rails_pulse`.
 
-Exception tracking stays off after upgrading. Set `config.track_exceptions = true`
-once you have reviewed what is captured.
+The upgrade generator appends this version's new settings to `config/initializers/rails_pulse.rb` without changing existing values; review them with `git diff`. Exception tracking is inserted as `config.track_exceptions = false`; set it to `true` once you have reviewed what is captured. Authentication is now on outside development and test, not only in production, so configure `config.authorize` before deploying to staging.
+
+### Security
+
+- Job failure messages (`rails_pulse_job_runs.error_message`) are redacted the same way exception messages are.
+- CSRF protection is declared directly by the engine instead of depending on the host's `load_defaults` version.
+- Authentication hooks fail closed: an `authentication_method` that returns a falsy-but-not-`false` or redirect value no longer grants access, and authentication is on by default outside development and test rather than only in production.
+- EXPLAIN analysis is hardened against SQL injection and runs under a statement timeout.
+- Deployment API input is bounded (revision length, metadata size, future timestamps) and the deployments table is capped.
+- Backtrace source snippets are limited to `app/`, `lib/` and `config/routes.rb` instead of any file under `Rails.root`.
+- The standalone dashboard's session cookie is `Secure` in production.
+- Development dependencies updated for several CVEs (gem dev/CI only). Host apps should keep their own Rails current.
+
+### Added
+
+- **Exception tracking.** Unhandled exceptions from requests and jobs are grouped by class and location, with backtraces and redacted params, in a new Exceptions tab. Off after an upgrade and on for new installs (`config.track_exceptions`); `config.capture_exception_params` and `config.exception_message_filter` control what is stored.
+- **`config.authorize`**, a fail-closed predicate for gating dashboard access and now the recommended way to secure it.
+- **Schema drift guard.** When the gem is newer than its tables (deployed before `db:migrate`, or a rolling restart), tracking pauses and the dashboard answers 503 with the upgrade commands instead of erroring on every request. `config.schema_check_enabled = false` turns it off.
+- **`rails rails_pulse:status`** reports schema, migration, route backfill, initializer and summary state in one command and exits 1 when something needs action.
+- **Shell-based deployment tracking.** `rails rails_pulse:record_deployment[revision]` and `rails rails_pulse:finish_deployment[revision]` record and close deployments from release scripts without the HTTP API or a token.
+- **Standalone dashboard authentication.** `config.standalone_authentication_method` (HTTP Basic against `RAILS_PULSE_USERNAME` / `RAILS_PULSE_PASSWORD` by default) replaces the host hooks, which the standalone process cannot run.
+- **`config.async_queue_size`** bounds the background writer queue (default 1000), and `RailsPulse::Tracker.stats` reports what was dropped.
+- The upgrade generator syncs new initializer settings into the host's initializer without overwriting existing values, and reports unrun migrations and outstanding route backfill instead of saying everything is up to date.
+
+### Changed
+
+- **BREAKING: route identity is now `[controller_action, path]`.** Different HTTP methods on the same path are tracked as distinct routes, and a one-time `rails rails_pulse:migrate_routes` backfill is required after migrating.
+- **BREAKING: `rails_pulse_routes.method` is dropped and the migration is irreversible.** The HTTP verb now lives on each request. Restart all processes together after migrating.
+- **One writer thread per process.** Background tracking no longer spawns a thread per request, which could exhaust the app's connection pool under a burst. A single writer drains a bounded queue on one connection and drops the newest request when the queue is full rather than slowing the app; SQL normalisation and N+1 detection run there too, off the request thread.
+- **Summary aggregation upserts each period in bulk** instead of one statement per route, query and job, and runs its transaction on the Rails Pulse connection so separate-database installs cannot be left with partial summaries.
+- **Dashboard assets are no longer registered with Sprockets**, which fixes `assets:precompile` running out of memory on small hosts. `rails_pulse:install_assets` copies them into `public/assets` after precompile so `config.asset_host` and CDN-only CSP keep working; remove any `rails-pulse.js` / `rails-pulse.css` entries from `config.assets.precompile`.
+- Services under `app/services` autoload and reload through Zeitwerk like the rest of the engine.
+- The JavaScript bundle is 66% smaller (2.19 MB to 759 KB) after tree-shaking ECharts.
+- Ruby 3.1 is the minimum. The gem declared 3.0 but could not install there.
+
+### Removed
+
+- **BREAKING: `rails_pulse_routes.method`** (see Changed).
+- `RailsPulse.warm_metric_cache!` and `RailsPulse.clear_metric_cache!`.
+- The `group_by_date` / `group_by_hour` methods the gem added to the host's `ActiveRecord::Relation`.
+- Three unused Stimulus controllers (`form`, `timezone`, `period_selector`), an unused chart theme, and dead CSS.
+
+### Fixed
+
+- **Dashboard pages issue far fewer queries.** Tag filtering runs as subqueries inside each card and chart query, the route-backfill check is a single indexed query, and table sizes are cached for five minutes.
+- **Metric card sparklines are correct in time zones east of UTC.** Daily buckets follow `config.time_zone` instead of the stored UTC timestamp.
+- **Charts and metric cards honour a custom date range** instead of always showing the trailing days, and custom ranges no longer render blank charts when the server's OS time zone differs from `config.time_zone`.
+- A custom date range no longer 500s the dashboard on Marshal-backed session stores such as `activerecord-session_store`. (#252)
+- Idle periods no longer trigger false "summary job not running" warnings; `SummaryJob` records a zero-count summary for periods with no traffic. (#250)
+- The storage page reports real table sizes again instead of a leftover screenshot fixture's sample numbers.
+- Dashboard status bar badges for routes, queries and jobs are clickable, matching exceptions and storage.
+- Chart click/zoom handlers no longer accumulate on every tab switch, zooming to the first column of a category chart applies the range, hover popovers no longer throw after a table refresh, and the time range selector's hover border is visible.
+- Tag filters match tags containing `_` on SQLite, and malformed query strings fall back to defaults instead of returning 500.
+- **Lower per-query capture overhead.** The SQL, template and cache subscribers walk the call stack lazily and stop at the first app frame instead of materialising the whole stack on every event.
+- Cached SQL reads are no longer captured as operations, and `config.ignored_queries` is now applied (it was validated but never consulted).
+- The dashboard's own HTTP, mailer, job and storage events are no longer recorded.
+- `config.logger` is honoured; a custom logger set in the initializer receives all Rails Pulse output. (#244)
+- Background tracking writes no longer corrupt the test database connection under transactional tests. The initializer sets `config.async = false if Rails.env.test?`, and the tracker also writes inline whenever it detects a connection shared across threads.
+- Cleanup no longer risks statement timeouts on large tables: orphan checks use a correlated `NOT EXISTS` instead of `NOT IN`, so one stalled stage no longer blocks the rest. (#253)
+- **Standalone dashboard.** Settings forms no longer fail CSRF verification, the time range and filter pickers no longer 404, its own stylesheets and scripts are served, `RAILS_ENV` / `RACK_ENV` are respected, `SECRET_KEY_BASE` falls back to the host's, breadcrumb links are no longer protocol-relative when served at `/`, and the ignored-host-authentication notice is logged once per process.
+- Upgrading a separate-database install works, and those installs set `schema_dump: false` so `db:migrate` does not dump or load `db/rails_pulse_structure.sql`. (#189)
+- SQLite's `schema.rb` keeps the partial unique index on unrecognised routes across `db:schema:load`.
+- Asset responses use lowercase headers, which `Rack::Lint` requires under Rack 3.
 
 ## [0.3.3] - 2026-06-23
 
@@ -234,8 +171,8 @@ No changelog entry — see git history.
 
 No changelog entry — see git history.
 
-[Unreleased]: https://github.com/railspulse/rails_pulse/compare/v0.4.0.pre.1...HEAD
-[0.4.0.pre.1]: https://github.com/railspulse/rails_pulse/compare/v0.3.3...v0.4.0.pre.1
+[Unreleased]: https://github.com/railspulse/rails_pulse/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/railspulse/rails_pulse/compare/v0.3.3...v0.4.0
 [0.3.3]: https://github.com/railspulse/rails_pulse/compare/v0.3.2...v0.3.3
 [0.3.0]: https://github.com/railspulse/rails_pulse/compare/v0.2.7...v0.3.0
 [0.2.7]: https://github.com/railspulse/rails_pulse/compare/v0.2.6...v0.2.7

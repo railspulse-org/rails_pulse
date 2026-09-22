@@ -89,7 +89,7 @@ production:
 
 Open `http://localhost:3000/rails_pulse`. That's the whole setup.
 
-Requirements: Ruby 3.1+, Rails 7.1+ (tested on 7.2, 8.0 and 8.1), SQLite, PostgreSQL or MySQL. Until 0.4.0 ships, pin the pre-release with `gem "rails_pulse", "~> 0.4.0.pre"`.
+Requirements: Ruby 3.1+, Rails 7.2+ (tested on 7.2, 8.0 and 8.1), SQLite, PostgreSQL or MySQL.
 
 Full install guide, including a separate database and plain cron: [railspulse.com/documentation/installation](https://railspulse.com/documentation/installation)
 
