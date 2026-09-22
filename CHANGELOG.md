@@ -6,13 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
-## [0.4.0] - 2026-09-22
 ### Added
 
 - A test that fails, naming the key, when a default in `RailsPulse::Configuration` and the install template drift apart. (#272)
-
-## [0.4.0.pre.6] - 2026-09-20
 
 ## [0.4.0] - 2026-09-22
 
