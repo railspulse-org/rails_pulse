@@ -11,7 +11,15 @@ module RailsPulse
     DUMMY_ROOT = File.expand_path("../../dummy", __dir__)
 
     test "eager loading succeeds when the host declares acronym inflections" do
-      env = { "RAILS_ENV" => "test", "RAILS_PULSE_TEST_ACRONYMS" => "SQL,CSP", "DB" => ENV.fetch("DB", "sqlite3") }
+      # COVERAGE => nil: the child must not inherit the coverage cell's
+      # SimpleCov, whose minimum-coverage at_exit gate exits 2 on a process
+      # that only boots the app.
+      env = {
+        "RAILS_ENV" => "test",
+        "RAILS_PULSE_TEST_ACRONYMS" => "SQL,CSP",
+        "DB" => ENV.fetch("DB", "sqlite3"),
+        "COVERAGE" => nil
+      }
       output, status = Open3.capture2e(env, "bundle", "exec", "rails", "zeitwerk:check", chdir: DUMMY_ROOT)
 
       assert_predicate status, :success?, output
