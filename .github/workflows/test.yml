@@ -192,6 +192,9 @@ jobs:
     - name: Run RuboCop
       run: bundle exec rubocop
 
+    - name: Check app/ for Rails.env branching
+      run: bundle exec rake check_app_env_branching
+
     - name: Set up Node.js
       uses: actions/setup-node@v7
       with:
