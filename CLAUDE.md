@@ -27,6 +27,8 @@ BROWSER=true rake test_matrix  # Include system tests
 
 Tests are parallelized by default. System tests (`BROWSER=true`) disable parallelization automatically.
 
+`rake test_setup` records which adapter it prepared the dummy database for (`tmp/test_setup_adapter`), and `rake test` refuses to run for a different `DB` until `test_setup` is run again: the dummy `schema.rb` is dumped from whichever adapter migrated last, and Rails loads that file, not the migrations, into the parallel-worker databases.
+
 Never run a bare `rails test` over the whole repo: it picks up `test/migrations/`, whose non-transactional upgrade test rebuilds the DB from a v0.2.7 snapshot mid-suite and destroys fixtures for every test after it, causing hundreds of seed-dependent `RecordNotFound` errors. `rake test` runs the main suite with `test/migrations` excluded, then runs `rake test_migrations` in a separate process.
 
 ## Testing Conventions

@@ -66,7 +66,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "rails", ">= 7.1.0", "< 9.0.0"
   spec.add_dependency "request_store", "~> 1.5"
-  spec.add_dependency "ransack", "~> 4.0"
+  spec.add_dependency "ransack", ">= 4.0", "< 6"
 
   spec.add_development_dependency "sqlite3", ">= 1.4"
   spec.add_development_dependency "pg", ">= 1.1"
