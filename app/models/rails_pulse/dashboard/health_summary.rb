@@ -102,7 +102,7 @@ module RailsPulse
       # reported: with async off there are no writers, and the badge would
       # only say so.
       def tracking_counts
-        return nil unless events_available?
+        return nil unless RailsPulse::Event.table_available?
 
         live = RailsPulse::WriterHeartbeat.live_processes
         dropped_by_process = RailsPulse::WriterHeartbeat.dropped_by_process(window: 1.hour).select { |_, n| n.positive? }
@@ -113,7 +113,14 @@ module RailsPulse
         live.each do |process|
           next if dropped_by_process.key?(process.process_label)
 
-          if process.queue_depth * 2 >= process.queue_size
+          # A live heartbeat with queue_size <= 0 means its metadata was
+          # missing or unreadable, not that its queue is actually empty and
+          # uncapped (a real heartbeat always reports the configured,
+          # always-positive async_queue_size) — treat it as critical rather
+          # than let it read as "healthy" via 0 * 2 >= 0.
+          if process.queue_size <= 0
+            critical += 1
+          elsif process.queue_depth * 2 >= process.queue_size
             slow += 1
           else
             healthy += 1
@@ -121,12 +128,6 @@ module RailsPulse
         end
 
         { healthy: healthy, slow: slow, critical: critical }
-      end
-
-      def events_available?
-        RailsPulse::Event.table_exists?
-      rescue ActiveRecord::ActiveRecordError
-        false
       end
 
       def job_counts

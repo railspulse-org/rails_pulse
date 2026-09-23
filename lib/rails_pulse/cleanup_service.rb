@@ -60,7 +60,7 @@ module RailsPulse
     # and must survive so "last ran" never becomes "never ran".
     def perform_event_cleanup
       return unless @config.event_retention_period
-      return unless RailsPulse::Event.table_exists?
+      return unless RailsPulse::Event.table_available?
 
       cutoff_time = [ @config.event_retention_period.ago, 1.hour.ago ].min
       @stats[:time_based][:events] = RailsPulse::Event

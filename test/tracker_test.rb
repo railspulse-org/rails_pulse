@@ -58,6 +58,22 @@ class RailsPulse::TrackerTest < ActiveSupport::TestCase
     assert_in_delta Time.current, row.occurred_at, 5
   end
 
+  test "record_heartbeat only prunes once per PRUNE_INTERVAL" do
+    RailsPulse::Event.delete_all
+    RailsPulse::Tracker.record_heartbeat(queue_size: 1000, queue_depth: 0, dropped: 0, dropped_total: 0)
+    RailsPulse::WriterHeartbeat.record!(hostname: "old", pid: 1, queue_size: 10, queue_depth: 0, dropped: 0, dropped_total: 0, sampled_at: 2.days.ago)
+
+    RailsPulse::Tracker.record_heartbeat(queue_size: 1000, queue_depth: 0, dropped: 0, dropped_total: 0)
+
+    assert RailsPulse::Event.exists?(subject: "old:1"), "a second heartbeat within the prune interval should not prune yet"
+
+    travel_to 2.hours.from_now do
+      RailsPulse::Tracker.record_heartbeat(queue_size: 1000, queue_depth: 0, dropped: 0, dropped_total: 0)
+    end
+
+    assert_not RailsPulse::Event.exists?(subject: "old:1"), "a heartbeat after the prune interval should prune stale rows"
+  end
+
   test "record_heartbeat never raises" do
     RailsPulse::Event.stubs(:insert_all).raises(ActiveRecord::StatementInvalid, "boom")
 

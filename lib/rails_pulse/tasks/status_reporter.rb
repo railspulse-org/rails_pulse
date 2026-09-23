@@ -155,7 +155,7 @@ module RailsPulse
       # Adds up every process's background writer from its heartbeats; the
       # process running this task has no writer of its own to ask.
       def print_writer
-        unless RailsPulse::Event.table_exists?
+        unless RailsPulse::Event.table_available?
           output.puts "Writer:     (skipped — events table missing, schema is behind)"
           return
         end

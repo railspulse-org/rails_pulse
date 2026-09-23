@@ -13,6 +13,8 @@ module RailsPulse
   # updates in place, such as Pro's job heartbeats). Writer heartbeats are
   # pruned after a day by the writer itself.
   class Event < RailsPulse::ApplicationRecord
+    include HasMetadata
+
     self.table_name = "rails_pulse_events"
 
     validates :kind, :outcome, :occurred_at, presence: true
@@ -30,12 +32,13 @@ module RailsPulse
       []
     end
 
-    def metadata_hash
-      return {} if metadata.blank?
-
-      JSON.parse(metadata)
-    rescue JSON::ParserError
-      {}
+    # table_exists?, rescued consistently. Several call sites need to know
+    # whether this table is there yet (an upgrader who hasn't migrated) —
+    # centralized here instead of each reimplementing the rescue.
+    def self.table_available?
+      table_exists?
+    rescue ActiveRecord::ActiveRecordError
+      false
     end
   end
 end

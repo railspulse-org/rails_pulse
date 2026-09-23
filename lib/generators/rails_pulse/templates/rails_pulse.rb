@@ -381,6 +381,10 @@ RailsPulse.configure do |config|
   # regression checks and exception alerts.
   config.event_retention_period = 90.days
 
+  # Event kinds exempt from event_retention_period — for rows a writer updates
+  # in place rather than appends, such as Rails Pulse Pro's job heartbeats.
+  config.event_retention_exempt_kinds = []
+
   # Count-based retention - maximum records to keep per table
   # After time-based cleanup, if tables still exceed these limits,
   # the oldest remaining records will be deleted to stay under the limit

@@ -26,6 +26,13 @@ module RailsPulse
     PG_TRANSACTION_INERROR = 3
     private_constant :PG_TRANSACTION_INERROR
 
+    # How often record_heartbeat prunes stale heartbeat rows. Heartbeats fire
+    # every 60s per process; pruning on every one of them is redundant I/O on
+    # the exact connection-usage path this design tries to minimize, since
+    # almost every prune finds nothing to delete.
+    PRUNE_INTERVAL = 1.hour
+    private_constant :PRUNE_INTERVAL
+
     # The background writer: one thread, one bounded queue, one connection.
     class Writer
       BATCH_SIZE = 50
@@ -210,18 +217,23 @@ module RailsPulse
       # Discard the writer, queue contents included. For tests.
       def reset_writer!
         @writer_mutex.synchronize { @writer = nil }
+        @last_heartbeat_prune_at = nil
       end
 
       # Writes one WriterHeartbeat event for this process and prunes old ones.
       # Never raises: a heartbeat that fails must not take the writer down.
+      # table_exists? has to run inside with_writer_connection too — a bare
+      # call on the writer thread checks out a connection that nothing else
+      # on this thread would ever release, permanently pinning one connection
+      # from the pool starting with the first heartbeat.
       def record_heartbeat(sample)
-        return unless RailsPulse::Event.table_exists?
-
         with_writer_connection do
+          next false unless RailsPulse::Event.table_available?
+
           RailsPulse::WriterHeartbeat.record!(hostname: hostname, pid: Process.pid, **sample)
-          RailsPulse::WriterHeartbeat.prune!
+          prune_heartbeats_if_due
+          true
         end
-        true
       rescue => e
         RailsPulse.logger.debug("Rails Pulse writer heartbeat failed: #{e.class} - #{e.message}")
         false
@@ -282,6 +294,14 @@ module RailsPulse
         @writer_mutex.synchronize do
           @writer ||= Writer.new(queue_size: RailsPulse.configuration.async_queue_size)
         end
+      end
+
+      def prune_heartbeats_if_due
+        now = Time.current
+        return if @last_heartbeat_prune_at && now - @last_heartbeat_prune_at < PRUNE_INTERVAL
+
+        @last_heartbeat_prune_at = now
+        RailsPulse::WriterHeartbeat.prune!
       end
 
       def perform_tracking(data)

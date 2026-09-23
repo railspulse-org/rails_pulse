@@ -111,7 +111,7 @@ module RailsPulse
 
       # Signal D — the background writer is discarding requests
       def writer_drop_items
-        return [] unless RailsPulse::Event.table_exists?
+        return [] unless RailsPulse::Event.table_available?
 
         summary = RailsPulse::WriterHeartbeat.summary
         dropped = summary[:dropped].to_i

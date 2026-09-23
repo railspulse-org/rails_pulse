@@ -145,12 +145,16 @@ module RailsPulse
       end
 
       # The background writers: totals for the last hour and one row per
-      # live process, for the Tracking panel.
+      # live process, for the Tracking panel. Built directly from
+      # live_processes/dropped_by_process rather than WriterHeartbeat.summary
+      # (which recomputes live_processes internally, and whose :dropped is
+      # the same total dropped_by_process's values already sum to) so this
+      # doesn't run the same queries twice.
       def tracking
         @tracking ||= begin
-          summary = RailsPulse::WriterHeartbeat.summary
+          live = RailsPulse::WriterHeartbeat.live_processes
           dropped_by_process = RailsPulse::WriterHeartbeat.dropped_by_process(window: 1.hour)
-          processes = RailsPulse::WriterHeartbeat.live_processes.map do |process|
+          processes = live.map do |process|
             {
               label: process.process_label,
               queue_depth: process.queue_depth,
@@ -159,7 +163,15 @@ module RailsPulse
               last_seen_at: process.sampled_at
             }
           end
-          summary.merge(processes: processes, live_count: processes.size)
+
+          {
+            processes:       processes,
+            live_count:      processes.size,
+            queue_depth:     live.sum(&:queue_depth),
+            queue_size:      live.map(&:queue_size).max || 0,
+            dropped:         dropped_by_process.values.sum,
+            last_sampled_at: RailsPulse::WriterHeartbeat.events.maximum(:occurred_at)
+          }
         end
       rescue ActiveRecord::ActiveRecordError
         { processes: [], live_count: 0, queue_depth: 0, queue_size: 0, dropped: 0, last_sampled_at: nil }

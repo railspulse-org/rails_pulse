@@ -52,14 +52,17 @@
       flex: none;
   }
 
-  /* Make metric cards more compact on mobile */
-  .row > .grid-item .card {
-      padding: var(--size-3);
-  }
+  /* Phones only — these shouldn't kick in at tablet widths */
+  @media (max-width: 480px) {
+    /* Make metric cards more compact on mobile */
+    .row > .grid-item .card {
+        padding: var(--size-3);
+    }
 
-  /* Make charts smaller on mobile */
-  .row > .grid-item .chart-container {
-      height: 60px !important;
-      max-height: 60px;
+    /* Make charts smaller on mobile */
+    .row > .grid-item .chart-container {
+        height: 60px !important;
+        max-height: 60px;
+    }
   }
 }
