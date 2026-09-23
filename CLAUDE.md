@@ -96,6 +96,10 @@ They are **not** registered with Sprockets (`config.assets.precompile`) — re-m
 
 To rebuild assets: `npm run build` (or `npm run build:dev` for source maps).
 
+## Pull Requests
+
+Use `.github/pull_request_template.md`'s structure when opening a PR (`gh pr create --body`). The `## Summary` section is plain English for a reader with no context on the code — what problem it solves, what changed conceptually, why it's worth doing, what stays the same, how it was verified — no class/method names or jargon. Technical detail (what files changed, specific design decisions, edge cases handled) belongs in the sections after it, not the Summary.
+
 ## Changelog Entries
 
 `CHANGELOG.md` entries are 1-2 sentences: what changed and its impact. No implementation narrative — root cause, code paths touched, specific error messages, or before/after numbers belong in the commit or PR description, not here.
