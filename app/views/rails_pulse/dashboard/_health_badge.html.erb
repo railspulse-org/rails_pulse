@@ -1,23 +1,32 @@
 <%# Exceptions do not have a "slow" state — a group that fired at all is
     firing — so the two non-critical labels are overridable. %>
-<% healthy_label = local_assigns.fetch(:healthy_label, "healthy") %>
-<% slow_label    = local_assigns.fetch(:slow_label, "slow") %>
-<% dot_color = health[:critical] > 0 ? "var(--color-negative)" : (health[:slow] > 0 ? "#eab308" : "var(--color-positive)") %>
-<% border_color = health[:critical] > 0 ? "color-mix(in srgb, var(--color-negative) 40%, transparent)" : (health[:slow] > 0 ? "color-mix(in srgb, #eab308 40%, transparent)" : "color-mix(in srgb, var(--color-positive) 40%, transparent)") %>
-<% badge = capture do %>
-  <span class="badge flex items-center gap-half p-2" style="border-color: <%= border_color %>;">
-    <span class="shrink-0 rounded-full" style="width: 10px; height: 10px; background: <%= dot_color %>;"></span>
-    <span class="text-xs font-semibold"><%= name %></span>
-    <% if health[:critical] > 0 %>
-      <span class="text-xs text-subtle"><%= health[:healthy] %> <%= healthy_label %> · <%= health[:slow] %> <%= slow_label %> ·</span>
-      <span class="text-xs font-semibold text-negative"><%= health[:critical] %> <%= critical_label %></span>
-    <% else %>
-      <span class="text-xs text-subtle"><%= health[:healthy] %> <%= healthy_label %> · <%= health[:slow] %> <%= slow_label %> · 0 <%= critical_label %></span>
-    <% end %>
-  </span>
-<% end %>
-<% if local_assigns[:link_url].present? %>
-  <%= link_to link_url, class: "health-badge-link" do %><%= badge %><% end %>
-<% else %>
-  <%= badge %>
+<% hide_when_healthy = local_assigns.fetch(:hide_when_healthy, false) %>
+<% is_healthy = health[:critical].zero? && health[:slow].zero? %>
+<% unless hide_when_healthy && is_healthy %>
+  <% healthy_label = local_assigns.fetch(:healthy_label, "healthy") %>
+  <% slow_label    = local_assigns.fetch(:slow_label, "slow") %>
+  <% dot_color = health[:critical] > 0 ? "var(--color-negative)" : (health[:slow] > 0 ? "#eab308" : "var(--color-positive)") %>
+  <% border_color = health[:critical] > 0 ? "color-mix(in srgb, var(--color-negative) 40%, transparent)" : (health[:slow] > 0 ? "color-mix(in srgb, #eab308 40%, transparent)" : "color-mix(in srgb, var(--color-positive) 40%, transparent)") %>
+  <% subtle_parts = [] %>
+  <% subtle_parts << "#{health[:healthy]} #{healthy_label}" if health[:healthy] > 0 %>
+  <% subtle_parts << "#{health[:slow]} #{slow_label}" if health[:slow] > 0 %>
+  <% subtle_parts << "0 #{healthy_label}" if subtle_parts.empty? && health[:critical].zero? %>
+  <% critical_part = "#{health[:critical]} #{critical_label}" if health[:critical] > 0 %>
+  <% badge = capture do %>
+    <span class="badge flex items-center gap-half p-2" style="border-color: <%= border_color %>;">
+      <span class="shrink-0 rounded-full" style="width: 10px; height: 10px; background: <%= dot_color %>;"></span>
+      <span class="text-xs font-semibold"><%= name %></span>
+      <% if subtle_parts.any? %>
+        <span class="text-xs text-subtle"><%= subtle_parts.join(" · ") %><%= " ·" if critical_part %></span>
+      <% end %>
+      <% if critical_part %>
+        <span class="text-xs font-semibold text-negative"><%= critical_part %></span>
+      <% end %>
+    </span>
+  <% end %>
+  <% if local_assigns[:link_url].present? %>
+    <%= link_to link_url, class: "health-badge-link" do %><%= badge %><% end %>
+  <% else %>
+    <%= badge %>
+  <% end %>
 <% end %>
