@@ -25,7 +25,7 @@ module RailsPulse
     end
 
     setup do
-      RequestStore.clear!
+      RailsPulse::Current.reset
       @original_capture_arguments = RailsPulse.configuration.capture_job_arguments
       @original_ignored_jobs      = RailsPulse.configuration.ignored_jobs
       @original_ignored_queues    = RailsPulse.configuration.ignored_queues
@@ -35,7 +35,7 @@ module RailsPulse
     end
 
     teardown do
-      RequestStore.clear!
+      RailsPulse::Current.reset
       RailsPulse.configuration.capture_job_arguments = @original_capture_arguments
       RailsPulse.configuration.ignored_jobs           = @original_ignored_jobs
       RailsPulse.configuration.ignored_queues         = @original_ignored_queues
@@ -112,7 +112,7 @@ module RailsPulse
         end
       end
 
-      assert_kind_of RuntimeError, RequestStore.store[:rails_pulse_captured_exception]
+      assert_kind_of RuntimeError, RailsPulse::Current.rails_pulse_captured_exception
     end
 
     test "track does not record an exception when track_exceptions is false" do

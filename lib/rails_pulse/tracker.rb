@@ -184,7 +184,7 @@ module RailsPulse
 
     class << self
       def track_request(data)
-        return if RequestStore.store[:skip_recording_rails_pulse_activity]
+        return if RailsPulse::Current.skip_recording_rails_pulse_activity
         return unless RailsPulse::SchemaCheck.tracking_allowed?
 
         if RailsPulse.configuration.async && !connection_shared_across_threads?
@@ -309,11 +309,11 @@ module RailsPulse
       def with_writer_connection
         RailsPulse::ApplicationRecord.connection_pool.with_connection do |conn|
           clear_aborted_transaction(conn)
-          RequestStore.store[:skip_recording_rails_pulse_activity] = true
+          RailsPulse::Current.skip_recording_rails_pulse_activity = true
           yield
         end
       ensure
-        RequestStore.store[:skip_recording_rails_pulse_activity] = false
+        RailsPulse::Current.skip_recording_rails_pulse_activity = false
       end
 
       def persist_request(data)

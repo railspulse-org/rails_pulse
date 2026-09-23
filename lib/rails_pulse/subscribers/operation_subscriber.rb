@@ -86,10 +86,10 @@ module RailsPulse
 
         def capture_operation(event_name, start, finish, payload, operation_type, label_key = nil, extra: {})
           return unless RailsPulse.configuration.enabled
-          return if RequestStore.store[:skip_recording_rails_pulse_activity]
+          return if RailsPulse::Current.skip_recording_rails_pulse_activity
 
-          request_id = RequestStore.store[:rails_pulse_request_id]
-          job_run_id = RequestStore.store[:rails_pulse_job_run_id]
+          request_id = RailsPulse::Current.rails_pulse_request_id
+          job_run_id = RailsPulse::Current.rails_pulse_job_run_id
           return unless request_id || job_run_id
 
           # Skip RailsPulse-related operations to prevent recursion
@@ -135,16 +135,16 @@ module RailsPulse
             occurred_at: Time.zone.at(start)
           }.merge(extra)
 
-          RequestStore.store[:rails_pulse_operations] ||= []
-          RequestStore.store[:rails_pulse_operations] << operation_data
+          RailsPulse::Current.rails_pulse_operations ||= []
+          RailsPulse::Current.rails_pulse_operations << operation_data
         end
 
         def store_operation(label:, operation_type:, start:, finish:, codebase_location:)
           return unless RailsPulse.configuration.enabled
-          return if RequestStore.store[:skip_recording_rails_pulse_activity]
+          return if RailsPulse::Current.skip_recording_rails_pulse_activity
 
-          request_id = RequestStore.store[:rails_pulse_request_id]
-          job_run_id = RequestStore.store[:rails_pulse_job_run_id]
+          request_id = RailsPulse::Current.rails_pulse_request_id
+          job_run_id = RailsPulse::Current.rails_pulse_job_run_id
           return unless request_id || job_run_id
 
           operation_data = {
@@ -158,8 +158,8 @@ module RailsPulse
             occurred_at: Time.zone.at(start)
           }
 
-          RequestStore.store[:rails_pulse_operations] ||= []
-          RequestStore.store[:rails_pulse_operations] << operation_data
+          RailsPulse::Current.rails_pulse_operations ||= []
+          RailsPulse::Current.rails_pulse_operations << operation_data
         end
 
         def subscribe_sql_queries!
