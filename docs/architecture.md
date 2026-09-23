@@ -23,7 +23,7 @@ How a request, a job, and an hour of data move through Rails Pulse. Read before 
 1. `Middleware::RequestCollector#call` (`lib/rails_pulse/middleware/request_collector.rb`) skips when `RequestStore.store[:skip_recording_rails_pulse_activity]` is set (the dashboard's own requests, ignored routes, assets unless `track_assets`), otherwise assigns a request UUID and an empty operations array in `RequestStore`.
 2. During the request, `Subscribers::OperationSubscriber` (`lib/rails_pulse/subscribers/operation_subscriber.rb`) appends one hash per instrumentation event: `sql.active_record`, `process_action.action_controller`, `render_template` / `render_partial` / `render_layout` / `render_collection.action_view`, `cache_read` / `cache_write.active_support`, `request.net_http`, `perform.active_job`, `deliver.action_mailer`, `service_upload.active_storage`. The SQL, template and cache subscribers walk the stack lazily to record the first app frame as `codebase_location`. Query-cache hits and `ignored_queries` are dropped here.
 3. After the response, the middleware deep-copies the operations (RequestStore is thread-local; see `RequestStore is thread-local` in `CLAUDE.md`), builds a tracking hash, and calls `Tracker.track_request`.
-4. `RailsPulse::Tracker` (`lib/rails_pulse/tracker.rb`) pushes onto a bounded queue (`config.async_queue_size`). One writer thread per process drains it in batches on one connection from the Rails Pulse pool. When full, the newest request is dropped and counted; `Tracker.stats` exposes depth and drops. With `config.async = false`, or when the tracker detects a transactional-test connection, `perform_tracking` runs inline. See decision 0005.
+4. `RailsPulse::Tracker` (`lib/rails_pulse/tracker.rb`) pushes onto a bounded queue (`config.async_queue_size`). One writer thread per process drains it in batches on one connection from the Rails Pulse pool. When full, the newest request is dropped and counted; `Tracker.stats` exposes depth and drops for the current process. Once a minute (`Writer::HEARTBEAT_INTERVAL`, kept by the `pop` timeout so an idle writer still reports) the writer records a `WriterHeartbeat` (`app/models/rails_pulse/writer_heartbeat.rb`), an `Event` of kind `writer_heartbeat` with `host:pid` as subject, drops since the last sample as value and the queue depth in metadata, and prunes heartbeats older than a day, so `Dashboard::HealthSummary#tracking_counts`, the Storage page and `rails_pulse:status` can add up every process's writer. With `config.async = false`, or when the tracker detects a transactional-test connection, `perform_tracking` runs inline and there are no heartbeats. See decision 0005.
 5. On the writer: `Route.find_or_create_for_request` resolves `[controller_action, path]` (decision 0004), `Request` is inserted, `SqlQueryNormalizer` (`app/services/rails_pulse/sql_query_normalizer.rb`) fingerprints each SQL operation into a `Query` (decision 0008), `Tracker.detect_n_plus_one` flags repeated fingerprints, and `Operation` rows are bulk-inserted.
 6. `ExceptionSubscriber` (`lib/rails_pulse/subscribers/exception_subscriber.rb`) runs on `process_action.action_controller` when the payload carries an exception, and calls `ExceptionCaptureService.capture` (`app/services/rails_pulse/exception_capture_service.rb`) synchronously (decision 0015).
 
@@ -60,7 +60,7 @@ Controllers under `app/controllers/rails_pulse/` read summaries through `Tables:
 
 ## Retention
 
-`app/jobs/rails_pulse/cleanup_job.rb` calls `CleanupService` (`lib/rails_pulse/cleanup_service.rb`): age-based deletion by `full_retention_period`, then count-based by `max_table_records`, hourly summaries by `hourly_summary_retention`, `preserve` exempting exception groups (decision 0017). `rake rails_pulse:cleanup` runs the same service; `cleanup_stats` reports sizes.
+`app/jobs/rails_pulse/cleanup_job.rb` calls `CleanupService` (`lib/rails_pulse/cleanup_service.rb`): age-based deletion by `full_retention_period`, then count-based by `max_table_records`, `rails_pulse_events` by `event_retention_period` except `event_retention_exempt_kinds`, hourly summaries by `hourly_summary_retention`, `preserve` exempting exception groups (decision 0017). `rake rails_pulse:cleanup` runs the same service; `cleanup_stats` reports sizes.
 
 ## Schema check
 
@@ -73,6 +73,10 @@ Controllers under `app/controllers/rails_pulse/` read summaries through `Tables:
 ## Assets
 
 Built by `npm run build` into `public/rails-pulse-assets/` and committed. Served by `Middleware::AssetServer` at `/rails-pulse-assets/<version>/…` in development and pipeline-less hosts, or copied into `public/assets` with a digest by `rails_pulse:install_assets` after the host's `assets:precompile`. Not registered with Sprockets. Decision 0016.
+
+## Events
+
+`rails_pulse_events` (`app/models/rails_pulse/event.rb`) holds what Pulse noticed rather than measured, one row per outcome or sample tagged by `kind`, with `subject`, `value`, `occurred_at`, `message` and JSON `metadata`. The free gem writes `writer_heartbeat` rows; `rails_pulse_pro` writes `alert_rule`, `deployment_regression`, `exception_alert` and `job_heartbeat` rows into the same table and registers `job_heartbeat` in `config.event_retention_exempt_kinds`, so a Pro install needs no migration. Decision 0019.
 
 ## Deployments
 

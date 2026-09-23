@@ -1,3 +1,5 @@
+require "socket"
+
 module RailsPulse
   # Persists the data RequestCollector gathers for one request: the route,
   # the request row and its operations.
@@ -12,6 +14,10 @@ module RailsPulse
   #
   # With `config.async = false`, or whenever the pool's connection is pinned
   # to the current thread (transactional tests), writes happen inline.
+  #
+  # Once a minute the writer also records a WriterHeartbeat event (queue
+  # depth, drops since the last sample) so the dashboard and rails_pulse:status
+  # can see every process's writer, not just the one serving the page.
   module Tracker
     # PG::Connection::PQTRANS_INERROR (libpq enum value 3) — the connection's transaction
     # was aborted by a DB-level error and no ROLLBACK has been issued yet. Defined as a
@@ -20,11 +26,16 @@ module RailsPulse
     PG_TRANSACTION_INERROR = 3
     private_constant :PG_TRANSACTION_INERROR
 
+    # How often record_heartbeat prunes stale rows, rather than every heartbeat
+    PRUNE_INTERVAL = 1.hour
+    private_constant :PRUNE_INTERVAL
+
     # The background writer: one thread, one bounded queue, one connection.
     class Writer
       BATCH_SIZE = 50
       DROP_LOG_INTERVAL = 60 # seconds between "queue full" log lines
       SHUTDOWN_TIMEOUT = 5   # seconds to wait for the queue to drain at exit
+      HEARTBEAT_INTERVAL = 60 # seconds between WriterHeartbeat samples
 
       attr_reader :queue_size, :dropped
 
@@ -38,6 +49,8 @@ module RailsPulse
         @dropped = 0
         @drop_window_count = 0
         @drop_window_started = nil
+        @dropped_at_last_heartbeat = 0
+        @last_heartbeat_at = nil
         @exit_hook_installed = false
       end
 
@@ -57,6 +70,15 @@ module RailsPulse
 
       def running?
         @thread&.alive? || false
+      end
+
+      # Taking a sample resets the drop count for the next window
+      def take_heartbeat_sample
+        @mutex.synchronize do
+          since_last = @dropped - @dropped_at_last_heartbeat
+          @dropped_at_last_heartbeat = @dropped
+          { queue_size: @queue_size, queue_depth: @queue.size, dropped: since_last, dropped_total: @dropped }
+        end
       end
 
       # Persist everything queued so far on the calling thread. Used by
@@ -110,16 +132,30 @@ module RailsPulse
       end
 
       def run
-        # pop returns nil once the queue is closed and empty.
-        while (first = @queue.pop)
-          batch = [ first ]
-          batch << @queue.pop(true) while batch.size < BATCH_SIZE && !@queue.empty?
-          Tracker.perform_tracking_batch(batch)
+        # pop returns nil both on timeout and once the queue is closed and empty
+        loop do
+          first = @queue.pop(timeout: HEARTBEAT_INTERVAL)
+          if first.nil?
+            break if @queue.closed?
+          else
+            batch = [ first ]
+            batch << @queue.pop(true) while batch.size < BATCH_SIZE && !@queue.empty?
+            Tracker.perform_tracking_batch(batch)
+          end
+          heartbeat_if_due
         end
       rescue => e
         # perform_tracking_batch rescues its own errors, so this is a bug in the
         # loop itself. Report it; the next enqueue starts a fresh thread.
         RailsPulse.logger.error("Rails Pulse writer thread stopped: #{e.class} - #{e.message}")
+      end
+
+      def heartbeat_if_due
+        now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        return if @last_heartbeat_at && now - @last_heartbeat_at < HEARTBEAT_INTERVAL
+
+        @last_heartbeat_at = now
+        Tracker.record_heartbeat(take_heartbeat_sample)
       end
 
       def install_exit_hook
@@ -175,6 +211,26 @@ module RailsPulse
       # Discard the writer, queue contents included. For tests.
       def reset_writer!
         @writer_mutex.synchronize { @writer = nil }
+        @last_heartbeat_prune_at = nil
+      end
+
+      # table_exists? has to run inside with_writer_connection too, or the bare
+      # call pins a connection on this thread that nothing would ever release
+      def record_heartbeat(sample)
+        with_writer_connection do
+          next false unless RailsPulse::Event.table_available?
+
+          RailsPulse::WriterHeartbeat.record!(hostname: hostname, pid: Process.pid, **sample)
+          prune_heartbeats_if_due
+          true
+        end
+      rescue => e
+        RailsPulse.logger.debug("Rails Pulse writer heartbeat failed: #{e.class} - #{e.message}")
+        false
+      end
+
+      def hostname
+        @hostname ||= Socket.gethostname
       end
 
       def healthy?
@@ -228,6 +284,14 @@ module RailsPulse
         @writer_mutex.synchronize do
           @writer ||= Writer.new(queue_size: RailsPulse.configuration.async_queue_size)
         end
+      end
+
+      def prune_heartbeats_if_due
+        now = Time.current
+        return if @last_heartbeat_prune_at && now - @last_heartbeat_prune_at < PRUNE_INTERVAL
+
+        @last_heartbeat_prune_at = now
+        RailsPulse::WriterHeartbeat.prune!
       end
 
       def perform_tracking(data)

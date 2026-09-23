@@ -1,0 +1,41 @@
+# Writer heartbeats: quiet by default (value = drops since the previous sample);
+# tests that need drops set them explicitly. web-3 stopped two hours ago.
+web_one_latest:
+  kind: writer_heartbeat
+  subject: "web-1:101"
+  outcome: sampled
+  value: 0
+  occurred_at: <%= 30.seconds.ago %>
+  metadata: '{"hostname":"web-1","pid":101,"queue_size":1000,"queue_depth":12,"dropped_total":0}'
+  created_at: <%= 30.seconds.ago %>
+  updated_at: <%= 30.seconds.ago %>
+
+web_one_earlier:
+  kind: writer_heartbeat
+  subject: "web-1:101"
+  outcome: sampled
+  value: 0
+  occurred_at: <%= 90.seconds.ago %>
+  metadata: '{"hostname":"web-1","pid":101,"queue_size":1000,"queue_depth":400,"dropped_total":0}'
+  created_at: <%= 90.seconds.ago %>
+  updated_at: <%= 90.seconds.ago %>
+
+web_two_latest:
+  kind: writer_heartbeat
+  subject: "web-2:202"
+  outcome: sampled
+  value: 0
+  occurred_at: <%= 45.seconds.ago %>
+  metadata: '{"hostname":"web-2","pid":202,"queue_size":1000,"queue_depth":3,"dropped_total":0}'
+  created_at: <%= 45.seconds.ago %>
+  updated_at: <%= 45.seconds.ago %>
+
+web_three_stale:
+  kind: writer_heartbeat
+  subject: "web-3:303"
+  outcome: sampled
+  value: 50
+  occurred_at: <%= 2.hours.ago %>
+  metadata: '{"hostname":"web-3","pid":303,"queue_size":1000,"queue_depth":999,"dropped_total":50}'
+  created_at: <%= 2.hours.ago %>
+  updated_at: <%= 2.hours.ago %>

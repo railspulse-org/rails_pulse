@@ -3,6 +3,8 @@ require "test_helper"
 module RailsPulse
   module Dashboard
     class StoragePressureTest < ActiveSupport::TestCase
+      fixtures :rails_pulse_events
+
       fixtures :rails_pulse_routes
 
       def setup
@@ -22,6 +24,29 @@ module RailsPulse
       end
 
       # Structure Tests
+
+      # Writer Drop Tests
+
+      test "pressure items flag requests dropped by the writer in the last hour" do
+        rails_pulse_events(:web_two_latest).update!(value: 7)
+        item = StoragePressure.new.pressure_items.find { |i| i[:type] == "TRACKING" }
+
+        assert item, "expected a TRACKING pressure item"
+        assert_equal :critical, item[:severity]
+        assert_includes item[:reason], "7 requests dropped in the last hour"
+        assert_includes item[:popover_body], "async_queue_size"
+      end
+
+      test "no pressure item when nothing was dropped" do
+        assert_nil StoragePressure.new.pressure_items.find { |i| i[:type] == "TRACKING" }
+      end
+
+      test "storage_counts ignore tracking items so the Storage badge stays about storage" do
+        pressure = StoragePressure.new
+        pressure.stubs(:pressure_items).returns([ { type: "TRACKING", severity: :critical } ])
+
+        assert_equal({ healthy: 1, slow: 0, critical: 0 }, pressure.storage_counts)
+      end
 
       test "pressure_items returns an array" do
         create_fresh_summary

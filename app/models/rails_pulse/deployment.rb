@@ -1,5 +1,7 @@
 module RailsPulse
   class Deployment < RailsPulse::ApplicationRecord
+    include HasMetadata
+
     self.table_name = "rails_pulse_deployments"
 
     # The create endpoint is reachable with a CI token, so every field a
@@ -50,13 +52,6 @@ module RailsPulse
     def duration
       return nil if in_progress? || started_at.blank?
       finished_at - started_at
-    end
-
-    def metadata_hash
-      return {} if metadata.blank?
-      JSON.parse(metadata)
-    rescue JSON::ParserError
-      {}
     end
 
     def to_chart_marker

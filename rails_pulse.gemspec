@@ -10,11 +10,10 @@ Gem::Specification.new do |spec|
   spec.description = "Self-hosted performance monitoring engine for Rails apps. Tracks slow requests, N+1 queries, and SQL performance. All data stays in your own database — no third-party cloud required."
   spec.license     = "MIT"
 
-  # Minimum Ruby version. Floor is 3.1.0, not 3.0.0: `async ~> 2.0` has no release
-  # installable on Ruby 3.0 (async 2.0.0 already requires >= 3.1.0), and
-  # lib/generators/rails_pulse/upgrade_generator.rb uses Array#intersect? (Ruby 3.1+).
+  # Minimum Ruby version. Floor is 3.2.0: the writer's heartbeat loop uses
+  # Queue#pop(timeout:), added in Ruby 3.2.
   # NOTE: CI only exercises 3.2 and 3.4 — see the pre-release report.
-  spec.required_ruby_version = ">= 3.1.0"
+  spec.required_ruby_version = ">= 3.2.0"
 
   # Allow pushing to RubyGems.org
   spec.metadata["allowed_push_host"] = "https://rubygems.org"

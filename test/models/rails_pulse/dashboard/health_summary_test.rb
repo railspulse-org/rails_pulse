@@ -3,7 +3,7 @@ require "test_helper"
 module RailsPulse
   module Dashboard
     class HealthSummaryTest < ActiveSupport::TestCase
-      fixtures :rails_pulse_routes, :rails_pulse_queries, :rails_pulse_jobs
+      fixtures :rails_pulse_routes, :rails_pulse_queries, :rails_pulse_jobs, :rails_pulse_events
 
       def setup
         RailsPulse::Summary.delete_all
@@ -17,6 +17,34 @@ module RailsPulse
       end
 
       # Structure Tests
+
+      # Tracking Tests
+
+      test "tracking counts writers as writing, backlogged or dropping" do
+        # web-1 is live with 12 of 1000 queued and no drops; web-2 dropped 7 in the hour.
+        rails_pulse_events(:web_two_latest).update!(value: 7)
+
+        assert_equal({ healthy: 1, slow: 0, critical: 1 }, RailsPulse::Dashboard::HealthSummary.new.to_health_data[:tracking])
+      end
+
+      test "tracking counts a writer whose queue is at least half full as backlogged" do
+        heartbeat = rails_pulse_events(:web_one_latest)
+        heartbeat.update!(metadata: heartbeat.metadata_hash.merge("queue_depth" => 500).to_json)
+
+        assert_equal({ healthy: 1, slow: 1, critical: 0 }, RailsPulse::Dashboard::HealthSummary.new.to_health_data[:tracking])
+      end
+
+      test "tracking still counts a writer that dropped and then went away" do
+        RailsPulse::Event.where(subject: "web-2:202").update_all(value: 7, occurred_at: 10.minutes.ago)
+
+        assert_equal({ healthy: 1, slow: 0, critical: 1 }, RailsPulse::Dashboard::HealthSummary.new.to_health_data[:tracking])
+      end
+
+      test "tracking is nil until any writer has reported" do
+        RailsPulse::Event.delete_all
+
+        assert_nil RailsPulse::Dashboard::HealthSummary.new.to_health_data[:tracking]
+      end
 
       test "returns hash with routes, queries, jobs, and storage keys" do
         result = RailsPulse::Dashboard::HealthSummary.new.to_health_data

@@ -20,6 +20,7 @@ module RailsPulse
 
       perform_time_based_cleanup
       perform_count_based_cleanup
+      perform_event_cleanup
       perform_summary_cleanup
 
       log_cleanup_summary
@@ -51,6 +52,19 @@ module RailsPulse
         @stats[:time_based][:exception_occurrences] = cleanup_exception_occurrences_by_time(cutoff_time)
         @stats[:time_based][:exception_groups]      = cleanup_orphaned_exception_groups
       end
+    end
+
+    # event_retention_exempt_kinds are rows a writer updates in place, which
+    # must survive so "last ran" never becomes "never ran"
+    def perform_event_cleanup
+      return unless @config.event_retention_period
+      return unless RailsPulse::Event.table_available?
+
+      cutoff_time = [ @config.event_retention_period.ago, 1.hour.ago ].min
+      @stats[:time_based][:events] = RailsPulse::Event
+        .where.not(kind: @config.event_retention_exempt_kinds)
+        .where(occurred_at: ...cutoff_time)
+        .delete_all
     end
 
     def perform_count_based_cleanup

@@ -1,3 +1,9 @@
+/* @container rules match descendants of the container, not the container
+   itself, so the containment context has to live on the parent. */
+:has(> .descriptive-list) {
+  container-type: inline-size;
+}
+
 .descriptive-list {
   display: grid;
   grid-template-columns: 200px 1fr;
@@ -6,9 +12,21 @@
 
 .descriptive-list dt, .descriptive-list dd {
   font-size: var(--text-sm);
+  min-width: 0;
 }
 
 .descriptive-list dd {
   overflow-wrap: break-word;
-  min-width: 0;
+}
+
+/* Below this the fixed 200px label column crowds out the value column */
+@container (max-width: 340px) {
+  .descriptive-list {
+    grid-template-columns: 1fr;
+    gap: 0.125rem 0.5rem;
+  }
+
+  .descriptive-list dd {
+    margin-block-end: 0.5rem;
+  }
 }

@@ -22,6 +22,7 @@ module RailsPulse
           queries:  query_counts,
           jobs:     job_counts,
           exceptions: exception_counts,
+          tracking: tracking_counts,
           storage:  storage_counts
         }
       end
@@ -91,6 +92,33 @@ module RailsPulse
 
       def storage_counts
         StoragePressure.new.storage_counts
+      end
+
+      # A process that dropped and has since gone away still counts as
+      # critical for that hour. Nil until any writer has reported.
+      def tracking_counts
+        return nil unless RailsPulse::Event.table_available?
+
+        live = RailsPulse::WriterHeartbeat.live_processes
+        dropped_by_process = RailsPulse::WriterHeartbeat.dropped_by_process(window: 1.hour).select { |_, n| n.positive? }
+        return nil if live.empty? && dropped_by_process.empty?
+
+        critical = dropped_by_process.size
+        healthy = slow = 0
+        live.each do |process|
+          next if dropped_by_process.key?(process.process_label)
+
+          # queue_size <= 0 means unreadable metadata, not an empty queue
+          if process.queue_size <= 0
+            critical += 1
+          elsif process.queue_depth * 2 >= process.queue_size
+            slow += 1
+          else
+            healthy += 1
+          end
+        end
+
+        { healthy: healthy, slow: slow, critical: critical }
       end
 
       def job_counts

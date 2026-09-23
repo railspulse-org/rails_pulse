@@ -29,10 +29,24 @@
         critical_label: "critical",
         link_url: exceptions_path %>
       <% end %>
+      <%# Nil until a background writer has reported a heartbeat. Shown only
+          when a writer is backlogged or dropping requests. %>
+      <% if @health_summary[:tracking] %>
+        <%= render "rails_pulse/dashboard/health_badge",
+        name: "Tracking",
+        health: @health_summary[:tracking],
+        healthy_label: "writing",
+        slow_label: "backlogged",
+        critical_label: "dropping",
+        hide_when_healthy: true,
+        link_url: storage_path %>
+      <% end %>
+      <%# Shown only when storage is under warning or critical pressure. %>
       <%= render "rails_pulse/dashboard/health_badge",
       name: "Storage",
       health: @health_summary[:storage],
       critical_label: "critical",
+      hide_when_healthy: true,
       link_url: storage_path %>
     </div>
   </div>

@@ -23,7 +23,7 @@
   flex: 1;
 }
 
-/* Responsive layout for screens smaller than 768px */
+/* Single column below 768px */
 @media (max-width: 768px) {
   .row {
       display: flex;
@@ -34,35 +34,21 @@
   }
 
   .row > * {
-      flex: 0 0 calc(50% - 0.25rem);
+      flex: 0 0 100%;
       min-width: 0;
       height: auto;
   }
 
   .row > .grid-item {
       height: auto;
+      min-height: auto;
   }
 
   .row > .grid-item > * {
       flex: none;
   }
 
-  /* Tables and chart panels should stack in single column on tablet */
-  .row:has(.table-container) > *,
-  .row:has(.chart-container) > * {
-      flex: 0 0 100%;
-  }
-
-  /* Single column for very small screens */
   @media (max-width: 480px) {
-    .row > * {
-        flex: 0 0 100%;
-    }
-
-    .row > .grid-item {
-        min-height: auto;
-    }
-
     /* Make metric cards more compact on mobile */
     .row > .grid-item .card {
         padding: var(--size-3);

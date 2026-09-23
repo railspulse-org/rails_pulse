@@ -16,13 +16,36 @@ class RailsPulse::DashboardControllerTest < ActionDispatch::IntegrationTest
 
   # Health Bar Tests
 
+  test "health bar shows a tracking badge once a writer has reported" do
+    RailsPulse::Event.where(subject: "web-2:202").update_all(value: 7)
+
+    get rails_pulse.root_path
+
+    assert_response :success
+    assert_select ".dashboard-health-bar", /Tracking/
+    assert_select ".dashboard-health-bar", /1 writing ·/
+    assert_select ".dashboard-health-bar", /1 dropping/
+    assert_select ".dashboard-health-bar", { text: /backlogged/, count: 0 }
+  end
+
+  test "health bar omits the tracking badge before any writer has reported" do
+    RailsPulse::Event.delete_all
+
+    get rails_pulse.root_path
+
+    assert_response :success
+    assert_select ".dashboard-health-bar", { text: /Tracking/, count: 0 }
+  end
+
   test "health bar shows an exceptions badge counting only open groups" do
     get rails_pulse.root_path
 
     assert_response :success
     # Two of the four fixture groups are open; resolved and ignored are excluded.
+    # Zero-count segments (firing, critical) are omitted.
     assert_match(/Exceptions/, response.body)
-    assert_match(/2 quiet · 0 firing · 0 critical/, response.body)
+    assert_match(/2 quiet/, response.body)
+    assert_no_match(/firing/, response.body)
   end
 
   test "health bar omits the exceptions badge when tracking is disabled" do
@@ -32,7 +55,7 @@ class RailsPulse::DashboardControllerTest < ActionDispatch::IntegrationTest
     get rails_pulse.root_path
 
     assert_response :success
-    assert_no_match(/quiet · .* firing/, response.body)
+    assert_select ".dashboard-health-bar", { text: /Exceptions/, count: 0 }
   ensure
     RailsPulse.configuration.track_exceptions = original
   end

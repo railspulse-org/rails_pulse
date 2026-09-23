@@ -27,6 +27,74 @@ class RailsPulse::TrackerTest < ActiveSupport::TestCase
     }
   end
 
+  # Heartbeat Tests
+
+  test "take_heartbeat_sample reports drops since the previous sample" do
+    writer = RailsPulse::Tracker::Writer.new(queue_size: 1, auto_start: false)
+    writer.enqueue(@tracking_data)
+    writer.enqueue(@tracking_data) # queue of one is full: dropped
+
+    first = writer.take_heartbeat_sample
+
+    assert_equal({ queue_size: 1, queue_depth: 1, dropped: 1, dropped_total: 1 }, first)
+    assert_equal 0, writer.take_heartbeat_sample[:dropped], "the window resets after a sample"
+    assert_equal 1, writer.take_heartbeat_sample[:dropped_total]
+  end
+
+  test "record_heartbeat writes one event for this process and prunes old ones" do
+    RailsPulse::Event.delete_all
+    RailsPulse::WriterHeartbeat.record!(hostname: "old", pid: 1, queue_size: 10, queue_depth: 0, dropped: 0, dropped_total: 0, sampled_at: 2.days.ago)
+
+    assert RailsPulse::Tracker.record_heartbeat(queue_size: 1000, queue_depth: 4, dropped: 2, dropped_total: 9)
+
+    row = RailsPulse::Event.sole
+
+    assert_equal "writer_heartbeat", row.kind
+    assert_equal "#{Socket.gethostname}:#{Process.pid}", row.subject
+    assert_in_delta 2, row.value
+    assert_equal 4, row.metadata_hash["queue_depth"]
+    assert_equal 1000, row.metadata_hash["queue_size"]
+    assert_equal 9, row.metadata_hash["dropped_total"]
+    assert_in_delta Time.current, row.occurred_at, 5
+  end
+
+  test "record_heartbeat only prunes once per PRUNE_INTERVAL" do
+    RailsPulse::Event.delete_all
+    RailsPulse::Tracker.record_heartbeat(queue_size: 1000, queue_depth: 0, dropped: 0, dropped_total: 0)
+    RailsPulse::WriterHeartbeat.record!(hostname: "old", pid: 1, queue_size: 10, queue_depth: 0, dropped: 0, dropped_total: 0, sampled_at: 2.days.ago)
+
+    RailsPulse::Tracker.record_heartbeat(queue_size: 1000, queue_depth: 0, dropped: 0, dropped_total: 0)
+
+    assert RailsPulse::Event.exists?(subject: "old:1"), "a second heartbeat within the prune interval should not prune yet"
+
+    travel_to 2.hours.from_now do
+      RailsPulse::Tracker.record_heartbeat(queue_size: 1000, queue_depth: 0, dropped: 0, dropped_total: 0)
+    end
+
+    assert_not RailsPulse::Event.exists?(subject: "old:1"), "a heartbeat after the prune interval should prune stale rows"
+  end
+
+  test "record_heartbeat never raises" do
+    RailsPulse::Event.stubs(:insert_all).raises(ActiveRecord::StatementInvalid, "boom")
+
+    assert_not RailsPulse::Tracker.record_heartbeat(queue_size: 1, queue_depth: 0, dropped: 0, dropped_total: 0)
+  end
+
+  test "the background writer records a heartbeat on its own thread" do
+    original_async = RailsPulse.configuration.async
+    RailsPulse.configuration.async = true
+    RailsPulse::Tracker.stubs(:connection_shared_across_threads?).returns(false)
+    RailsPulse::Event.delete_all
+
+    RailsPulse::Tracker.track_request(@tracking_data.merge(request_uuid: "heartbeat-#{SecureRandom.hex(4)}"))
+    RailsPulse::Tracker.flush!
+
+    assert_equal 1, RailsPulse::WriterHeartbeat.events.where(subject: "#{Socket.gethostname}:#{Process.pid}").count
+  ensure
+    RailsPulse.configuration.async = original_async
+    RailsPulse::Tracker.unstub(:connection_shared_across_threads?)
+  end
+
   test "creates request records" do
     RailsPulse::Tracker.track_request(@tracking_data)
 

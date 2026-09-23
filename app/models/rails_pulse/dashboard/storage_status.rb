@@ -71,6 +71,13 @@ module RailsPulse
           label: "Deployments",
           description: "Deploy markers shown on charts",
           time_column: :started_at
+        },
+        {
+          name: :rails_pulse_events,
+          model: "RailsPulse::Event",
+          label: "Events",
+          description: "What Pulse noticed: writer heartbeats every minute (pruned after a day) and, with Rails Pulse Pro, alerts and regression checks kept for event_retention_period",
+          time_column: :occurred_at
         }
       ].freeze
 
@@ -135,6 +142,35 @@ module RailsPulse
           size_available: size_available?,
           size_note: size_note
         }
+      end
+
+      # Built from live_processes/dropped_by_process rather than
+      # WriterHeartbeat.summary, which would recompute both internally.
+      def tracking
+        @tracking ||= begin
+          live = RailsPulse::WriterHeartbeat.live_processes
+          dropped_by_process = RailsPulse::WriterHeartbeat.dropped_by_process(window: 1.hour)
+          processes = live.map do |process|
+            {
+              label: process.process_label,
+              queue_depth: process.queue_depth,
+              queue_size: process.queue_size,
+              dropped_last_hour: dropped_by_process.fetch(process.process_label, 0),
+              last_seen_at: process.sampled_at
+            }
+          end
+
+          {
+            processes:       processes,
+            live_count:      processes.size,
+            queue_depth:     live.sum(&:queue_depth),
+            queue_size:      live.map(&:queue_size).max || 0,
+            dropped:         dropped_by_process.values.sum,
+            last_sampled_at: RailsPulse::WriterHeartbeat.events.maximum(:occurred_at)
+          }
+        end
+      rescue ActiveRecord::ActiveRecordError
+        { processes: [], live_count: 0, queue_depth: 0, queue_size: 0, dropped: 0, last_sampled_at: nil }
       end
 
       def dashboard_tables

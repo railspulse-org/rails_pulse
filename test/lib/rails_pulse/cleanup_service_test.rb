@@ -34,6 +34,28 @@ module RailsPulse
 
     # Structure Tests
 
+    # Event Retention Tests
+
+    test "events older than event_retention_period are deleted, exempt kinds and newer rows kept" do
+      RailsPulse.configuration.instance_variable_set(:@full_retention_period, nil)
+      original = [ RailsPulse.configuration.event_retention_period, RailsPulse.configuration.event_retention_exempt_kinds ]
+      RailsPulse.configuration.event_retention_period = 7.days
+      RailsPulse.configuration.event_retention_exempt_kinds = [ "job_heartbeat" ]
+      RailsPulse::Event.delete_all
+      old_alert = RailsPulse::Event.create!(kind: "alert_rule", outcome: "triggered", occurred_at: 8.days.ago)
+      old_beat  = RailsPulse::Event.create!(kind: "job_heartbeat", outcome: "ran", occurred_at: 8.days.ago)
+      new_alert = RailsPulse::Event.create!(kind: "alert_rule", outcome: "triggered", occurred_at: 6.days.ago)
+
+      stats = CleanupService.perform
+
+      assert_equal 1, stats[:time_based][:events]
+      assert_not RailsPulse::Event.exists?(old_alert.id)
+      assert RailsPulse::Event.exists?(old_beat.id), "exempt kinds are never pruned by age"
+      assert RailsPulse::Event.exists?(new_alert.id)
+    ensure
+      RailsPulse.configuration.event_retention_period, RailsPulse.configuration.event_retention_exempt_kinds = original
+    end
+
     test "perform returns a stats hash with time_based and count_based keys" do
       result = CleanupService.perform
 

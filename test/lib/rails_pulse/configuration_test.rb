@@ -11,6 +11,15 @@ module RailsPulse
 
     # Default Values Tests
 
+    test "event_retention_period defaults to 90 days with no exempt kinds, and both are validated" do
+      config = Configuration.new
+
+      assert_equal 90.days, config.event_retention_period
+      assert_empty config.event_retention_exempt_kinds
+      assert_raises(ArgumentError) { build_config { @event_retention_period = 90 } }
+      assert_raises(ArgumentError) { build_config { @event_retention_exempt_kinds = [ :job_heartbeat ] } }
+    end
+
     test "enabled defaults to true" do
       config = Configuration.new
 

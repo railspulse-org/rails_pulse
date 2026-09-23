@@ -120,4 +120,41 @@
       <% end %>
     </dl>
   <% end %>
+
+  <%= render "rails_pulse/components/panel",
+      title: "Tracking writers",
+      help_heading: "The background writer",
+      help_text: "Each process queues tracked requests for one writer thread, which reports a heartbeat every minute. When a queue is full the newest request is dropped rather than slowing the app; dropped requests mean the charts undercount traffic. Raise async_queue_size or fix database latency." do %>
+    <% tracking = @status.tracking %>
+    <dl class="descriptive-list mbs-4">
+      <dt>Live writers</dt>
+      <dd><%= tracking[:live_count] %></dd>
+      <dt>Queue depth</dt>
+      <dd><%= number_with_delimiter(tracking[:queue_depth]) %><% if tracking[:queue_size].to_i.positive? %> <span class="text-subtle">/ <%= number_with_delimiter(tracking[:queue_size]) %> per process</span><% end %></dd>
+      <dt>Dropped in the last hour</dt>
+      <dd class="<%= tracking[:dropped].to_i.positive? ? "text-negative font-semibold" : "" %>"><%= number_with_delimiter(tracking[:dropped]) %></dd>
+      <dt>Last heartbeat</dt>
+      <dd>
+        <% if tracking[:last_sampled_at] %>
+          <%= human_readable_occurred_at(tracking[:last_sampled_at]) %>
+          <span class="text-subtle">(<%= time_ago_in_words(tracking[:last_sampled_at]) %>)</span>
+        <% else %>
+          Never — heartbeats start when a process with <code>async</code> on tracks its first request
+        <% end %>
+      </dd>
+      <% tracking[:processes].each do |process| %>
+        <dt><code><%= process[:label] %></code></dt>
+        <dd>
+          <%= number_with_delimiter(process[:queue_depth]) %> / <%= number_with_delimiter(process[:queue_size]) %> queued
+          <% if process[:dropped_last_hour].positive? %>
+            <span class="badge storage-table__percent storage-table__percent--critical"><%= number_with_delimiter(process[:dropped_last_hour]) %> dropped</span>
+          <% else %>
+            <span class="badge storage-table__percent storage-table__percent--uncapped">0 dropped</span>
+          <% end %>
+          <br>
+          <span class="text-subtle">last heartbeat <%= time_ago_in_words(process[:last_seen_at]) %></span>
+        </dd>
+      <% end %>
+    </dl>
+  <% end %>
 </div>
