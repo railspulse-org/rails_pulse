@@ -94,13 +94,8 @@ module RailsPulse
         StoragePressure.new.storage_counts
       end
 
-      # One count per writer process: healthy when its queue is under half
-      # full and it dropped nothing in the last hour, slow (backlogged) when
-      # the queue is at least half full, critical (dropping) when it dropped
-      # requests in the last hour. A process that dropped and has since gone
-      # away still counts as critical for that hour. Nil until any writer has
-      # reported: with async off there are no writers, and the badge would
-      # only say so.
+      # A process that dropped and has since gone away still counts as
+      # critical for that hour. Nil until any writer has reported.
       def tracking_counts
         return nil unless RailsPulse::Event.table_available?
 
@@ -113,11 +108,7 @@ module RailsPulse
         live.each do |process|
           next if dropped_by_process.key?(process.process_label)
 
-          # A live heartbeat with queue_size <= 0 means its metadata was
-          # missing or unreadable, not that its queue is actually empty and
-          # uncapped (a real heartbeat always reports the configured,
-          # always-positive async_queue_size) — treat it as critical rather
-          # than let it read as "healthy" via 0 * 2 >= 0.
+          # queue_size <= 0 means unreadable metadata, not an empty queue
           if process.queue_size <= 0
             critical += 1
           elsif process.queue_depth * 2 >= process.queue_size

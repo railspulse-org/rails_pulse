@@ -12,8 +12,7 @@ module RailsPulse
         summary_staleness_items + stuck_records_items + sub_hour_retention_items + writer_drop_items
       end
 
-      # The Storage health badge counts storage signals only; dropped
-      # requests have their own Tracking badge.
+      # Dropped requests get their own Tracking badge, not this one
       def storage_counts
         items    = pressure_items.reject { |i| i[:type] == "TRACKING" }
         critical = items.any? { |i| i[:severity] == :critical } ? 1 : 0

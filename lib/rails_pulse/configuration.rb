@@ -90,8 +90,6 @@ module RailsPulse
       @custom_asset_patterns = []
       @mount_path = nil
       @full_retention_period = 30.days
-      # Rows in rails_pulse_events older than this are deleted by cleanup, except
-      # kinds a writer updates in place (rails_pulse_pro registers its job heartbeats).
       @event_retention_period = 90.days
       @event_retention_exempt_kinds = []
       @archiving_enabled = true

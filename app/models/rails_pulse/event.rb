@@ -32,9 +32,7 @@ module RailsPulse
       []
     end
 
-    # table_exists?, rescued consistently. Several call sites need to know
-    # whether this table is there yet (an upgrader who hasn't migrated) —
-    # centralized here instead of each reimplementing the rescue.
+    # table_exists?, rescued — for an upgrader who hasn't migrated yet
     def self.table_available?
       table_exists?
     rescue ActiveRecord::ActiveRecordError

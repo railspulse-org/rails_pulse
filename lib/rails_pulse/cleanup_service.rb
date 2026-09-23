@@ -54,10 +54,8 @@ module RailsPulse
       end
     end
 
-    # rails_pulse_events has its own retention: it holds what Pulse noticed
-    # (heartbeats, and Pro's alerts and checks), which outlives the raw rows.
-    # Kinds in event_retention_exempt_kinds are rows a writer updates in place
-    # and must survive so "last ran" never becomes "never ran".
+    # event_retention_exempt_kinds are rows a writer updates in place, which
+    # must survive so "last ran" never becomes "never ran"
     def perform_event_cleanup
       return unless @config.event_retention_period
       return unless RailsPulse::Event.table_available?

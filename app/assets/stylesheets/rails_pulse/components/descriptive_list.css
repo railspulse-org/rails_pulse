@@ -1,6 +1,5 @@
-/* A container query on .descriptive-list itself would never fire: @container
-   rules only match descendants of the container, never the container element.
-   The parent has to hold the containment context instead. */
+/* @container rules match descendants of the container, not the container
+   itself, so the containment context has to live on the parent. */
 :has(> .descriptive-list) {
   container-type: inline-size;
 }
@@ -20,9 +19,7 @@
   overflow-wrap: break-word;
 }
 
-/* Below this the fixed 200px label column leaves too little room for the
-   value column, which wraps one character per line instead of shrinking.
-   Stack label above value instead. */
+/* Below this the fixed 200px label column crowds out the value column */
 @container (max-width: 340px) {
   .descriptive-list {
     grid-template-columns: 1fr;

@@ -152,8 +152,7 @@ module RailsPulse
         output.puts "Dashboard:  mount_dashboard=#{config.mount_dashboard} authentication=#{auth}"
       end
 
-      # Adds up every process's background writer from its heartbeats; the
-      # process running this task has no writer of its own to ask.
+      # This process has no writer of its own; read every process's heartbeats
       def print_writer
         unless RailsPulse::Event.table_available?
           output.puts "Writer:     (skipped — events table missing, schema is behind)"

@@ -144,12 +144,8 @@ module RailsPulse
         }
       end
 
-      # The background writers: totals for the last hour and one row per
-      # live process, for the Tracking panel. Built directly from
-      # live_processes/dropped_by_process rather than WriterHeartbeat.summary
-      # (which recomputes live_processes internally, and whose :dropped is
-      # the same total dropped_by_process's values already sum to) so this
-      # doesn't run the same queries twice.
+      # Built from live_processes/dropped_by_process rather than
+      # WriterHeartbeat.summary, which would recompute both internally.
       def tracking
         @tracking ||= begin
           live = RailsPulse::WriterHeartbeat.live_processes

@@ -11,9 +11,7 @@ Gem::Specification.new do |spec|
   spec.license     = "MIT"
 
   # Minimum Ruby version. Floor is 3.2.0: the writer's heartbeat loop uses
-  # Queue#pop(timeout:), added in Ruby 3.2. (3.1.0 would otherwise suffice —
-  # `async ~> 2.0` needs 3.1+, and the upgrade generator's Array#intersect?
-  # needs 3.1+ — but the heartbeat timeout is the binding constraint.)
+  # Queue#pop(timeout:), added in Ruby 3.2.
   # NOTE: CI only exercises 3.2 and 3.4 — see the pre-release report.
   spec.required_ruby_version = ">= 3.2.0"
 

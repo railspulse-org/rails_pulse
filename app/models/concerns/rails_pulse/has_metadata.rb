@@ -2,9 +2,7 @@ module RailsPulse
   module HasMetadata
     extend ActiveSupport::Concern
 
-    # Parses the metadata column as JSON, returning {} for blank, unparseable,
-    # or valid-but-non-object JSON (an array or scalar) rather than raising or
-    # handing callers something they can't call Hash methods on.
+    # metadata can be valid JSON that isn't an object (an array, a scalar)
     def metadata_hash
       return {} if metadata.blank?
 

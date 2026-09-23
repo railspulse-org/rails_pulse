@@ -26,10 +26,7 @@ module RailsPulse
     PG_TRANSACTION_INERROR = 3
     private_constant :PG_TRANSACTION_INERROR
 
-    # How often record_heartbeat prunes stale heartbeat rows. Heartbeats fire
-    # every 60s per process; pruning on every one of them is redundant I/O on
-    # the exact connection-usage path this design tries to minimize, since
-    # almost every prune finds nothing to delete.
+    # How often record_heartbeat prunes stale rows, rather than every heartbeat
     PRUNE_INTERVAL = 1.hour
     private_constant :PRUNE_INTERVAL
 
@@ -75,9 +72,7 @@ module RailsPulse
         @thread&.alive? || false
       end
 
-      # The next heartbeat's payload: configured capacity, current depth, drops
-      # since the previous sample and since the process started. Taking a
-      # sample starts the next drop window.
+      # Taking a sample resets the drop count for the next window
       def take_heartbeat_sample
         @mutex.synchronize do
           since_last = @dropped - @dropped_at_last_heartbeat
@@ -137,8 +132,7 @@ module RailsPulse
       end
 
       def run
-        # pop returns nil on the timeout and once the queue is closed and empty;
-        # the timeout is what lets an idle writer still send its heartbeat.
+        # pop returns nil both on timeout and once the queue is closed and empty
         loop do
           first = @queue.pop(timeout: HEARTBEAT_INTERVAL)
           if first.nil?
@@ -220,12 +214,8 @@ module RailsPulse
         @last_heartbeat_prune_at = nil
       end
 
-      # Writes one WriterHeartbeat event for this process and prunes old ones.
-      # Never raises: a heartbeat that fails must not take the writer down.
-      # table_exists? has to run inside with_writer_connection too — a bare
-      # call on the writer thread checks out a connection that nothing else
-      # on this thread would ever release, permanently pinning one connection
-      # from the pool starting with the first heartbeat.
+      # table_exists? has to run inside with_writer_connection too, or the bare
+      # call pins a connection on this thread that nothing would ever release
       def record_heartbeat(sample)
         with_writer_connection do
           next false unless RailsPulse::Event.table_available?
