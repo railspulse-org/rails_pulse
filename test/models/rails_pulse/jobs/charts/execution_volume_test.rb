@@ -24,8 +24,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "day",
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           result = chart.to_chart_data
@@ -38,8 +37,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "day",
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           result = chart.to_chart_data
@@ -53,8 +51,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "day",
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           result = chart.to_chart_data
@@ -66,8 +63,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "day",
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           result = chart.to_chart_data
@@ -79,8 +75,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "day",
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           result = chart.to_chart_data
@@ -92,8 +87,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "day",
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           result = chart.to_chart_data
@@ -105,8 +99,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "day",
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           result = chart.to_chart_data
@@ -124,8 +117,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "day",
-            start_time: 2.days.ago.beginning_of_day,
-            end_time: Time.current.end_of_day
+            window: RailsPulse::TimeWindow.new(2.days.ago.beginning_of_day, Time.current.end_of_day)
           )
 
           result = chart.to_chart_data
@@ -144,8 +136,7 @@ module RailsPulse
             ransack_query: @ransack_query,
             period_type: "day",
             subject: @job,
-            start_time: 2.days.ago.beginning_of_day,
-            end_time: Time.current.end_of_day
+            window: RailsPulse::TimeWindow.new(2.days.ago.beginning_of_day, Time.current.end_of_day)
           )
 
           result = chart.to_chart_data
@@ -159,8 +150,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "day",
-            start_time: 3.days.ago.beginning_of_day,
-            end_time: Time.current.end_of_day
+            window: RailsPulse::TimeWindow.new(3.days.ago.beginning_of_day, Time.current.end_of_day)
           )
 
           result = chart.to_chart_data
@@ -176,8 +166,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "hour",
-            start_time: 3.hours.ago.beginning_of_hour,
-            end_time: Time.current.end_of_hour
+            window: RailsPulse::TimeWindow.new(3.hours.ago.beginning_of_hour, Time.current.end_of_hour)
           )
 
           result = chart.to_chart_data
@@ -195,8 +184,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "day",
-            start_time: 100.days.ago.beginning_of_day,
-            end_time: 99.days.ago.end_of_day
+            window: RailsPulse::TimeWindow.new(100.days.ago.beginning_of_day, 99.days.ago.end_of_day)
           )
 
           result = chart.to_chart_data
@@ -211,8 +199,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "day",
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           result = chart.to_chart_data
@@ -228,8 +215,7 @@ module RailsPulse
           chart = ExecutionVolume.new(
             ransack_query: @ransack_query,
             period_type: "day",
-            start_time: 90.days.ago.beginning_of_day,
-            end_time: Time.current.end_of_day
+            window: RailsPulse::TimeWindow.new(90.days.ago.beginning_of_day, Time.current.end_of_day)
           )
 
           result = chart.to_chart_data
@@ -244,8 +230,7 @@ module RailsPulse
             ransack_query: @ransack_query,
             period_type: "day",
             subject: @job,
-            start_time: 2.days.ago.beginning_of_day,
-            end_time: Time.current.end_of_day
+            window: RailsPulse::TimeWindow.new(2.days.ago.beginning_of_day, Time.current.end_of_day)
           )
 
           result = chart.to_chart_data

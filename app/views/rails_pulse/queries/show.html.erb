@@ -24,7 +24,7 @@
         >
         <%= form.select :duration,
           duration_options(:query),
-          { selected: @selected_response_range },
+          { selected: @time_range&.selected_response_range },
           { class: "input" }
         %>
         <%= link_to "Reset", query_path(@query), class: "btn btn--plain", style: "text-decoration: none; color: var(--color-text-muted);" if params.has_key?(:q) %>

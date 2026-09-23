@@ -95,8 +95,8 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil assigns(:request_rate_chart_data)
     assert_not_nil assigns(:error_rate_chart_data)
     assert_not_nil assigns(:pagination)
-    assert_not_nil assigns(:start_time)
-    assert_not_nil assigns(:end_time)
+    assert_not_nil assigns(:time_range)&.window&.start_time
+    assert_not_nil assigns(:time_range)&.window&.end_time
   end
 
   test "show action uses Request model for table" do
@@ -265,8 +265,9 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
   test "index action renders chart data for a custom range whose server OS timezone differs from Time.zone" do
     # Reproduces a real bug report: with a custom date range selected, the
     # metric cards and routes table showed data but the Response Time
-    # Percentiles chart was blank. Root cause was in TimeRangeConcern, not
-    # this controller, but this is the actual page the user saw it on.
+    # Percentiles chart was blank. Root cause was in the time-range parsing
+    # (now RailsPulse::TimeRange), not this controller, but this is the
+    # actual page the user saw it on.
     original_tz = ENV["TZ"]
     ENV["TZ"] = "Asia/Bangkok" # UTC+7 — deliberately not Time.zone (UTC in tests)
     travel_to Time.zone.parse("2026-09-19 12:00")
@@ -422,8 +423,8 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
 
     get rails_pulse.routes_path
 
-    assert_not_nil assigns(:start_time)
-    assert_not_nil assigns(:end_time)
+    assert_not_nil assigns(:time_range)&.window&.start_time
+    assert_not_nil assigns(:time_range)&.window&.end_time
   end
 
   test "index assigns has_data flag" do
@@ -488,7 +489,7 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # Default should be approximately 14 days
-    time_diff = assigns(:end_time) - assigns(:start_time)
+    time_diff = assigns(:time_range)&.window&.end_time - assigns(:time_range)&.window&.start_time
 
     assert_operator time_diff, :>, 13.days.to_i
     assert_operator time_diff, :<, 15.days.to_i
@@ -500,7 +501,7 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
     get rails_pulse.routes_path, params: { q: { period_start_range: "last_24_hours" } }
 
     assert_response :success
-    time_diff = assigns(:end_time) - assigns(:start_time)
+    time_diff = assigns(:time_range)&.window&.end_time - assigns(:time_range)&.window&.start_time
 
     assert_operator time_diff, :<=, 25.hours.to_i
   end
@@ -511,7 +512,7 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
     get rails_pulse.routes_path, params: { q: { period_start_range: "last_7_days" } }
 
     assert_response :success
-    time_diff = assigns(:end_time) - assigns(:start_time)
+    time_diff = assigns(:time_range)&.window&.end_time - assigns(:time_range)&.window&.start_time
 
     assert_operator time_diff, :>, 6.days.to_i
     assert_operator time_diff, :<, 8.days.to_i
@@ -523,7 +524,7 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
     get rails_pulse.routes_path, params: { q: { period_start_range: "last_14_days" } }
 
     assert_response :success
-    time_diff = assigns(:end_time) - assigns(:start_time)
+    time_diff = assigns(:time_range)&.window&.end_time - assigns(:time_range)&.window&.start_time
 
     assert_operator time_diff, :>, 13.days.to_i
     assert_operator time_diff, :<, 15.days.to_i
@@ -535,7 +536,7 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
     get rails_pulse.routes_path, params: { q: { period_start_range: "last_30_days" } }
 
     assert_response :success
-    time_diff = assigns(:end_time) - assigns(:start_time)
+    time_diff = assigns(:time_range)&.window&.end_time - assigns(:time_range)&.window&.start_time
     # Approximately 30 days (allowing for month variations)
     assert_operator time_diff, :>, 28.days.to_i
     assert_operator time_diff, :<, 32.days.to_i
@@ -555,8 +556,8 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
     }
 
     assert_response :success
-    assert_not_nil assigns(:start_time)
-    assert_not_nil assigns(:end_time)
+    assert_not_nil assigns(:time_range)&.window&.start_time
+    assert_not_nil assigns(:time_range)&.window&.end_time
   end
 
   test "index with invalid time range uses default" do
@@ -566,9 +567,9 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # Should use default time range
-    assert_not_nil assigns(:start_time)
-    assert_not_nil assigns(:end_time)
-    assert_operator assigns(:end_time), :>, assigns(:start_time)
+    assert_not_nil assigns(:time_range)&.window&.start_time
+    assert_not_nil assigns(:time_range)&.window&.end_time
+    assert_operator assigns(:time_range)&.window&.end_time, :>, assigns(:time_range)&.window&.start_time
   end
 
   test "index with missing time range uses default" do
@@ -578,8 +579,8 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # Should use default
-    assert_not_nil assigns(:start_time)
-    assert_not_nil assigns(:end_time)
+    assert_not_nil assigns(:time_range)&.window&.start_time
+    assert_not_nil assigns(:time_range)&.window&.end_time
   end
 
   test "period type is hour for ranges under 25 hours" do
@@ -588,7 +589,7 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
     get rails_pulse.routes_path, params: { q: { period_start_range: "last_24_hours" } }
 
     assert_response :success
-    time_diff_hours = (assigns(:end_time) - assigns(:start_time)) / 3600.0
+    time_diff_hours = (assigns(:time_range)&.window&.end_time - assigns(:time_range)&.window&.start_time) / 3600.0
     # If under 25 hours, should use hour period
     assert_operator time_diff_hours, :<=, 25 if time_diff_hours <= 25
   end
@@ -599,7 +600,7 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
     get rails_pulse.routes_path, params: { q: { period_start_range: "last_7_days" } }
 
     assert_response :success
-    time_diff_hours = (assigns(:end_time) - assigns(:start_time)) / 3600.0
+    time_diff_hours = (assigns(:time_range)&.window&.end_time - assigns(:time_range)&.window&.start_time) / 3600.0
     # If over 25 hours, should use day period
     assert_operator time_diff_hours, :>, 25
   end
@@ -613,7 +614,7 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # start_duration should be 0 or nil
-    assert assigns(:start_duration).nil? || assigns(:start_duration) == 0
+    assert assigns(:time_range)&.start_duration.nil? || assigns(:time_range)&.start_duration == 0
   end
 
   test "index with slow duration filter" do
@@ -623,8 +624,8 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # start_duration should be set (≥ 500ms)
-    assert_not_nil assigns(:start_duration)
-    assert_operator assigns(:start_duration), :>=, 0
+    assert_not_nil assigns(:time_range)&.start_duration
+    assert_operator assigns(:time_range)&.start_duration, :>=, 0
   end
 
   test "index with very_slow duration filter" do
@@ -634,8 +635,8 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # start_duration should be set (≥ 1000ms)
-    assert_not_nil assigns(:start_duration)
-    assert_operator assigns(:start_duration), :>=, 0
+    assert_not_nil assigns(:time_range)&.start_duration
+    assert_operator assigns(:time_range)&.start_duration, :>=, 0
   end
 
   test "index with critical duration filter" do
@@ -645,8 +646,8 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # start_duration should be set (≥ 3000ms)
-    assert_not_nil assigns(:start_duration)
-    assert_operator assigns(:start_duration), :>=, 0
+    assert_not_nil assigns(:time_range)&.start_duration
+    assert_operator assigns(:time_range)&.start_duration, :>=, 0
   end
 
   test "index with invalid duration parameter" do
@@ -656,7 +657,7 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # Should ignore invalid parameter
-    assert assigns(:start_duration).nil? || assigns(:start_duration) == 0
+    assert assigns(:time_range)&.start_duration.nil? || assigns(:time_range)&.start_duration == 0
   end
 
   test "duration filter passed to chart services" do
@@ -703,8 +704,8 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # Table time range should equal main time range
-    assert_not_nil assigns(:table_start_time)
-    assert_not_nil assigns(:table_end_time)
+    assert_not_nil assigns(:time_range)&.table_window&.start_time
+    assert_not_nil assigns(:time_range)&.table_window&.end_time
   end
 
   test "selected_column_time parameter sets zoom" do
@@ -740,8 +741,8 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
     }
 
     assert_response :success
-    assert_not_nil assigns(:table_start_time)
-    assert_not_nil assigns(:table_end_time)
+    assert_not_nil assigns(:time_range)&.table_window&.start_time
+    assert_not_nil assigns(:time_range)&.table_window&.end_time
   end
 
   test "zoom parameters work with valid values" do

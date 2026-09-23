@@ -23,7 +23,7 @@
 
       <%= form.select :duration_gteq,
         duration_options(:request),
-        { selected: @selected_response_range, prompt: "Min duration" },
+        { selected: @time_range&.selected_response_range, prompt: "Min duration" },
         { class: "input" }
       %>
 

@@ -144,7 +144,7 @@
           </span>
         <% end %>
         <span class="text-xs text-subtle mis-2">Ranked by severity ·
-          <%= humanize_time_range(@selected_time_range) %></span>
+          <%= humanize_time_range(@time_range.selected_time_range) %></span>
       </div>
       <div
         data-controller="rails-pulse--popover"
@@ -193,7 +193,7 @@
         </span>
         <p class="font-semibold text-sm text-positive">All clear</p>
         <p class="text-xs text-subtle">No routes, queries, or jobs need attention in the
-          <%= humanize_time_range(@selected_time_range) %>.</p>
+          <%= humanize_time_range(@time_range.selected_time_range) %>.</p>
       </div>
     <% else %>
       <div class="flex flex-col">

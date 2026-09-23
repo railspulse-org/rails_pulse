@@ -1,12 +1,11 @@
 module RailsPulse
   module Charts
     class PercentileChartBase
-      def initialize(ransack_query:, period_type: nil, subject: nil, start_time: nil, end_time: nil, start_duration: nil, disabled_tags: [], show_non_tagged: true)
+      def initialize(ransack_query:, period_type: nil, subject: nil, window: nil, start_duration: nil, disabled_tags: [], show_non_tagged: true)
         @ransack_query = ransack_query
         @period_type = period_type
         @subject = subject
-        @start_time = start_time
-        @end_time = end_time
+        @window = window
         @start_duration = start_duration
         @disabled_tags = disabled_tags
         @show_non_tagged = show_non_tagged
@@ -50,7 +49,7 @@ module RailsPulse
         # Convert to final values (weighted averages) and pad missing data
         step = @period_type.to_s == "hour" ? 3600 : 86400
         daily_data = {}
-        (@start_time.to_i..@end_time.to_i).step(step) do |timestamp|
+        (@window.start_time.to_i..@window.end_time.to_i).step(step) do |timestamp|
           if raw_data[timestamp]
             count = raw_data[timestamp][:total_count]
             daily_data[timestamp] = {

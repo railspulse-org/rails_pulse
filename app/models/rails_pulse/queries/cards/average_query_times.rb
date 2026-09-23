@@ -2,14 +2,8 @@ module RailsPulse
   module Queries
     module Cards
       class AverageQueryTimes < RailsPulse::Cards::Base
-        def initialize(query: nil, disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
-          @query = query
-          @disabled_tags = disabled_tags
-          @show_non_tagged = show_non_tagged
-          @period = period
-          @period_type = period_type
-          @start_time = start_time
-          @end_time = end_time
+        def initialize(query: nil, **kwargs)
+          super(subject: query, **kwargs)
         end
 
         def to_metric_card

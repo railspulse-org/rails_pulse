@@ -4,10 +4,9 @@ module RailsPulse
       WEIGHTED_P95 = "SUM(rails_pulse_summaries.p95_duration * rails_pulse_summaries.count) / NULLIF(SUM(rails_pulse_summaries.count), 0)"
       WEIGHTED_P99 = "SUM(rails_pulse_summaries.p99_duration * rails_pulse_summaries.count) / NULLIF(SUM(rails_pulse_summaries.count), 0)"
 
-      def initialize(ransack_query:, period_type: nil, start_time:, params:, disabled_tags: [], show_non_tagged: true)
+      def initialize(ransack_query:, period_type: nil, params:, disabled_tags: [], show_non_tagged: true)
         @ransack_query = ransack_query
         @period_type = period_type
-        @start_time = start_time
         @params = params
         @disabled_tags = disabled_tags
         @show_non_tagged = show_non_tagged

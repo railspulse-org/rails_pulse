@@ -2,14 +2,8 @@ module RailsPulse
   module Routes
     module Cards
       class PercentileResponseTimes < RailsPulse::Cards::Base
-        def initialize(route: nil, disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
-          @route = route
-          @disabled_tags = disabled_tags
-          @show_non_tagged = show_non_tagged
-          @period = period
-          @period_type = period_type
-          @start_time = start_time
-          @end_time = end_time
+        def initialize(route: nil, **kwargs)
+          super(subject: route, **kwargs)
         end
 
         def to_metric_card
@@ -32,7 +26,7 @@ module RailsPulse
 
           # Prefer a comparison against this route's own history; fall back to
           # period-over-period on the index, where there is no single subject.
-          baseline = baseline_trend_for(@route, metric: :p95)
+          baseline = baseline_trend_for(@subject, metric: :p95)
 
           if baseline
             trend_icon, trend_amount, trend_caption = baseline
@@ -68,12 +62,6 @@ module RailsPulse
             help_heading: "P95 Response Time",
             help_text: "The 95th percentile response time — 95% of requests are faster than this. Weighted by request volume across all routes. A rising P95 indicates increasing slowness affecting your users."
           }
-        end
-
-        private
-
-        def subject_id
-          @route&.id
         end
       end
     end

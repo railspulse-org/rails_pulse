@@ -18,8 +18,7 @@ module RailsPulse
 
         test "to_chart_data returns hash or nil" do
           chart = DatabaseLoad.new(
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             period_type: :day
           )
 
@@ -35,8 +34,7 @@ module RailsPulse
           future_end = 2.years.from_now.to_i
 
           chart = DatabaseLoad.new(
-            start_time: future_start,
-            end_time: future_end,
+            window: RailsPulse::TimeWindow.new(future_start, future_end),
             period_type: :day
           )
 
@@ -49,8 +47,7 @@ module RailsPulse
 
         test "accepts day period_type" do
           chart = DatabaseLoad.new(
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             period_type: :day
           )
 
@@ -64,8 +61,7 @@ module RailsPulse
           end_time = Time.current.end_of_hour.to_i
 
           chart = DatabaseLoad.new(
-            start_time: start_time,
-            end_time: end_time,
+            window: RailsPulse::TimeWindow.new(start_time, end_time),
             period_type: :hour
           )
 
@@ -78,8 +74,7 @@ module RailsPulse
 
         test "accepts disabled_tags parameter" do
           chart = DatabaseLoad.new(
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             period_type: :day,
             disabled_tags: [ "slow" ]
           )
@@ -91,8 +86,7 @@ module RailsPulse
 
         test "accepts show_non_tagged parameter" do
           chart = DatabaseLoad.new(
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             period_type: :day,
             show_non_tagged: false
           )
@@ -104,8 +98,7 @@ module RailsPulse
 
         test "accepts nil disabled_tags" do
           chart = DatabaseLoad.new(
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             period_type: :day,
             disabled_tags: nil
           )
@@ -117,8 +110,7 @@ module RailsPulse
 
         test "accepts empty disabled_tags array" do
           chart = DatabaseLoad.new(
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             period_type: :day,
             disabled_tags: []
           )
@@ -134,8 +126,7 @@ module RailsPulse
 
         test "result has no labels key" do
           chart = DatabaseLoad.new(
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             period_type: :day
           )
 
@@ -147,8 +138,7 @@ module RailsPulse
 
         test "each data point has value as [timestamp_ms, percentage] array" do
           chart = DatabaseLoad.new(
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             period_type: :day
           )
 
@@ -166,8 +156,7 @@ module RailsPulse
 
         test "each data point has itemStyle with color" do
           chart = DatabaseLoad.new(
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             period_type: :day
           )
 
@@ -182,8 +171,7 @@ module RailsPulse
 
         test "series is named DB Load with bar type" do
           chart = DatabaseLoad.new(
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             period_type: :day
           )
 
@@ -245,8 +233,7 @@ module RailsPulse
           end_time = Time.current.end_of_day.to_i
 
           chart = DatabaseLoad.new(
-            start_time: start_time,
-            end_time: end_time,
+            window: RailsPulse::TimeWindow.new(start_time, end_time),
             period_type: :day
           )
 
@@ -261,8 +248,7 @@ module RailsPulse
           end_time = Time.current.end_of_day.to_i
 
           chart = DatabaseLoad.new(
-            start_time: start_time,
-            end_time: end_time,
+            window: RailsPulse::TimeWindow.new(start_time, end_time),
             period_type: :day
           )
 
@@ -301,7 +287,7 @@ module RailsPulse
             total_duration: query_duration
           )
 
-          chart = DatabaseLoad.new(start_time: start_time, end_time: end_time, period_type: :day)
+          chart = DatabaseLoad.new(window: RailsPulse::TimeWindow.new(start_time, end_time), period_type: :day)
           [ chart, start_time ]
         end
       end

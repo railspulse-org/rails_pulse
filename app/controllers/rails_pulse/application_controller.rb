@@ -102,7 +102,7 @@ module RailsPulse
     private
 
     # The original string if it is short enough to live in the session and
-    # Time.parse accepts it (TimeRangeConcern parses it back the same way);
+    # Time.parse accepts it (RailsPulse::TimeRange parses it back the same way);
     # nil otherwise.
     def valid_time_param(value)
       value = value.to_s.strip

@@ -20,17 +20,6 @@ module RailsPulse
 
       # Helper class to test the base class
       class TestCard < Base
-        attr_reader :disabled_tags, :show_non_tagged
-
-        def initialize(job: nil, disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
-          @job = job
-          @disabled_tags = disabled_tags
-          @show_non_tagged = show_non_tagged
-          @period = period
-          @period_type = period_type
-          @start_time = start_time
-          @end_time = end_time
-        end
       end
 
       # Explicit Range Tests
@@ -38,8 +27,9 @@ module RailsPulse
       def ranged_card(period_type: "day")
         TestCard.new(
           period: 3, period_type: period_type,
-          start_time: Time.zone.parse("2026-09-16 00:00").to_i,
-          end_time: Time.zone.parse("2026-09-19 23:59:59").to_i
+          window: RailsPulse::TimeWindow.new(
+            Time.zone.parse("2026-09-16 00:00"), Time.zone.parse("2026-09-19 23:59:59")
+          )
         )
       end
 
@@ -329,7 +319,7 @@ module RailsPulse
       # Base Query Helper Tests
 
       test "base_summary_query constructs query with summarizable_type" do
-        card = TestCard.new(job: rails_pulse_jobs(:report_job))
+        card = TestCard.new(subject: rails_pulse_jobs(:report_job))
 
         query = card.send(:base_summary_query, "RailsPulse::Job")
 
@@ -340,7 +330,7 @@ module RailsPulse
 
       test "base_summary_query filters by subject_id when present" do
         job = rails_pulse_jobs(:report_job)
-        card = TestCard.new(job: job)
+        card = TestCard.new(subject: job)
 
         query = card.send(:base_summary_query, "RailsPulse::Job")
 
@@ -394,7 +384,7 @@ module RailsPulse
 
       test "subject_id returns job id when job present" do
         job = rails_pulse_jobs(:report_job)
-        card = TestCard.new(job: job)
+        card = TestCard.new(subject: job)
 
         assert_equal job.id, card.send(:subject_id)
       end

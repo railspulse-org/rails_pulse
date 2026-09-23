@@ -3,14 +3,21 @@ require "active_support/number_helper"
 module RailsPulse
   module Cards
     class Base
+      def initialize(window: nil, subject: nil, period: 7, period_type: "day", disabled_tags: [], show_non_tagged: true)
+        @window = window
+        @subject = subject
+        @period = period
+        @period_type = period_type
+        @disabled_tags = disabled_tags
+        @show_non_tagged = show_non_tagged
+      end
+
       private
 
-      # nil unless the caller passed both start_time and end_time, so the
-      # "trailing @period days/hours" fallback below still applies by default.
+      # nil unless the caller passed a window, so the "trailing @period
+      # days/hours" fallback below still applies by default.
       def time_window
-        return @time_window if defined?(@time_window)
-
-        @time_window = RailsPulse::TimeWindow.build(@start_time, @end_time)
+        @window
       end
 
       def now
@@ -74,10 +81,7 @@ module RailsPulse
       end
 
       def subject_id
-        # Subclasses can override to provide @job.id, @query.id, @route.id
-        instance_variable_get(:@job)&.id ||
-          instance_variable_get(:@query)&.id ||
-          instance_variable_get(:@route)&.id
+        @subject&.id
       end
 
       def quote(time)

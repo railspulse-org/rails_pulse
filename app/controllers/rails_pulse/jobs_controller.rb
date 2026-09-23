@@ -57,7 +57,7 @@ module RailsPulse
 
     # Pass the job to chart classes on show pages
     def chart_options
-      show_action? ? { job: @job } : {}
+      show_action? ? { subject: @job } : {}
     end
 
     # Jobs use polymorphic summaries, so we need to filter by type
@@ -102,7 +102,6 @@ module RailsPulse
         Jobs::Tables::Index.new(
           ransack_query: @ransack_query,
           period_type: period_type,
-          start_time: @start_time,
           params: params,
           disabled_tags: session_disabled_tags,
           show_non_tagged: session[:show_non_tagged] != false,

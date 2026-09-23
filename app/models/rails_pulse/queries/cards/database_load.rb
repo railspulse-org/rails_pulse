@@ -2,15 +2,6 @@ module RailsPulse
   module Queries
     module Cards
       class DatabaseLoad < RailsPulse::Cards::Base
-        def initialize(disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
-          @disabled_tags = disabled_tags
-          @show_non_tagged = show_non_tagged
-          @period = period
-          @period_type = period_type
-          @start_time = start_time
-          @end_time = end_time
-        end
-
         def to_metric_card
           # Use base class time period helpers
           last_n_units = current_window_start

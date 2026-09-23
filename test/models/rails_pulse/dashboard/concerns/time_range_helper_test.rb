@@ -149,17 +149,16 @@ module RailsPulse
         # Explicit Range Tests
 
         class RangedTestClass < TestClass
-          def initialize(period:, start_time:, end_time:)
+          def initialize(period:, window:)
             super(period: period)
-            @start_time = start_time
-            @end_time = end_time
+            @window = window
           end
         end
 
         test "period_range uses the explicit range when one is given" do
           start_time = Time.zone.parse("2026-09-16 00:00")
           end_time = Time.zone.parse("2026-09-19 23:59:59")
-          instance = RangedTestClass.new(period: 3, start_time: start_time.to_i, end_time: end_time.to_i)
+          instance = RangedTestClass.new(period: 3, window: RailsPulse::TimeWindow.new(start_time, end_time))
 
           assert_equal [ start_time, end_time ], instance.send(:period_range)
         end
@@ -167,9 +166,10 @@ module RailsPulse
         test "HealthSummary and NeedsAttention accept an explicit range" do
           start_time = Time.zone.parse("2026-09-16 00:00")
           end_time = Time.zone.parse("2026-09-19 23:59:59")
+          window = RailsPulse::TimeWindow.new(start_time, end_time)
 
           [ RailsPulse::Dashboard::HealthSummary, RailsPulse::Dashboard::NeedsAttention ].each do |klass|
-            instance = klass.new(period: 3, start_time: start_time.to_i, end_time: end_time.to_i)
+            instance = klass.new(period: 3, window: window)
 
             assert_equal [ start_time, end_time ], instance.send(:period_range), klass.name
           end
