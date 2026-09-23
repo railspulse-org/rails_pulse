@@ -10,7 +10,7 @@ module RailsPulse
         return @app.call(env) unless RailsPulse.configuration.enabled
 
         # Skip logging if we are already recording RailsPulse activity. This is to avoid recursion issues
-        return @app.call(env) if RequestStore.store[:skip_recording_rails_pulse_activity]
+        return @app.call(env) if RailsPulse::Current.skip_recording_rails_pulse_activity
 
         req = ActionDispatch::Request.new(env)
 
@@ -26,8 +26,8 @@ module RailsPulse
         end
 
         # Clear any previous request data and set a placeholder ID
-        RequestStore.store[:rails_pulse_request_id] = SecureRandom.uuid
-        RequestStore.store[:rails_pulse_operations] = []
+        RailsPulse::Current.rails_pulse_request_id = SecureRandom.uuid
+        RailsPulse::Current.rails_pulse_operations = []
 
         start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         occurred_at = Time.current
@@ -38,7 +38,7 @@ module RailsPulse
 
         # Collect all tracking data. Operations are copied because the writer
         # thread annotates them (N+1 detection) after this request has moved on.
-        operations = RequestStore.store[:rails_pulse_operations] || []
+        operations = RailsPulse::Current.rails_pulse_operations || []
         path_params = env["action_dispatch.request.path_parameters"] || {}
         controller_action = [ path_params[:controller], path_params[:action] ].compact.join("#").presence
         tracking_data = {
@@ -63,18 +63,18 @@ module RailsPulse
 
         [ status, headers, response ]
       ensure
-        RequestStore.store[:skip_recording_rails_pulse_activity] = false
-        RequestStore.store[:rails_pulse_request_id] = nil
-        RequestStore.store[:rails_pulse_operations] = nil
+        RailsPulse::Current.skip_recording_rails_pulse_activity = false
+        RailsPulse::Current.rails_pulse_request_id = nil
+        RailsPulse::Current.rails_pulse_operations = nil
       end
 
       private
 
       def with_recording_suppressed
-        RequestStore.store[:skip_recording_rails_pulse_activity] = true
+        RailsPulse::Current.skip_recording_rails_pulse_activity = true
         yield
       ensure
-        RequestStore.store[:skip_recording_rails_pulse_activity] = false
+        RailsPulse::Current.skip_recording_rails_pulse_activity = false
       end
 
       def response_size_bytes(headers, response)
