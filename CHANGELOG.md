@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Dropped requests are now visible.** Each background writer records a heartbeat once a minute (queue depth and requests dropped since the last one), pruned after a day. The dashboard's health bar gains a Tracking badge, the Storage page lists every live writer with its queue and drops, and `rails rails_pulse:status` reports the totals and exits 1 when anything was dropped in the last hour. (#281)
 - **A `rails_pulse_events` table** for what Rails Pulse notices rather than measures: the writer heartbeats above, and Rails Pulse Pro's alert triggers, regression checks and exception alerts, so Pro no longer needs a migration of its own. `config.event_retention_period` (default 90 days) prunes it. Run `rails generate rails_pulse:upgrade` and migrate; tracking pauses until the table exists.
+- CI now exercises the separate-database upgrade path (`bin/test_separate_database_upgrade`, SQLite and PostgreSQL), and the migration regression suite gains a 0.3.2 baseline. (#284)
+
+### Fixed
+
+- **The exception-group row cap no longer counts preserved and ignored groups.** Once those exempt groups approached the cap, every cleanup run deleted the oldest deletable groups without ever getting under it. The cap now applies to deletable groups only. (#285)
 
 ## [0.4.1] - 2026-09-23
 

@@ -254,33 +254,24 @@ module RailsPulse
       RailsPulse::ExceptionOccurrence.where.not(exception_group_id: preserved_ids)
     end
 
-    # Prune oldest non-preserved, non-ignored groups when over the configured cap.
-    # Child occurrences must be deleted first — there is no ON DELETE CASCADE on the FK.
+    # Prune the oldest deletable groups when over the configured cap. Preserved
+    # and ignored groups are outside the cap: counting them would make a cap
+    # that they alone fill impossible to satisfy, so every run would trim the
+    # deletable groups for no gain (decision 0017). Child occurrences must be
+    # deleted first — there is no ON DELETE CASCADE on the FK.
     def cleanup_exception_groups_by_count
       max_records = @config.max_table_records[:rails_pulse_exception_groups]
       return 0 unless max_records
 
-      current_count = RailsPulse::ExceptionGroup.count
-      return 0 if current_count <= max_records
-
-      overage = current_count - max_records
       scope = RailsPulse::ExceptionGroup.where(preserve: false).where.not(status: "ignored")
-      # Only delete as many as the deletable population allows — if ignored/preserved
-      # groups dominate, we delete what we can and log when the cap cannot be met.
-      deletable_count = scope.count
-      records_to_delete = [ overage, deletable_count ].min
-      return 0 if records_to_delete <= 0
+      overage = scope.count - max_records
+      return 0 if overage <= 0
 
-      ids_to_delete = scope.order(last_seen_at: :asc).limit(records_to_delete).pluck(:id)
+      ids_to_delete = scope.order(last_seen_at: :asc).limit(overage).pluck(:id)
       return 0 if ids_to_delete.empty?
 
       RailsPulse::ExceptionOccurrence.where(exception_group_id: ids_to_delete).delete_all
       RailsPulse::ExceptionGroup.where(id: ids_to_delete).delete_all
-
-      if overage > deletable_count
-        RailsPulse.logger.warn("[RailsPulse] Exception group cap #{max_records} cannot be met: " \
-          "#{current_count - ids_to_delete.size} remain (#{current_count - deletable_count} are preserved/ignored)")
-      end
 
       ids_to_delete.size
     end

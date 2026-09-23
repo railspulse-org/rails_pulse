@@ -1,0 +1,175 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Separate-database upgrade smoke test.
+#
+# Boots test/dummy with config.connects_to pointing at its rails_pulse database
+# (RAILS_PULSE_SEPARATE_DATABASE=true, see the dummy initializer), loads an old
+# schema baseline into that database, seeds a route, a request and a SQL
+# operation, and then runs the upgrade a host would: the upgrade generator
+# without --database (it must detect "separate"), db:migrate:rails_pulse,
+# rails_pulse:migrate_routes and rails_pulse:status. Exits 1 on the first
+# failed step and restores the dummy app's files and database at the end.
+#
+#   DB=sqlite3 bin/test_separate_database_upgrade
+#   DB=postgresql bin/test_separate_database_upgrade   # POSTGRES_* env as for rake test
+#   BASELINE=V027 bin/test_separate_database_upgrade   # default V032
+
+require "fileutils"
+require "open3"
+require_relative "../test/support/rails_pulse_console"
+
+ROOT  = File.expand_path("..", __dir__)
+DUMMY = File.join(ROOT, "test", "dummy")
+BASELINES = { "V027" => "v0_2_7", "V031" => "v0_3_1", "V032" => "v0_3_2", "V033" => "v0_3_3" }.freeze
+
+class SeparateDatabaseUpgradeTest
+  BACKED_UP = [ "config/initializers/rails_pulse.rb", "db/rails_pulse_schema.rb" ].freeze
+
+  def initialize
+    @baseline = ENV.fetch("BASELINE", "V032")
+    @db = ENV.fetch("DB", "sqlite3")
+    @env = { "RAILS_ENV" => "test", "RAILS_PULSE_SEPARATE_DATABASE" => "true", "DB" => @db }
+    @originals = {}
+    @failures = []
+    @started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  end
+
+  def run
+    file = BASELINES.fetch(@baseline) { abort "Unknown BASELINE #{@baseline}; one of #{BASELINES.keys.join(', ')}" }
+
+    puts
+    puts RailsPulseConsole.rule("RAILS PULSE", RailsPulseConsole.dim("separate-database upgrade · #{@db} · from #{@baseline}"))
+    puts
+
+    back_up
+    step("Recreate both databases") { rails "db:drop db:create" }
+    step("Load the #{@baseline} baseline into the rails_pulse database") do
+      out = runner(<<~RUBY)
+        require "#{ROOT}/test/support/schemas/#{file}"
+        conn = RailsPulse::ApplicationRecord.connection
+        RailsPulse::TestSchemas::#{@baseline}.call(conn)
+        puts "connected to " + RailsPulse::ApplicationRecord.connection_db_config.name
+      RUBY
+      expect(out, "connected to rails_pulse", "RailsPulse::ApplicationRecord must connect to the rails_pulse database")
+    end
+    step("Seed a route, a request and a SQL operation") do
+      runner(<<~RUBY)
+        conn = RailsPulse::ApplicationRecord.connection
+        now = conn.quote(Time.current)
+        conn.execute("INSERT INTO rails_pulse_routes (method, path, created_at, updated_at) VALUES ('GET', '/posts', \#{now}, \#{now})")
+        route_id = conn.select_value("SELECT id FROM rails_pulse_routes ORDER BY id DESC LIMIT 1")
+        columns = %w[route_id duration status is_error request_uuid occurred_at created_at updated_at]
+        values  = [ route_id, 10.0, 200, conn.quote(false), "'smoke-uuid'", now, now, now ]
+        if conn.column_exists?(:rails_pulse_requests, :controller_action)
+          columns << "controller_action"
+          values  << "'PostsController#index'"
+        end
+        conn.execute("INSERT INTO rails_pulse_requests (\#{columns.join(', ')}) VALUES (\#{values.join(', ')})")
+        request_id = conn.select_value("SELECT id FROM rails_pulse_requests ORDER BY id DESC LIMIT 1")
+        conn.execute("INSERT INTO rails_pulse_operations (request_id, operation_type, label, duration, start_time, occurred_at, created_at, updated_at) VALUES (\#{request_id}, 'sql', 'SELECT 1', 5.0, 0.0, \#{now}, \#{now}, \#{now})")
+        puts "seeded"
+      RUBY
+    end
+    step("Give the app the schema file a #{@baseline} host would have") do
+      # The upgrade generator decides "installed or not" by checking that every
+      # table in the host's db/rails_pulse_schema.rb required_tables list exists.
+      # A host on this baseline has that release's file, not today's.
+      tables = File.read(File.join(ROOT, "test/support/schemas/#{file}.rb")).scan(/create_table :(rails_pulse_\w+)/).flatten.uniq
+      File.write(File.join(DUMMY, "db", "rails_pulse_schema.rb"), <<~RUBY)
+        # Stand-in for the schema file shipped with the #{@baseline} release, written by
+        # bin/test_separate_database_upgrade; the upgrade generator reads required_tables.
+        RailsPulse::Schema = lambda do |connection|
+          required_tables = [ #{tables.map { |t| ":#{t}" }.join(', ')} ]
+          required_tables.each { |table| raise "\#{table} missing" unless connection.table_exists?(table) }
+        end
+      RUBY
+    end
+    step("rails generate rails_pulse:upgrade detects the separate database") do
+      out = rails "generate rails_pulse:upgrade"
+      expect(out, "Detected database setup: separate", "the generator must detect the separate database without --database")
+    end
+    step("db:migrate:rails_pulse") { rails "db:migrate:rails_pulse" }
+    step("rails_pulse:migrate_routes") { rails "rails_pulse:migrate_routes" }
+    step("rails_pulse:status exits 0 with the schema current and routes backfilled") do
+      out = rails "rails_pulse:status"
+      expect(out, "Schema:     up to date", "schema must be current after the upgrade")
+      expect(out, "actions backfilled, unrecognised-path index present", "route backfill must be complete")
+      expect(out, "OK — nothing to do.", "status must report nothing to do")
+    end
+    step("Seeded data survived the upgrade") do
+      out = runner('puts "requests=#{RailsPulse::Request.count} routes=#{RailsPulse::Route.count} operations=#{RailsPulse::Operation.count}"')
+      expect(out, "requests=1 routes=1 operations=1", "the seeded rows must survive")
+    end
+  ensure
+    restore
+    finish
+  end
+
+  private
+
+  def step(label)
+    yield
+    puts RailsPulseConsole.line(:ok, label)
+  rescue => e
+    @failures << "#{label}: #{e.message}"
+    puts RailsPulseConsole.line(:fail, label)
+    e.message.each_line { |line| puts "        #{RailsPulseConsole.paint(line.chomp, :red)}" }
+    raise StopIteration
+  end
+
+  def rails(args)
+    out, status = Open3.capture2e(@env, "bin/rails #{args}", chdir: DUMMY)
+    raise "bin/rails #{args} failed:\n#{out}" unless status.success?
+
+    out
+  end
+
+  def runner(script)
+    path = File.join(DUMMY, "tmp", "separate_database_upgrade_step.rb")
+    FileUtils.mkdir_p(File.dirname(path))
+    File.write(path, script)
+    rails "runner #{path}"
+  ensure
+    FileUtils.rm_f(path)
+  end
+
+  def expect(output, text, why)
+    return if output.include?(text)
+
+    raise "#{why}\nexpected output to include #{text.inspect}, got:\n#{output}"
+  end
+
+  def back_up
+    BACKED_UP.each do |file|
+      path = File.join(DUMMY, file)
+      @originals[file] = File.read(path) if File.exist?(path)
+    end
+    @had_migrate_dir = Dir.exist?(File.join(DUMMY, "db", "rails_pulse_migrate"))
+  end
+
+  # The generator syncs the initializer and refreshes the schema file, copies
+  # migrations into db/rails_pulse_migrate, and the databases are left holding
+  # an upgraded baseline: put all of it back the way rake test expects.
+  def restore
+    @originals.each { |file, content| File.write(File.join(DUMMY, file), content) }
+    FileUtils.rm_rf(File.join(DUMMY, "db", "rails_pulse_migrate")) unless @had_migrate_dir
+    Open3.capture2e(@env, "bin/rails db:drop", chdir: DUMMY)
+    Open3.capture2e(@env.merge("RAILS_PULSE_SEPARATE_DATABASE" => "false"), "bin/rails db:create db:migrate", chdir: DUMMY)
+    puts RailsPulseConsole.line(:ok, "restored the dummy app's files and databases")
+  end
+
+  def finish
+    puts
+    left, colour = @failures.empty? ? [ "PASS", :green ] : [ "FAIL", :red ]
+    puts RailsPulseConsole.rule(left, RailsPulseConsole.duration(Process.clock_gettime(Process::CLOCK_MONOTONIC) - @started), color: colour)
+    puts
+    exit(@failures.empty? ? 0 : 1)
+  end
+end
+
+begin
+  SeparateDatabaseUpgradeTest.new.run
+rescue StopIteration
+  # a step already reported the failure and `ensure` has restored and exited
+end

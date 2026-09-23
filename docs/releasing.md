@@ -52,58 +52,23 @@ The list lives in `Rakefile` under `test_release`; keep this section in step wit
 
 #### Separate-DB Upgrade Smoke Test
 
-**Required when the release includes any new migration.**
+**Required when the release includes any new migration.** The automated suite runs
+single-database only; this script covers the other path:
 
-The automated suite runs single-database only. Run this manual check to verify the
-separate-database upgrade path before shipping:
+```bash
+DB=sqlite3 bin/test_separate_database_upgrade
+DB=postgresql bin/test_separate_database_upgrade      # POSTGRES_* as for rake test
+BASELINE=V027 bin/test_separate_database_upgrade      # oldest baseline; default V032
+```
 
-1. Temporarily uncomment `config.connects_to` in
-   `test/dummy/config/initializers/rails_pulse.rb` and point it at a fresh SQLite file:
-   ```ruby
-   config.connects_to = { database: { writing: :rails_pulse, reading: :rails_pulse } }
-   ```
-
-2. Load a historical schema baseline into that database (use the V027 schema to test the
-   widest upgrade path):
-   ```ruby
-   # In a rails console or one-off script in the dummy app:
-   conn = RailsPulse::ApplicationRecord.connection
-   RailsPulse::TestSchemas::V027.call(conn)
-   ```
-
-3. Insert at least one SQL operation row so any data-backfill migration has real rows to
-   process:
-   ```ruby
-   conn.execute("INSERT INTO rails_pulse_routes (method, path, created_at, updated_at) VALUES ('GET', '/test', datetime('now'), datetime('now'))")
-   route_id = conn.select_value("SELECT id FROM rails_pulse_routes LIMIT 1")
-   conn.execute("INSERT INTO rails_pulse_requests (route_id, duration, status, is_error, request_uuid, occurred_at, created_at, updated_at) VALUES (#{route_id}, 10.0, 200, 0, 'test-uuid', datetime('now'), datetime('now'), datetime('now'))")
-   request_id = conn.select_value("SELECT id FROM rails_pulse_requests LIMIT 1")
-   conn.execute("INSERT INTO rails_pulse_operations (request_id, operation_type, label, duration, start_time, occurred_at, created_at, updated_at) VALUES (#{request_id}, 'sql', 'SELECT * FROM users', 5.0, 0.0, datetime('now'), datetime('now'), datetime('now'))")
-   ```
-
-4. Run the upgrade generator **without** the `--database=separate` flag to verify
-   auto-detection:
-   ```bash
-   cd test/dummy && bin/rails generate rails_pulse:upgrade
-   # Expected: "Detected database setup: separate"
-   ```
-
-5. Run the migrations and route data backfill, and verify they complete without rollback:
-   ```bash
-   bin/rails db:migrate:rails_pulse
-   bin/rails rails_pulse:migrate_routes
-   ```
-
-6. Verify the schema is current and the backfill ran correctly:
-   ```bash
-   bin/rails rails_pulse:status
-   # Expected: "Schema: up to date", "Routes: actions backfilled, unrecognised-path index present", exit 0
-   bin/rails runner "puts RailsPulse::Route.first&.controller_action"
-   # Expected: a controller#action string, not blank
-   ```
-
-7. Restore the initializer: comment `connects_to` back out and delete the temporary
-   SQLite file.
+It boots `test/dummy` with `config.connects_to` pointing at the `rails_pulse` database,
+loads the baseline schema into that database, inserts a route, a request and a SQL
+operation so data-backfill migrations have rows to process, then runs what a host would:
+`rails generate rails_pulse:upgrade` without `--database` (asserting it detects
+`separate`), `db:migrate:rails_pulse`, `rails_pulse:migrate_routes`, and
+`rails_pulse:status`, which must exit 0 with the schema up to date and routes backfilled.
+CI runs the same script on SQLite and PostgreSQL; it restores the dummy app's files and
+database afterwards.
 
 #### Verify assets and version-scoped caching
 

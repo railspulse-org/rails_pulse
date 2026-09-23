@@ -179,6 +179,13 @@ RailsPulse.configure do |config|
   # config.connects_to = {
   #   database: { writing: :rails_pulse, reading: :rails_pulse }
   # }
+  #
+  # bin/test_separate_database_upgrade boots this app with the separate
+  # database (the rails_pulse entry in config/database.yml) to exercise the
+  # upgrade path CI cannot reach through the single-database suite.
+  if ENV["RAILS_PULSE_SEPARATE_DATABASE"] == "true"
+    config.connects_to = { database: { writing: :rails_pulse, reading: :rails_pulse } }
+  end
 
   # Option 2: Primary/replica configuration for Rails Pulse
   # config.connects_to = {
