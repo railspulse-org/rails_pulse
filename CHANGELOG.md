@@ -7,52 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.4.1] - 2026-09-23
 ### Fixed
 
 - **The exception-group row cap no longer counts preserved and ignored groups.** Once those exempt groups approached the cap, every cleanup run deleted the oldest deletable groups without ever getting under it. The cap now applies to deletable groups only. (#285)
 
-## [0.4.0.pre.6] - 2026-09-20
-
-## [0.4.0.pre.5] - 2026-09-20
-
-### Changed
-
-- **Services now autoload through Zeitwerk.** `app/services` was hidden from the Rails autoloader and wired up by hand, so services never reloaded in development and every new one had to be registered in the engine. They now load and reload like the rest of `app/`, with the few acronym-prone file names pinned so a host's `inflect.acronym` declarations cannot change the constants the gem expects.
-
-### Removed
-
-- `RailsPulse.warm_metric_cache!` (a no-op) and `RailsPulse.clear_metric_cache!` (used `delete_matched`, which some cache stores do not support). Neither was referenced by the dashboard.
-
-### Fixed
-
-- **Dashboard pages issue fewer queries.** Tag filtering now runs as subqueries inside each card and chart query instead of plucking every route, query and job id first; the route-backfill check is a single indexed query once every route has an action; and the dashboard's storage headline reuses table sizes for five minutes instead of measuring every table on every load.
-- **Lower per-query capture overhead.** The SQL, template and cache subscribers materialised the whole call stack on every event to find the calling app file; they now walk it lazily and stop at the first app frame, which cuts the per-event cost by half to two thirds on a typical controller stack.
-- **Summary aggregation writes each period in a handful of statements.** Every route, query and job summary used to be found and saved individually, so an hour with a few hundred routes and queries cost over 700 SQL statements; rows are now upserted in bulk against the summaries unique index.
-- **Background tracking no longer spawns a thread per request.** A burst of traffic used to fan out into one writer thread per request, each holding one of the app's database connections, so the app's own request threads could wait seconds for a connection. One writer thread per process now drains a bounded queue on a single connection; when the queue is full the newest request is dropped and counted rather than slowing the app. Adds `config.async_queue_size` (default 1000), `RailsPulse::Tracker.stats`, and an exit hook that drains the queue on restart. SQL normalisation and N+1 detection have moved off the request thread as well.
-- **Metric card sparklines are now correct in time zones east of UTC.** Daily buckets were computed from the stored UTC timestamp, so in zones such as London, Melbourne or Tokyo every card showed each day's value a day early with the latest day at zero, and half-hour zones got empty hourly sparklines. Grouping now follows `config.time_zone`, and the gem no longer adds `group_by_date` / `group_by_hour` to the host's `ActiveRecord::Relation`.
-- **Summary aggregation now runs its transaction on the Rails Pulse connection.** On separate-database installs it was opened on the host's primary database, so a failure part-way through a period could leave partial summaries behind.
-- **The dashboard's own HTTP, mailer, job and storage events are no longer recorded.** These subscribers skipped the recursion guard that SQL and template events already honoured.
-- **Storage page reports real table sizes again.** A leftover screenshot fixture replaced every table's live count, size, and age with hard-coded sample numbers in any environment other than `test`.
-- **Standalone dashboard settings forms no longer fail CSRF verification.** The standalone server (`rails_pulse_server`) used the plain `rack-session` gem's `Rack::Session::Cookie`, which knows nothing about Rails' CSRF handling: a token generated for a form is only written into the session by `commit_csrf_token`, a hook that only Rails' own `ActionDispatch::Session::CookieStore` calls. Every generated token was silently discarded, so every submission failed verification. Switched to `ActionDispatch::Cookies` + `ActionDispatch::Session::CookieStore` (seeding the `action_dispatch.*` env Rails normally sets up before reaching the engine).
-- **Standalone dashboard no longer 404s on the time range and global filters pickers.** Those forms submit `POST` with a hidden `_method=patch` field — the standard verb-override trick — which the mounted engine translates via the host app's default middleware stack. The standalone server (`rails_pulse_server`) builds its own minimal Rack stack and never added `Rack::MethodOverride`, so the request reached routing as a plain `POST` and 404'd against the `PATCH`-only route.
-- **Cleanup no longer risks statement timeouts on large tables.** `CleanupService`'s orphan checks for queries, routes, jobs, and exception groups used a `NOT IN` subquery, which some databases (notably PostgreSQL at scale) execute by materializing and rescanning the full subquery result instead of using an index. Switched to a correlated `NOT EXISTS`, which lets the planner use an index per row. A stalled cleanup stage previously blocked all later stages, including hourly summary pruning. (#253)
-- **Idle periods no longer trigger false "summary job not running" warnings.** `SummaryJob` now records a zero-count overall summary for hours/days with no requests, so the dashboard banner, `rails_pulse:status`, the storage-pressure card, and count-based cleanup no longer mistake "no traffic" for "job stopped running." (#250)
-- **Custom date range charts on the Routes, Queries, and Jobs pages no longer render blank when the server's OS timezone differs from `config.time_zone`.** A custom range was rounded to a day/hour boundary in whatever offset the parsed time happened to carry rather than `Time.zone`, so the boundary could land hours away from where summary data is actually bucketed — every chart series came back all-nil while the metric cards and table (queried differently) kept showing data, which was the visible symptom.
-- **Dashboard charts and metric cards now honor a custom date range instead of always showing the trailing days.** The dashboard collapsed the selected range to a day count and had every chart, card, and sparkline re-derive "the last N days ending now" from it, so a range in the past rendered recent data under the selected range's labels, and the day count itself was truncated by integer division. Charts and cards now bucket the exact selected range.
-- **Custom date range no longer 500s the dashboard on Marshal-backed session stores.** The custom range was written with symbol keys but read back expecting string keys, so stores that preserve symbols (e.g. `activerecord-session_store`) broke every page until the session was cleared; both shapes are now accepted and unreadable preferences fall back to the default range. (#252)
-- **`config.logger` is now honored.** `RailsPulse.logger` previously ignored a custom logger set in the initializer and always wrote to the tagged `Rails.logger`; the configured logger now receives all Rails Pulse log output. (#244)
-- **Cached SQL reads no longer captured as operations.** Query-cache hits were going through the same stack-walk and operation-allocation path as real queries, adding measurable overhead on requests with heavy cache reuse. `config.ignored_queries` now also works — it was previously validated but never consulted when collecting SQL operations.
-- **Dashboard status bar badges are now all clickable.** Routes, Queries, and Jobs badges link to their respective pages, matching Exceptions and Storage.
-- **Standalone auth notice logged once per process.** The "standalone dashboard ignores config.authentication_method / config.authorize" notice kept its once-only flag on each controller class, so it repeated for every engine controller a visitor reached. The flag now lives on `RailsPulse::Standalone` and the notice is logged once per process.
-
-## [0.4.0.pre.4] - 2026-09-07
-
-### Fixed
-
-- Dependency and packaging fixes only; no user-facing changes beyond 0.4.0.pre.3.
-
-## [0.4.0.pre.3] - 2026-09-06
+## [0.4.1] - 2026-09-23
 
 ### Added
 
