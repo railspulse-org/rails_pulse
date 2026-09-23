@@ -8,7 +8,7 @@
 
 ![Gem Version](https://img.shields.io/gem/v/rails_pulse)
 ![Rails Version](https://img.shields.io/badge/Rails-7.2%2B-blue)
-![Ruby Version](https://img.shields.io/badge/Ruby-3.1%2B-red)
+![Ruby Version](https://img.shields.io/badge/Ruby-3.2%2B-red)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 Rails Pulse is a Rails engine. It hooks into the instrumentation Rails already emits, writes what it sees to a handful of tables, and mounts a dashboard that shows you where the time went. Install the gem, run one migration, schedule two jobs, and you have monitoring that works the same on SQLite, PostgreSQL and MySQL.
@@ -89,7 +89,7 @@ production:
 
 Open `http://localhost:3000/rails_pulse`. That's the whole setup.
 
-Requirements: Ruby 3.1+, Rails 7.2+ (tested on 7.2, 8.0 and 8.1), SQLite, PostgreSQL or MySQL.
+Requirements: Ruby 3.2+, Rails 7.2+ (tested on 7.2, 8.0 and 8.1), SQLite, PostgreSQL or MySQL.
 
 Full install guide, including a separate database and plain cron: [railspulse.com/documentation/installation](https://railspulse.com/documentation/installation)
 

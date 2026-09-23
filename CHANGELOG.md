@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **The exception-group row cap no longer counts preserved and ignored groups.** Once those exempt groups approached the cap, every cleanup run deleted the oldest deletable groups without ever getting under it. The cap now applies to deletable groups only. (#285)
+### Changed
+
+- **Requires Ruby 3.2+ and Rails 7.2+.** The gemspec advertised Ruby 3.1 and Rails 7.1 but CI never ran them; the floors now match what is tested, and the untested Rails 7.1 and Ruby 3.1 code paths are gone. (#270)
 
 ## [0.4.1] - 2026-09-23
 

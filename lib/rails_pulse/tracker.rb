@@ -344,14 +344,11 @@ module RailsPulse
       # connection to every thread that asks for one. A background writer would
       # then interleave its statements with the test's on a single socket, which
       # PostgreSQL reports as "message type 0x5a arrived from server while idle".
-      # Rails 7.2+ records the pin in the pool's @pinned_connection; 7.1 sets a
-      # @lock_thread on the pool instead. Neither is public API, so read both
-      # defensively and treat any failure as "not shared".
+      # Rails records the pin in the pool's @pinned_connection. That is not
+      # public API, so read it defensively and treat any failure as "not shared".
       def connection_shared_across_threads?
         pool = RailsPulse::ApplicationRecord.connection_pool
-        return true if pool.instance_variable_get(:@pinned_connection)
-
-        pool.instance_variable_get(:@lock_thread) ? true : false
+        pool.instance_variable_get(:@pinned_connection) ? true : false
       rescue StandardError
         false
       end

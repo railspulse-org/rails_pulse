@@ -10,9 +10,10 @@ Gem::Specification.new do |spec|
   spec.description = "Self-hosted performance monitoring engine for Rails apps. Tracks slow requests, N+1 queries, and SQL performance. All data stays in your own database — no third-party cloud required."
   spec.license     = "MIT"
 
-  # Minimum Ruby version. Floor is 3.2.0: the writer's heartbeat loop uses
-  # Queue#pop(timeout:), added in Ruby 3.2.
-  # NOTE: CI only exercises 3.2 and 3.4 — see the pre-release report.
+  # The floors are the oldest versions CI runs (.github/workflows/test.yml and
+  # Appraisals): every version the gemspec allows has a test cell. Ruby 3.2 is
+  # where the writer's heartbeat loop's Queue#pop(timeout:) and the subscribers'
+  # Thread.each_caller_location both arrived.
   spec.required_ruby_version = ">= 3.2.0"
 
   # Allow pushing to RubyGems.org
@@ -63,7 +64,7 @@ Gem::Specification.new do |spec|
     Changelog: https://github.com/railspulse/rails_pulse/blob/main/CHANGELOG.md
   MSG
 
-  spec.add_dependency "rails", ">= 7.1.0", "< 9.0.0"
+  spec.add_dependency "rails", ">= 7.2.0", "< 9.0.0"
   spec.add_dependency "request_store", "~> 1.5"
   spec.add_dependency "ransack", ">= 4.0", "< 6"
 

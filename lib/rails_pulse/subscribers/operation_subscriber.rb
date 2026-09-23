@@ -1,8 +1,6 @@
 module RailsPulse
   module Subscribers
     class OperationSubscriber
-      FRAME_SLICE = 40
-
       class << self
         def subscribe!
           subscribe_sql_queries!
@@ -48,24 +46,12 @@ module RailsPulse
         # not materialise the whole stack: a bare caller_locations on a
         # typical 150-frame controller action costs ~30 µs per call, which is
         # ~15 ms on a 500-query request before the response goes out.
-        # Thread.each_caller_location (Ruby 3.2+) yields frames lazily and
-        # stops at the first match; older Rubies walk the stack in slices.
+        # Thread.each_caller_location yields frames lazily and stops at the
+        # first match.
         def find_app_frame
-          if Thread.respond_to?(:each_caller_location)
-            Thread.each_caller_location do |loc|
-              path = loc.path
-              return path if path&.start_with?(app_path)
-            end
-            return nil
-          end
-
-          offset = 2
-          while (frames = caller_locations(offset, FRAME_SLICE)) && !frames.empty?
-            frames.each do |loc|
-              path = loc.path
-              return path if path&.start_with?(app_path)
-            end
-            offset += FRAME_SLICE
+          Thread.each_caller_location do |loc|
+            path = loc.path
+            return path if path&.start_with?(app_path)
           end
           nil
         end
