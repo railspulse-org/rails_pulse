@@ -53,6 +53,12 @@
       flex: 0 0 100%;
   }
 
+  /* A row of exactly three items wraps the third one alone onto its own
+     line at 50% width, leaving half the row empty. Give it the full row. */
+  .row > *:nth-child(3):last-child {
+      flex-basis: 100%;
+  }
+
   /* Single column for very small screens */
   @media (max-width: 480px) {
     .row > * {
