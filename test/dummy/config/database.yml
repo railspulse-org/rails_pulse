@@ -66,32 +66,44 @@ development:
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
 # Do not set this db to the same as development or production.
+<%
+  test_database = case adapter
+  when 'postgresql'       then ENV.fetch('POSTGRES_TEST_DATABASE', 'rails_pulse_test')
+  when 'mysql', 'mysql2'  then ENV.fetch('MYSQL_TEST_DATABASE', 'rails_pulse_test')
+  else 'storage/test.sqlite3'
+  end
+  test_rails_pulse_database = case adapter
+  when 'postgresql'       then ENV.fetch('POSTGRES_TEST_RAILS_PULSE_DATABASE', 'rails_pulse_test_rails_pulse')
+  when 'mysql', 'mysql2'  then ENV.fetch('MYSQL_TEST_RAILS_PULSE_DATABASE', 'rails_pulse_test_rails_pulse')
+  else 'storage/test_rails_pulse.sqlite3'
+  end
+%>
+<% if ENV['RAILS_PULSE_SEPARATE_DATABASE'] == 'true' %>
+# Two real databases, as a host with config.connects_to has. Used by
+# bin/test_separate_database_upgrade; the dummy initializer sets connects_to
+# from the same variable.
+test:
+  primary:
+    <<: *default
+    database: <%= test_database %>
+  rails_pulse:
+    <<: *default
+    database: <%= test_rails_pulse_database %>
+    migrations_paths: db/rails_pulse_migrate
+    schema_dump: false
+<% else %>
+# One database. The nested rails_pulse entry is not a second database here (a
+# config with a `database` key is a single one); it is what the upgrade
+# generator's auto-detection and the db:prepare hook look for.
 test:
   <<: *default
-  <% if adapter == 'sqlite3' %>
-  database: storage/test.sqlite3
+  database: <%= test_database %>
   rails_pulse:
     <<: *default
-    database: storage/test_rails_pulse.sqlite3
+    database: <%= test_rails_pulse_database %>
     migrations_paths: db/rails_pulse_migrate
     schema_dump: false
-  <% elsif adapter == 'postgresql' %>
-  database: <%= ENV.fetch('POSTGRES_TEST_DATABASE', 'rails_pulse_test') %>
-  rails_pulse:
-    <<: *default
-    database: <%= ENV.fetch('POSTGRES_TEST_RAILS_PULSE_DATABASE', 'rails_pulse_test_rails_pulse') %>
-    migrations_paths: db/rails_pulse_migrate
-    schema_dump: false
-  <% elsif adapter == 'mysql' || adapter == 'mysql2' %>
-  database: <%= ENV.fetch('MYSQL_TEST_DATABASE', 'rails_pulse_test') %>
-  rails_pulse:
-    <<: *default
-    database: <%= ENV.fetch('MYSQL_TEST_RAILS_PULSE_DATABASE', 'rails_pulse_test_rails_pulse') %>
-    migrations_paths: db/rails_pulse_migrate
-    schema_dump: false
-  <% else %>
-  database: rails_pulse_test
-  <% end %>
+<% end %>
 
 production:
   <<: *default

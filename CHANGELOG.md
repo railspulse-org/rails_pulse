@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- CI now exercises the separate-database upgrade path (`bin/test_separate_database_upgrade`, SQLite and PostgreSQL), and the migration regression suite gains a 0.3.2 baseline. (#284)
+
 ### Fixed
 
 - **The exception-group row cap no longer counts preserved and ignored groups.** Once those exempt groups approached the cap, every cleanup run deleted the oldest deletable groups without ever getting under it. The cap now applies to deletable groups only. (#285)
