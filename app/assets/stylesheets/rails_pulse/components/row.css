@@ -23,7 +23,11 @@
   flex: 1;
 }
 
-/* Responsive layout for screens smaller than 768px */
+/* Responsive layout for screens smaller than 768px. Previously this tried a
+   50/50 two-up layout, but its flex-basis math (calc(50% - 0.25rem) per item)
+   didn't account for the row's actual 1rem gap, so two items never fit on
+   one line — the second always wrapped alone, stuck at 50% width with the
+   other half empty. Simpler and correct: single column below 768px. */
 @media (max-width: 768px) {
   .row {
       display: flex;
@@ -34,50 +38,28 @@
   }
 
   .row > * {
-      flex: 0 0 calc(50% - 0.25rem);
+      flex: 0 0 100%;
       min-width: 0;
       height: auto;
   }
 
   .row > .grid-item {
       height: auto;
+      min-height: auto;
   }
 
   .row > .grid-item > * {
       flex: none;
   }
 
-  /* Tables and chart panels should stack in single column on tablet */
-  .row:has(.table-container) > *,
-  .row:has(.chart-container) > * {
-      flex: 0 0 100%;
+  /* Make metric cards more compact on mobile */
+  .row > .grid-item .card {
+      padding: var(--size-3);
   }
 
-  /* A row of exactly three items wraps the third one alone onto its own
-     line at 50% width, leaving half the row empty. Give it the full row. */
-  .row > *:nth-child(3):last-child {
-      flex-basis: 100%;
-  }
-
-  /* Single column for very small screens */
-  @media (max-width: 480px) {
-    .row > * {
-        flex: 0 0 100%;
-    }
-
-    .row > .grid-item {
-        min-height: auto;
-    }
-
-    /* Make metric cards more compact on mobile */
-    .row > .grid-item .card {
-        padding: var(--size-3);
-    }
-
-    /* Make charts smaller on mobile */
-    .row > .grid-item .chart-container {
-        height: 60px !important;
-        max-height: 60px;
-    }
+  /* Make charts smaller on mobile */
+  .row > .grid-item .chart-container {
+      height: 60px !important;
+      max-height: 60px;
   }
 }

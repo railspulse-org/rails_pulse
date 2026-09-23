@@ -137,34 +137,24 @@
       <dd>
         <% if tracking[:last_sampled_at] %>
           <%= human_readable_occurred_at(tracking[:last_sampled_at]) %>
-          <span class="text-subtle">(<%= time_ago_in_words(tracking[:last_sampled_at]) %> ago)</span>
+          <span class="text-subtle">(<%= time_ago_in_words(tracking[:last_sampled_at]) %>)</span>
         <% else %>
           Never — heartbeats start when a process with <code>async</code> on tracks its first request
         <% end %>
       </dd>
+      <% tracking[:processes].each do |process| %>
+        <dt><code><%= process[:label] %></code></dt>
+        <dd>
+          <%= number_with_delimiter(process[:queue_depth]) %> / <%= number_with_delimiter(process[:queue_size]) %> queued
+          <% if process[:dropped_last_hour].positive? %>
+            <span class="badge storage-table__percent storage-table__percent--critical"><%= number_with_delimiter(process[:dropped_last_hour]) %> dropped</span>
+          <% else %>
+            <span class="badge storage-table__percent storage-table__percent--uncapped">0 dropped</span>
+          <% end %>
+          <br>
+          <span class="text-subtle">last heartbeat <%= time_ago_in_words(process[:last_seen_at]) %></span>
+        </dd>
+      <% end %>
     </dl>
-    <% if tracking[:processes].any? %>
-      <div class="storage-tables mbs-4">
-        <% tracking[:processes].each do |process| %>
-          <div class="storage-table">
-            <div class="storage-table__header">
-              <div>
-                <h3 class="font-semibold text-sm"><code><%= process[:label] %></code></h3>
-                <p class="text-xs text-subtle">last heartbeat <%= time_ago_in_words(process[:last_seen_at]) %> ago</p>
-              </div>
-              <div class="storage-table__counts">
-                <span class="font-semibold text-sm"><%= number_with_delimiter(process[:queue_depth]) %></span>
-                <span class="text-xs text-subtle"> / <%= number_with_delimiter(process[:queue_size]) %> queued</span>
-                <% if process[:dropped_last_hour].positive? %>
-                  <span class="badge storage-table__percent storage-table__percent--critical"><%= number_with_delimiter(process[:dropped_last_hour]) %> dropped</span>
-                <% else %>
-                  <span class="badge storage-table__percent storage-table__percent--uncapped">0 dropped</span>
-                <% end %>
-              </div>
-            </div>
-          </div>
-        <% end %>
-      </div>
-    <% end %>
   <% end %>
 </div>

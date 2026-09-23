@@ -1,8 +1,14 @@
+/* A container query on .descriptive-list itself would never fire: @container
+   rules only match descendants of the container, never the container element.
+   The parent has to hold the containment context instead. */
+:has(> .descriptive-list) {
+  container-type: inline-size;
+}
+
 .descriptive-list {
   display: grid;
   grid-template-columns: 200px 1fr;
   gap: 0.5rem;
-  container-type: inline-size;
 }
 
 .descriptive-list dt, .descriptive-list dd {
