@@ -53,6 +53,8 @@ Naming conventions:
 - Tables: `rails_pulse_<plural>` (e.g., `rails_pulse_jobs`)
 - All models inherit from `RailsPulse::ApplicationRecord`
 
+Code comments describe the current code, not its history. Explain a non-obvious constraint or the reason behind a decision — never what the code used to do or what it replaced (`# thread-local, like the RequestStore it replaces` is meaningless once RequestStore is gone from the codebase). That context belongs in the commit message or PR description, which are historical records; a comment lives in the file and should read correctly to someone with no git history.
+
 ## Architecture Gotchas
 
 **`app/` is Zeitwerk-managed; `lib/` is not.** Services, models, controllers and jobs under `app/` autoload and reload by file path like any Rails app. Code under `lib/rails_pulse/` (installers, stats, task runners, middleware, subscribers) is loaded with explicit `require` / `autoload` entries in `lib/rails_pulse/engine.rb`; a new file there needs an entry.
@@ -93,6 +95,10 @@ CSS is plain CSS (not Sass). JS uses Stimulus controllers. Pre-built files live 
 They are **not** registered with Sprockets (`config.assets.precompile`) — re-minifying the ~2 MB bundle OOMs small hosts. After `assets:precompile`, `rails_pulse:install_assets` copies them into the host's `public/assets` with a SHA256 digest so `config.asset_host` and CDN-only CSP work. Development and hosts with no pipeline fall back to `RailsPulse::Middleware::AssetServer` at `/rails-pulse-assets/<gem-version>/...`. Layouts must use `tag.link` / `tag.script` (not `stylesheet_link_tag`) so middleware paths are not rewritten onto the CDN.
 
 To rebuild assets: `npm run build` (or `npm run build:dev` for source maps).
+
+## Pull Requests
+
+Use `.github/pull_request_template.md`'s structure when opening a PR (`gh pr create --body`). The `## Summary` section is plain English for a reader with no context on the code — what problem it solves, what changed conceptually, why it's worth doing, what stays the same, how it was verified — no class/method names or jargon. Technical detail (what files changed, specific design decisions, edge cases handled) belongs in the sections after it, not the Summary.
 
 ## Changelog Entries
 
