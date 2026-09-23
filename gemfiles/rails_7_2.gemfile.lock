@@ -1,9 +1,9 @@
 PATH
   remote: ..
   specs:
-    rails_pulse (0.4.0)
+    rails_pulse (0.4.1)
       rails (>= 7.1.0, < 9.0.0)
-      ransack (~> 4.0)
+      ransack (>= 4.0, < 6)
       request_store (~> 1.5)
 
 GEM
