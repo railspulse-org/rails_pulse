@@ -1,6 +1,13 @@
 ## Summary
 
-<!-- Provide a brief description of what this PR does -->
+<!--
+Explain this PR in plain English, for a reader with no context on the code:
+- What problem does it solve, in everyday terms (no jargon, no class/method names)?
+- What changed, at a conceptual level?
+- Why is it worth doing?
+- What should NOT change for anyone using Rails Pulse — what stays the same?
+- How was it verified (tests, manual check, etc.)?
+-->
 
 ## Type of Change
 
