@@ -65,7 +65,6 @@ Gem::Specification.new do |spec|
   MSG
 
   spec.add_dependency "rails", ">= 7.2.0", "< 9.0.0"
-  spec.add_dependency "request_store", "~> 1.5"
   spec.add_dependency "ransack", ">= 4.0", "< 6"
 
   spec.add_development_dependency "sqlite3", ">= 1.4"

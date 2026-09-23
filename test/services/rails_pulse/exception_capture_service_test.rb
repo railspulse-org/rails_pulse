@@ -7,12 +7,12 @@ module RailsPulse
     def setup
       ENV["TEST_TYPE"] = "functional"
       super
-      RequestStore.store[:skip_recording_rails_pulse_activity] = false
+      RailsPulse::Current.skip_recording_rails_pulse_activity = false
     end
 
     def teardown
       ExceptionCaptureService.reset_deploy_sha_cache!
-      RequestStore.clear!
+      RailsPulse::Current.reset
       super
     end
 
@@ -122,7 +122,7 @@ module RailsPulse
     # Edge cases
 
     test "is a no-op when skip_recording flag is set" do
-      RequestStore.store[:skip_recording_rails_pulse_activity] = true
+      RailsPulse::Current.skip_recording_rails_pulse_activity = true
       exception = make_exception(RuntimeError, "oops")
 
       assert_no_difference -> { ExceptionGroup.count } do

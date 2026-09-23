@@ -6,9 +6,9 @@ class OperationSubscriberTest < ActiveSupport::TestCase
     @request = rails_pulse_requests(:users_request_1)
 
     # Setup request context for operation tracking
-    RequestStore.store[:rails_pulse_request_id] = @request.id
-    RequestStore.store[:rails_pulse_job_run_id] = nil
-    RequestStore.store[:rails_pulse_operations] = []
+    RailsPulse::Current.rails_pulse_request_id = @request.id
+    RailsPulse::Current.rails_pulse_job_run_id = nil
+    RailsPulse::Current.rails_pulse_operations = []
 
     @original_capture_actual_sql = RailsPulse.configuration.capture_actual_sql
     RailsPulse.configuration.capture_actual_sql = true
@@ -18,7 +18,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
   def teardown
     RailsPulse.configuration.capture_actual_sql = @original_capture_actual_sql
-    RequestStore.clear!
+    RailsPulse::Current.reset
     super
   end
 
@@ -36,7 +36,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 1, operations.size
 
@@ -60,7 +60,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       publish_event("sql.active_record", payload)
     end
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 0, operations.size, "Schema queries should be filtered out"
   end
@@ -73,7 +73,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 0, operations.size, "RailsPulse queries should be filtered out"
   end
@@ -87,7 +87,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 0, operations.size, "Cached queries should be filtered out"
   end
@@ -101,7 +101,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 1, operations.size
   end
@@ -114,7 +114,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 0, operations.size, "Queries matching an ignored_queries string should be filtered out"
   ensure
@@ -129,7 +129,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 0, operations.size, "Queries matching an ignored_queries regexp should be filtered out"
   ensure
@@ -144,7 +144,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 1, operations.size
   ensure
@@ -158,7 +158,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("render_template.action_view", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 1, operations.size
 
@@ -177,7 +177,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("process_action.action_controller", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 1, operations.size
 
@@ -210,7 +210,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
       :controller
     )
 
-    operation = RequestStore.store[:rails_pulse_operations].first
+    operation = RailsPulse::Current.rails_pulse_operations.first
 
     assert_not_nil operation
     assert_operator operation[:duration], :>=, 0,
@@ -225,7 +225,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("render_partial.action_view", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 1, operations.size
 
@@ -242,7 +242,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("cache_read.active_support", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 1, operations.size
 
@@ -261,7 +261,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
     start_time = Time.current
     publish_event("sql.active_record", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 1, operations.size
 
@@ -278,8 +278,8 @@ class OperationSubscriberTest < ActiveSupport::TestCase
   end
 
   test "should not capture operations without request context" do
-    RequestStore.store[:rails_pulse_request_id] = nil
-    RequestStore.store[:rails_pulse_job_run_id] = nil
+    RailsPulse::Current.rails_pulse_request_id = nil
+    RailsPulse::Current.rails_pulse_job_run_id = nil
 
     payload = {
       sql: "SELECT * FROM users",
@@ -288,7 +288,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 0, operations.size
   end
@@ -296,15 +296,15 @@ class OperationSubscriberTest < ActiveSupport::TestCase
   test "should capture operations for background job context" do
     job_run = rails_pulse_job_runs(:mailer_run_success)
 
-    RequestStore.store[:rails_pulse_request_id] = nil
-    RequestStore.store[:rails_pulse_job_run_id] = job_run.id
-    RequestStore.store[:rails_pulse_operations] = []
+    RailsPulse::Current.rails_pulse_request_id = nil
+    RailsPulse::Current.rails_pulse_job_run_id = job_run.id
+    RailsPulse::Current.rails_pulse_operations = []
 
     payload = { sql: "SELECT 1", name: "Job SQL" }
 
     publish_event("sql.active_record", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 1, operations.size
     assert_nil operations.first[:request_id]
@@ -319,7 +319,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_not_empty operations, "Expected SQL operation to be captured"
     assert_equal "SELECT * FROM users", operations.first[:actual_sql]
@@ -334,7 +334,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("request.net_http", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 1, operations.size
 
@@ -345,13 +345,13 @@ class OperationSubscriberTest < ActiveSupport::TestCase
   end
 
   test "does not record HTTP operations while Rails Pulse activity is suppressed" do
-    RequestStore.store[:skip_recording_rails_pulse_activity] = true
+    RailsPulse::Current.skip_recording_rails_pulse_activity = true
 
     ActiveSupport::Notifications.instrument("request.net_http", method: "GET", uri: "https://api.example.com/users") { }
 
-    assert_empty RequestStore.store[:rails_pulse_operations]
+    assert_empty RailsPulse::Current.rails_pulse_operations
   ensure
-    RequestStore.store[:skip_recording_rails_pulse_activity] = false
+    RailsPulse::Current.skip_recording_rails_pulse_activity = false
   end
 
   test "should handle Active Job operations" do
@@ -367,7 +367,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("perform.active_job", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 1, operations.size
 
@@ -386,7 +386,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
     end
 
     # Should have captured the operation even with nil SQL
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
 
     assert_equal 1, operations.size
     operation = operations.first
@@ -404,7 +404,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
     start_time = Time.current
     publish_event("sql.active_record", payload)
 
-    operations = RequestStore.store[:rails_pulse_operations]
+    operations = RailsPulse::Current.rails_pulse_operations
     operation = operations.first
 
     assert_kind_of Float, operation[:start_time]
@@ -419,7 +419,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operation = RequestStore.store[:rails_pulse_operations].first
+    operation = RailsPulse::Current.rails_pulse_operations.first
 
     assert_equal 42, operation[:row_count]
   end
@@ -429,7 +429,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operation = RequestStore.store[:rails_pulse_operations].first
+    operation = RailsPulse::Current.rails_pulse_operations.first
 
     assert_nil operation[:row_count]
   end
@@ -439,7 +439,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operation = RequestStore.store[:rails_pulse_operations].first
+    operation = RailsPulse::Current.rails_pulse_operations.first
 
     assert_equal 0, operation[:row_count]
   end
@@ -449,7 +449,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("render_template.action_view", payload)
 
-    operation = RequestStore.store[:rails_pulse_operations].first
+    operation = RailsPulse::Current.rails_pulse_operations.first
 
     assert_equal "template", operation[:operation_type]
     assert_nil operation[:row_count]
@@ -462,7 +462,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("cache_read.active_support", payload)
 
-    operation = RequestStore.store[:rails_pulse_operations].first
+    operation = RailsPulse::Current.rails_pulse_operations.first
 
     assert_equal "cache_read", operation[:operation_type]
     assert operation[:cache_hit]
@@ -473,7 +473,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("cache_read.active_support", payload)
 
-    operation = RequestStore.store[:rails_pulse_operations].first
+    operation = RailsPulse::Current.rails_pulse_operations.first
 
     refute operation[:cache_hit]
   end
@@ -483,7 +483,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("cache_read.active_support", payload)
 
-    operation = RequestStore.store[:rails_pulse_operations].first
+    operation = RailsPulse::Current.rails_pulse_operations.first
 
     assert_nil operation[:cache_hit]
   end
@@ -493,7 +493,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("cache_write.active_support", payload)
 
-    operation = RequestStore.store[:rails_pulse_operations].first
+    operation = RailsPulse::Current.rails_pulse_operations.first
 
     assert_equal "cache_write", operation[:operation_type]
     assert_nil operation[:cache_hit]
@@ -506,7 +506,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operation = RequestStore.store[:rails_pulse_operations].first
+    operation = RailsPulse::Current.rails_pulse_operations.first
 
     assert_equal 5, operation[:row_count]
     assert_equal "sql", operation[:operation_type]
@@ -521,7 +521,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operation = RequestStore.store[:rails_pulse_operations].first
+    operation = RailsPulse::Current.rails_pulse_operations.first
 
     assert_equal "sql", operation[:operation_type]
     assert_equal "SELECT * FROM users", operation[:actual_sql]
@@ -539,7 +539,7 @@ class OperationSubscriberTest < ActiveSupport::TestCase
 
     publish_event("sql.active_record", payload)
 
-    operation = RequestStore.store[:rails_pulse_operations].first
+    operation = RailsPulse::Current.rails_pulse_operations.first
 
     assert_equal "sql", operation[:operation_type]
     # actual_sql is always captured in memory (needed for query normalization

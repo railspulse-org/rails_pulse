@@ -4,12 +4,12 @@ module RailsPulse
   module Subscribers
     class ExceptionSubscriberTest < ActiveSupport::TestCase
       def setup
-        RequestStore.clear!
-        RequestStore.store[:skip_recording_rails_pulse_activity] = false
+        RailsPulse::Current.reset
+        RailsPulse::Current.skip_recording_rails_pulse_activity = false
       end
 
       def teardown
-        RequestStore.clear!
+        RailsPulse::Current.reset
         ExceptionCaptureService.reset_deploy_sha_cache!
       end
 
@@ -34,7 +34,7 @@ module RailsPulse
 
       test "process skips an exception already captured by JobRunCollector" do
         exception = boom_exception
-        RequestStore.store[:rails_pulse_captured_exception] = exception
+        RailsPulse::Current.rails_pulse_captured_exception = exception
 
         assert_no_difference -> { ExceptionOccurrence.count } do
           ExceptionSubscriber.new(notification_event(exception)).process

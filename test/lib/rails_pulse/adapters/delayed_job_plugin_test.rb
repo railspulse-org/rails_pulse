@@ -37,7 +37,7 @@ module RailsPulse
 
       def setup
         super
-        RequestStore.clear!
+        RailsPulse::Current.reset
         @fake_worker = FakeWorker.new
         @fake_job    = FakeDelayedJobData.new
         @original_enabled    = RailsPulse.configuration.enabled
@@ -47,7 +47,7 @@ module RailsPulse
       end
 
       def teardown
-        RequestStore.clear!
+        RailsPulse::Current.reset
         RailsPulse.configuration.enabled    = @original_enabled
         RailsPulse.configuration.track_jobs = @original_track_jobs
         super
