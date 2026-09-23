@@ -126,7 +126,7 @@ Upgrading from 0.3.x to 0.4? **Back up first**, run `rails rails_pulse:migrate_r
 
 ## Contributing
 
-Bug reports and pull requests are welcome on [GitHub](https://github.com/railspulse/rails_pulse). `docs/` explains how the pieces fit and why they are built the way they are.
+Bug reports and pull requests are welcome on [GitHub](https://github.com/railspulse/rails_pulse). `docs/` explains how the pieces fit and why they are built the way they are. Building on top of Rails Pulse (the Pro gem, a plugin, scripting the CLI)? [`docs/api.md`](docs/api.md) states what's public and stable across minor releases.
 
 ```bash
 git config core.hooksPath .githooks   # once, after cloning
