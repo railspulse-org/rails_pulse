@@ -20,5 +20,10 @@ class StoragePageTest < ApplicationSystemTestCase
     assert_text "TABLES"
     assert_text "CLEANUP"
     assert_text "DATABASE"
+
+    # Tracking writers panel: live background writers from heartbeat fixtures
+    assert_text "TRACKING WRITERS"
+    assert_text "Live writers"
+    assert_text "web-1:101"
   end
 end
