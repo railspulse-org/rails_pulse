@@ -21,13 +21,24 @@ module RailsPulse
     def perform
       RailsPulse.logger.info "Starting #{period_type} summary for #{start_time}"
 
+      # Rows are computed (queried, grouped, sorted, percentiles taken)
+      # before the transaction opens. A busy period's Ruby-side aggregation
+      # can take seconds; doing it with the transaction already open leaves
+      # it idle from the database's perspective and vulnerable to a
+      # configured idle_in_transaction_session_timeout on installs that set
+      # one.
+      request_and_route_rows = request_summary_rows + route_summary_rows # Overall and per-route
+      query_rows = query_summary_rows                                    # Per-query
+      job_rows = job_summary_rows                                        # Per-job
+      exception_rows = exception_summary_rows                            # Per-exception-group frequency
+
       # The engine's own connection: on a separate-database install
       # ActiveRecord::Base would open the transaction on the host's primary.
       RailsPulse::ApplicationRecord.transaction do
-        upsert_summaries(request_summary_rows + route_summary_rows) # Overall and per-route
-        upsert_summaries(query_summary_rows)                        # Per-query
-        upsert_summaries(job_summary_rows)                          # Per-job
-        aggregate_exceptions                                        # Per-exception-group frequency
+        upsert_summaries(request_and_route_rows)
+        upsert_summaries(query_rows)
+        upsert_summaries(job_rows)
+        upsert_exception_summaries(exception_rows)
       end
 
       RailsPulse.logger.info "Completed #{period_type} summary"
@@ -167,27 +178,35 @@ module RailsPulse
     # something happened last week — the history is gone as soon as cleanup
     # runs. Only `count` is meaningful here; the duration columns stay null
     # because an exception has no duration.
-    def aggregate_exceptions
-      return unless RailsPulse.configuration.track_exceptions
-      return unless ExceptionOccurrence.table_exists?
+    #
+    # Exceptions are the newest summarizable and the only optional one, so
+    # both the query here and the upsert in upsert_exception_summaries are
+    # individually rescued: a failure in either must not lose the route,
+    # query and job summaries computed or written alongside it.
+    def exception_summary_rows
+      return [] unless RailsPulse.configuration.track_exceptions
+      return [] unless ExceptionOccurrence.table_exists?
 
       counts = ExceptionOccurrence
         .where(occurred_at: start_time...end_time)
         .group(:exception_group_id)
         .count
 
-      return if counts.empty?
+      return [] if counts.empty?
 
       rows = counts.map { |group_id, occurrences| summary_row("RailsPulse::ExceptionGroup", group_id).merge(count: occurrences) }
       # A rollup across every group, so the dashboard can chart total exception
       # volume without loading one series per group.
       rows << summary_row("RailsPulse::ExceptionGroup", 0).merge(count: counts.values.sum)
+      rows
+    rescue ActiveRecord::ActiveRecordError => e
+      RailsPulse.logger.error "Exception summary skipped: #{e.message}"
+      []
+    end
 
+    def upsert_exception_summaries(rows)
       upsert_summaries(rows)
     rescue ActiveRecord::ActiveRecordError => e
-      # Exceptions are the newest summarizable and the only optional one. A
-      # failure here must not lose the route, query and job summaries that were
-      # written in the same transaction.
       RailsPulse.logger.error "Exception summary skipped: #{e.message}"
     end
   end
