@@ -55,7 +55,7 @@ module RailsPulse
 
     def capture
       return unless RailsPulse.configuration.track_exceptions
-      return if RequestStore.store[:skip_recording_rails_pulse_activity]
+      return if RailsPulse::Current.skip_recording_rails_pulse_activity
 
       frames      = parse_backtrace(@exception.backtrace || [])
       location    = fingerprint_location(frames)

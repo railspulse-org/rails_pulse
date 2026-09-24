@@ -2,14 +2,8 @@ module RailsPulse
   module Jobs
     module Cards
       class P95Duration < RailsPulse::Cards::Base
-        def initialize(job: nil, disabled_tags: [], show_non_tagged: true, period: 14, period_type: "day", start_time: nil, end_time: nil)
-          @job = job
-          @disabled_tags = disabled_tags
-          @show_non_tagged = show_non_tagged
-          @period = period
-          @period_type = period_type
-          @start_time = start_time
-          @end_time = end_time
+        def initialize(job: nil, period: 14, **kwargs)
+          super(subject: job, period: period, **kwargs)
         end
 
         def to_metric_card
@@ -20,7 +14,7 @@ module RailsPulse
               period_type: @period_type,
               period_start: range_start..now
             )
-          base_query = base_query.where(summarizable_id: @job.id) if @job
+          base_query = base_query.where(summarizable_id: @subject.id) if @subject
 
           metrics = base_query.select(
             "SUM(rails_pulse_summaries.p95_duration * rails_pulse_summaries.count) AS total_weighted_p95",
@@ -42,7 +36,7 @@ module RailsPulse
           current_p95 = weighted_average(current_weighted_p95, current_runs)
           previous_p95 = weighted_average(previous_weighted_p95, previous_runs)
 
-          baseline = baseline_trend_for(@job, metric: :p95)
+          baseline = baseline_trend_for(@subject, metric: :p95)
 
           if baseline
             trend_icon, trend_amount, trend_caption = baseline

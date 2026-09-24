@@ -60,9 +60,9 @@ class RailsPulse::ExceptionsControllerTest < ActionDispatch::IntegrationTest
   test "index assigns a time range" do
     get rails_pulse.exceptions_path
 
-    assert_not_nil assigns(:start_time)
-    assert_not_nil assigns(:end_time)
-    assert_includes %w[hour day], assigns(:period_type)
+    assert_not_nil assigns(:time_range)&.window&.start_time
+    assert_not_nil assigns(:time_range)&.window&.end_time
+    assert_includes %w[hour day], assigns(:time_range)&.period_type
   end
 
   test "index renders without a frequency chart when nothing is summarized" do

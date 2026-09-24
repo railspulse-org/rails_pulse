@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Dashboard health bar badges omit zero counts.** "26 healthy · 0 slow · 0 critical" now reads "26 healthy"; the Storage badge is shown only under warning or critical pressure.
+- **Dropped the `request_store` runtime dependency.** Per-request tracking state now goes through `RailsPulse::Current`, built on Rails' own `ActiveSupport::CurrentAttributes`. No configuration or behavior change; a host that read `RequestStore.store[:rails_pulse_request_id]` directly (undocumented, but reachable) needs to switch to `RailsPulse::Current.rails_pulse_request_id`. (#277)
 
 ### Fixed
 

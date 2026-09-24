@@ -78,7 +78,7 @@ module RailsPulse
           create_rollup(start_time, count: 2, period_type: "hour")
           create_rollup(start_time + 2.hours, count: 5, period_type: "hour")
 
-          points = chart(start_time: start_time, end_time: @now, period_type: "hour")
+          points = chart(window: RailsPulse::TimeWindow.new(start_time, @now), period_type: "hour")
             .to_chart_data[:series].first[:data]
 
           assert_equal [ 2, 0, 5, 0 ], points.map(&:last)
@@ -120,9 +120,9 @@ module RailsPulse
 
         private
 
-        def chart(start_time: @start_time, end_time: @end_time, period_type: "day")
+        def chart(window: RailsPulse::TimeWindow.new(@start_time, @end_time), period_type: "day")
           RailsPulse::Exceptions::Charts::OccurrenceVolume.new(
-            start_time: start_time, end_time: end_time, period_type: period_type
+            window: window, period_type: period_type
           )
         end
 

@@ -29,8 +29,8 @@ module RailsPulse
           seed_daily_route_summaries(first_day, counts: [ 100, 101, 102, 103, 104, 105, 106 ])
 
           card = RailsPulse::Routes::Cards::RequestCountTotals.new(
-            route: nil, period: 7, period_type: "day",
-            start_time: first_day.to_i, end_time: (first_day + 6.days).end_of_day.to_i
+            period: 7, period_type: "day",
+            window: RailsPulse::TimeWindow.new(first_day.to_i, (first_day + 6.days).end_of_day.to_i)
           ).to_metric_card
 
           assert_equal [ 100, 101, 102, 103, 104, 105, 106 ], card[:chart_data].values.map { |point| point[:value] }
@@ -51,8 +51,8 @@ module RailsPulse
         end
 
         card = RailsPulse::Routes::Cards::RequestCountTotals.new(
-          route: nil, period: 1, period_type: "hour",
-          start_time: first_hour.to_i, end_time: (first_hour + 5.hours).end_of_hour.to_i
+          period: 1, period_type: "hour",
+          window: RailsPulse::TimeWindow.new(first_hour.to_i, (first_hour + 5.hours).end_of_hour.to_i)
         ).to_metric_card
 
         assert_equal [ 10, 11, 12, 13, 14, 15 ], card[:chart_data].values.map { |point| point[:value] }
@@ -72,7 +72,7 @@ module RailsPulse
         end
 
         card = RailsPulse::Routes::Cards::RequestCountTotals.new(
-          route: nil, period: 1, period_type: "day", start_time: day.to_i, end_time: day.end_of_day.to_i
+          period: 1, period_type: "day", window: RailsPulse::TimeWindow.new(day.to_i, day.end_of_day.to_i)
         ).to_metric_card
 
         assert_equal [ 10 ], card[:chart_data].values.map { |point| point[:value] }

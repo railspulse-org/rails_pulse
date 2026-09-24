@@ -2,14 +2,8 @@ module RailsPulse
   module Queries
     module Cards
       class ExecutionRate < RailsPulse::Cards::Base
-        def initialize(query: nil, disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
-          @query = query
-          @disabled_tags = disabled_tags
-          @show_non_tagged = show_non_tagged
-          @period = period
-          @period_type = period_type
-          @start_time = start_time
-          @end_time = end_time
+        def initialize(query: nil, **kwargs)
+          super(subject: query, **kwargs)
         end
 
         def to_metric_card
@@ -38,7 +32,7 @@ module RailsPulse
               period_type: @period_type,
               period_start: current_window_start..now
             )
-          sparkline_query = sparkline_query.where(summarizable_id: @query.id) if @query
+          sparkline_query = sparkline_query.where(summarizable_id: @subject.id) if @subject
 
           grouped_data = bucket_by_period(sparkline_query) { |relation| relation.sum(:count) }
 

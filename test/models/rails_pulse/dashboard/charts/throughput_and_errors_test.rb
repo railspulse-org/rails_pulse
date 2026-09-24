@@ -313,7 +313,7 @@ module RailsPulse
 
           result = RailsPulse::Dashboard::Charts::ThroughputAndErrors.new(
             period: 3, period_type: "day",
-            start_time: Time.zone.parse("2026-09-16 00:00").to_i, end_time: Time.zone.parse("2026-09-19 23:59:59").to_i
+            window: RailsPulse::TimeWindow.new(Time.zone.parse("2026-09-16 00:00").to_i, Time.zone.parse("2026-09-19 23:59:59").to_i)
           ).to_chart_data
 
           assert_equal [ "Sep 16", "Sep 17", "Sep 18", "Sep 19" ], result[:labels]

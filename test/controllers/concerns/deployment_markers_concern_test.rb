@@ -3,14 +3,6 @@ require "test_helper"
 class DeploymentMarkersConcernTest < ActionController::TestCase
   class TestController < ActionController::Base
     include DeploymentMarkersConcern
-
-    attr_accessor :start_time, :end_time
-
-    def initialize
-      super
-      @start_time = nil
-      @end_time   = nil
-    end
   end
 
   fixtures :rails_pulse_deployments
@@ -26,11 +18,15 @@ class DeploymentMarkersConcernTest < ActionController::TestCase
     travel_back
   end
 
+  def set_window(start_time, end_time)
+    @controller.instance_variable_set(:@time_range,
+      RailsPulse::TimeRange::Result.new(window: RailsPulse::TimeWindow.new(start_time, end_time)))
+  end
+
   # Structure Tests
 
   test "populate_deployment_markers sets @deployment_markers as array" do
-    @controller.start_time = 3.hours.ago.to_i
-    @controller.end_time   = Time.current.to_i
+    set_window(3.hours.ago, Time.current)
 
     @controller.send(:populate_deployment_markers)
     markers = @controller.instance_variable_get(:@deployment_markers)
@@ -39,8 +35,7 @@ class DeploymentMarkersConcernTest < ActionController::TestCase
   end
 
   test "populate_deployment_markers returns markers within range" do
-    @controller.start_time = 3.hours.ago.to_i
-    @controller.end_time   = Time.current.to_i
+    set_window(3.hours.ago, Time.current)
 
     @controller.send(:populate_deployment_markers)
     markers = @controller.instance_variable_get(:@deployment_markers)
@@ -51,8 +46,7 @@ class DeploymentMarkersConcernTest < ActionController::TestCase
 
   test "populate_deployment_markers excludes deployments outside range" do
     # Range that only includes v2_deploy (30 minutes ago), not v1_deploy (2 hours ago)
-    @controller.start_time = 45.minutes.ago.to_i
-    @controller.end_time   = Time.current.to_i
+    set_window(45.minutes.ago, Time.current)
 
     @controller.send(:populate_deployment_markers)
     markers = @controller.instance_variable_get(:@deployment_markers)
@@ -63,8 +57,7 @@ class DeploymentMarkersConcernTest < ActionController::TestCase
   end
 
   test "populate_deployment_markers returns empty array when no deployments in range" do
-    @controller.start_time = 5.hours.ago.to_i
-    @controller.end_time   = 4.hours.ago.to_i
+    set_window(5.hours.ago, 4.hours.ago)
 
     @controller.send(:populate_deployment_markers)
     markers = @controller.instance_variable_get(:@deployment_markers)
@@ -72,11 +65,18 @@ class DeploymentMarkersConcernTest < ActionController::TestCase
     assert_empty markers
   end
 
+  test "populate_deployment_markers does nothing when @time_range has no window" do
+    @controller.instance_variable_set(:@time_range, nil)
+
+    @controller.send(:populate_deployment_markers)
+
+    refute @controller.instance_variable_defined?(:@deployment_markers)
+  end
+
   # Marker Structure Tests
 
   test "each marker has timestamp, revision, and started_at keys" do
-    @controller.start_time = 3.hours.ago.to_i
-    @controller.end_time   = Time.current.to_i
+    set_window(3.hours.ago, Time.current)
 
     @controller.send(:populate_deployment_markers)
     markers = @controller.instance_variable_get(:@deployment_markers)
@@ -90,8 +90,7 @@ class DeploymentMarkersConcernTest < ActionController::TestCase
   end
 
   test "marker timestamps are in milliseconds" do
-    @controller.start_time = 3.hours.ago.to_i
-    @controller.end_time   = Time.current.to_i
+    set_window(3.hours.ago, Time.current)
 
     @controller.send(:populate_deployment_markers)
     markers = @controller.instance_variable_get(:@deployment_markers)

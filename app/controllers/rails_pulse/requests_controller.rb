@@ -40,23 +40,23 @@ module RailsPulse
 
     # Override: Requests aggregate all request data (summarizable_id: 0)
     # rather than scoping to a specific resource
-    # Also handles "recent" mode where @start_time may be nil
     def build_chart_ransack_params(ransack_params)
       base_params = ransack_params.except(:s).merge(
         summarizable_type_eq: "RailsPulse::Request",
         summarizable_id_eq: 0
       )
 
-      # Add time filters if we have time boundaries (not in "recent" mode)
-      if @start_time && @end_time
+      if @time_range&.window
         base_params.merge!(
-          period_start_gteq: Time.at(@start_time),
-          period_start_lt: Time.at(@end_time)
+          period_start_gteq: @time_range.window.start_time,
+          period_start_lt: @time_range.window.end_time
         )
       end
 
       # Only add duration filter if we have a meaningful threshold
-      base_params[:avg_duration_gteq] = @start_duration if @start_duration && @start_duration > 0
+      if @time_range&.start_duration && @time_range.start_duration > 0
+        base_params[:avg_duration_gteq] = @time_range.start_duration
+      end
       base_params
     end
 
@@ -67,25 +67,26 @@ module RailsPulse
       # Handle time mode - check if recent mode is selected
       time_mode = params[:period_start_range] || "recent"
 
-      if time_mode != "recent" && @table_start_time && @table_end_time
+      if time_mode != "recent" && @time_range&.table_window
         # Custom mode - apply time filters
         params.merge!(
-          occurred_at_gteq: Time.at(@table_start_time),
-          occurred_at_lt: Time.at(@table_end_time)
+          occurred_at_gteq: @time_range.table_window.start_time,
+          occurred_at_lt: @time_range.table_window.end_time
         )
       end
       # else: Recent mode - no time filters, just rely on sort + pagination
 
-      # Duration filter - convert symbol to numeric threshold or use @start_duration
+      start_duration = @time_range&.start_duration
+      # Duration filter - convert symbol to numeric threshold or use start_duration
       if params[:duration_gteq].present?
         # If it's a symbol like :slow, convert it to the numeric threshold
         if params[:duration_gteq].to_s.in?(%w[slow very_slow critical])
-          params[:duration_gteq] = @start_duration
+          params[:duration_gteq] = start_duration
         end
         # else: it's already a number, keep it as is
-      elsif @start_duration && @start_duration > 0
-        # No duration_gteq param, use @start_duration from concern
-        params[:duration_gteq] = @start_duration
+      elsif start_duration && start_duration > 0
+        # No duration_gteq param, use start_duration from @time_range
+        params[:duration_gteq] = start_duration
       end
 
       # Min response size filter - input is in KB, convert to bytes for the column

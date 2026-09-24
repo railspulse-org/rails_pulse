@@ -174,22 +174,15 @@ class RailsPulse::ChartHelperTest < ActionView::TestCase
     assert_equal "timestamp_to_date", opts[:xAxis][:axisLabel][:formatter]
   end
 
-  test "base_chart_options uses time formatter when @period_type is hour" do
-    @period_type = "hour"
+  test "base_chart_options uses time formatter when @time_range period_type is hour" do
+    @time_range = RailsPulse::TimeRange::Result.new(period_type: "hour")
     opts = base_chart_options
 
     assert_equal "time", opts[:xAxis][:axisLabel][:formatter]
   end
 
-  test "base_chart_options uses time formatter when @time_diff_hours is 25 or less" do
-    @time_diff_hours = 24
-    opts = base_chart_options
-
-    assert_equal "time", opts[:xAxis][:axisLabel][:formatter]
-  end
-
-  test "base_chart_options uses timestamp_to_date when @time_diff_hours is above 25" do
-    @time_diff_hours = 26
+  test "base_chart_options uses timestamp_to_date when @time_range period_type is day" do
+    @time_range = RailsPulse::TimeRange::Result.new(period_type: "day")
     opts = base_chart_options
 
     assert_equal "timestamp_to_date", opts[:xAxis][:axisLabel][:formatter]

@@ -289,7 +289,7 @@ module RailsPulse
 
           result = RailsPulse::Dashboard::Charts::ResponseTimePercentiles.new(
             period: 3, period_type: "day",
-            start_time: Time.zone.parse("2026-09-16 00:00").to_i, end_time: Time.zone.parse("2026-09-19 23:59:59").to_i
+            window: RailsPulse::TimeWindow.new(Time.zone.parse("2026-09-16 00:00").to_i, Time.zone.parse("2026-09-19 23:59:59").to_i)
           ).to_chart_data
 
           assert_equal [ "Sep 16", "Sep 17", "Sep 18", "Sep 19" ], result[:labels]
@@ -305,7 +305,7 @@ module RailsPulse
 
           result = RailsPulse::Dashboard::Charts::ResponseTimePercentiles.new(
             period: 4, period_type: "day",
-            start_time: Time.zone.parse("2026-09-01 00:00").to_i, end_time: Time.zone.parse("2026-09-05 23:59:59").to_i
+            window: RailsPulse::TimeWindow.new(Time.zone.parse("2026-09-01 00:00").to_i, Time.zone.parse("2026-09-05 23:59:59").to_i)
           ).to_chart_data
 
           assert_equal [ "Sep 1", "Sep 2", "Sep 3", "Sep 4", "Sep 5" ], result[:labels]
@@ -318,7 +318,7 @@ module RailsPulse
 
           result = RailsPulse::Dashboard::Charts::ResponseTimePercentiles.new(
             period: 1, period_type: "hour",
-            start_time: Time.zone.parse("2026-09-19 06:00").to_i, end_time: Time.zone.parse("2026-09-19 08:59:59").to_i
+            window: RailsPulse::TimeWindow.new(Time.zone.parse("2026-09-19 06:00").to_i, Time.zone.parse("2026-09-19 08:59:59").to_i)
           ).to_chart_data
 
           p95 = result[:series].find { |s| s[:name] == "P95" }

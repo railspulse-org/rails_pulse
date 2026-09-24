@@ -7,7 +7,7 @@ require "rails_pulse/subscribers/operation_subscriber"
 require "rails_pulse/subscribers/exception_subscriber"
 require "rails_pulse/job_run_collector"
 require "rails_pulse/active_job_extensions"
-require "request_store"
+require "rails_pulse/current"
 require "rack/static"
 require "ransack"
 

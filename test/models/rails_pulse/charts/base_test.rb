@@ -25,8 +25,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         assert_kind_of TestChart, chart
@@ -38,34 +37,7 @@ module RailsPulse
           ransack_query: @ransack_query,
           period_type: :day,
           subject: job,
-          start_time: @start_time,
-          end_time: @end_time
-        )
-
-        assert_kind_of TestChart, chart
-      end
-
-      test "initializes with legacy job parameter" do
-        job = rails_pulse_jobs(:report_job)
-        chart = TestChart.new(
-          ransack_query: @ransack_query,
-          period_type: :day,
-          job: job,
-          start_time: @start_time,
-          end_time: @end_time
-        )
-
-        assert_kind_of TestChart, chart
-      end
-
-      test "initializes with legacy query parameter" do
-        query = rails_pulse_queries(:simple_query)
-        chart = TestChart.new(
-          ransack_query: @ransack_query,
-          period_type: :day,
-          query: query,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         assert_kind_of TestChart, chart
@@ -75,8 +47,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time,
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time),
           disabled_tags: [ "slow" ]
         )
 
@@ -87,8 +58,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time,
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time),
           show_non_tagged: false
         )
 
@@ -101,8 +71,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         assert_equal 86400, chart.send(:time_step)
@@ -112,8 +81,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :hour,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         assert_equal 3600, chart.send(:time_step)
@@ -123,8 +91,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: "hour",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         assert_equal 3600, chart.send(:time_step)
@@ -134,8 +101,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: nil,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         # Should default to day
@@ -148,8 +114,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time,
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time),
           disabled_tags: [ "slow" ]
         )
 
@@ -162,8 +127,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         query = chart.send(:base_summary_query)
@@ -175,8 +139,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :hour,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         query = chart.send(:base_summary_query)
@@ -190,8 +153,7 @@ module RailsPulse
           ransack_query: @ransack_query,
           period_type: :day,
           subject: job,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         query = chart.send(:base_summary_query)
@@ -203,8 +165,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         query = chart.send(:base_summary_query)
@@ -216,8 +177,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         query = chart.send(:base_summary_query)
@@ -232,8 +192,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         raw_data = { @start_time.to_i => 100 }
@@ -250,8 +209,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         timestamp = @start_time.to_i
@@ -267,8 +225,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         raw_data = {}
@@ -287,8 +244,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :hour,
-          start_time: start,
-          end_time: finish
+          window: RailsPulse::TimeWindow.new(start, finish)
         )
 
         raw_data = { start.to_i => 50 }
@@ -304,8 +260,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @start_time
+          window: RailsPulse::TimeWindow.new(@start_time, @start_time)
         )
 
         raw_data = {}
@@ -325,8 +280,7 @@ module RailsPulse
         chart = abstract_chart_class.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         assert_raises(NotImplementedError) do
@@ -338,8 +292,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         assert_equal "RailsPulse::Job", chart.send(:summarizable_type)
@@ -353,8 +306,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: empty_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         query = chart.send(:base_summary_query)
@@ -366,8 +318,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time,
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time),
           disabled_tags: nil
         )
 
@@ -380,8 +331,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: @start_time,
-          end_time: @end_time,
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time),
           disabled_tags: []
         )
 
@@ -397,8 +347,7 @@ module RailsPulse
         chart = TestChart.new(
           ransack_query: @ransack_query,
           period_type: :day,
-          start_time: start,
-          end_time: finish
+          window: RailsPulse::TimeWindow.new(start, finish)
         )
 
         raw_data = { start.to_i => 100 }
@@ -408,40 +357,6 @@ module RailsPulse
 
         assert_kind_of Hash, result
         assert_operator result.size, :>=, 30
-      end
-
-      test "legacy parameter job takes precedence over nil subject" do
-        job = rails_pulse_jobs(:report_job)
-        chart = TestChart.new(
-          ransack_query: @ransack_query,
-          period_type: :day,
-          subject: nil,
-          job: job,
-          start_time: @start_time,
-          end_time: @end_time
-        )
-
-        query = chart.send(:base_summary_query)
-
-        assert_includes query.to_sql, job.id.to_s
-      end
-
-      test "subject parameter takes precedence over legacy job parameter" do
-        job = rails_pulse_jobs(:report_job)
-        other_job = rails_pulse_jobs(:mailer_job)
-        chart = TestChart.new(
-          ransack_query: @ransack_query,
-          period_type: :day,
-          subject: job,
-          job: other_job,
-          start_time: @start_time,
-          end_time: @end_time
-        )
-
-        query = chart.send(:base_summary_query)
-
-        # Should use subject, not the legacy job parameter
-        assert_includes query.to_sql, job.id.to_s
       end
     end
   end

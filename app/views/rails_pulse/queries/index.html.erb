@@ -26,7 +26,7 @@
         >
         <%= form.select :avg_duration,
                     duration_options(:query),
-                    { selected: @selected_response_range },
+                    { selected: @time_range&.selected_response_range },
                     { class: "input" } %>
         <%= if params.has_key?(:q)
           link_to "Reset",

@@ -38,8 +38,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
 
         assert_kind_of TestPercentileChart, chart
@@ -51,8 +50,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
 
@@ -66,8 +64,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
         first_point = result[:series].find { |s| s[:name] == "P50" }[:data].first
@@ -82,8 +79,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
         series_names = result[:series].map { |s| s[:name] }
@@ -109,8 +105,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
         p50_series = result[:series].find { |s| s[:name] == "P50" }
@@ -134,8 +129,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
         p95_series = result[:series].find { |s| s[:name] == "P95" }
@@ -153,8 +147,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
 
@@ -180,8 +173,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
         p50_series = result[:series].find { |s| s[:name] == "P50" }
@@ -200,8 +192,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
         p50_data = result[:series].find { |s| s[:name] == "P50" }[:data]
@@ -223,8 +214,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "hour",
-          start_time: start_time,
-          end_time: end_time
+          window: RailsPulse::TimeWindow.new(start_time, end_time)
         )
         result = chart.to_chart_data
         p50_data = result[:series].find { |s| s[:name] == "P50" }[:data]
@@ -253,8 +243,7 @@ module RailsPulse
           ransack_query: @ransack_query,
           period_type: "day",
           subject: @route,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
         p50_series = result[:series].find { |s| s[:name] == "P50" }
@@ -277,8 +266,7 @@ module RailsPulse
           ransack_query: @ransack_query,
           period_type: "day",
           subject: nil,
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
         p50_series = result[:series].find { |s| s[:name] == "P50" }
@@ -304,8 +292,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time,
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time),
           disabled_tags: [ "maintenance" ],
           show_non_tagged: true
         )
@@ -327,8 +314,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time,
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time),
           disabled_tags: [],
           show_non_tagged: false
         )
@@ -357,8 +343,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
 
@@ -380,8 +365,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
 
@@ -403,8 +387,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
 
@@ -428,8 +411,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
 
@@ -448,8 +430,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
 
@@ -477,8 +458,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
         p50_series = result[:series].find { |s| s[:name] == "P50" }
@@ -506,8 +486,7 @@ module RailsPulse
         chart = TestPercentileChart.new(
           ransack_query: @ransack_query,
           period_type: "day",
-          start_time: @start_time,
-          end_time: @end_time
+          window: RailsPulse::TimeWindow.new(@start_time, @end_time)
         )
         result = chart.to_chart_data
         p50_series = result[:series].find { |s| s[:name] == "P50" }

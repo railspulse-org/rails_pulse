@@ -2,14 +2,8 @@ module RailsPulse
   module Routes
     module Cards
       class RequestCountTotals < RailsPulse::Cards::Base
-        def initialize(route: nil, disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
-          @route = route
-          @disabled_tags = disabled_tags
-          @show_non_tagged = show_non_tagged
-          @period = period
-          @period_type = period_type
-          @start_time = start_time
-          @end_time = end_time
+        def initialize(route: nil, **kwargs)
+          super(subject: route, **kwargs)
         end
 
         def to_metric_card
@@ -42,7 +36,7 @@ module RailsPulse
               period_type: @period_type,
               period_start: current_window_start..now
             )
-          sparkline_query = sparkline_query.where(summarizable_id: @route.id) if @route
+          sparkline_query = sparkline_query.where(summarizable_id: @subject.id) if @subject
 
           grouped_data = bucket_by_period(sparkline_query) { |relation| relation.sum(:count) }
 
@@ -82,12 +76,6 @@ module RailsPulse
             help_heading: "Request Throughput",
             help_text: "Total HTTP requests served over the last 14 days, expressed as an average rate. Use this to understand traffic patterns and capacity planning needs."
           }
-        end
-
-        private
-
-        def subject_id
-          @route&.id
         end
       end
     end

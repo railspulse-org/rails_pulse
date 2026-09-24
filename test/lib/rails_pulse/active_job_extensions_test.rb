@@ -18,7 +18,7 @@ module RailsPulse
   class ActiveJobExtensionsTest < ActiveSupport::TestCase
     def setup
       super
-      RequestStore.clear!
+      RailsPulse::Current.reset
       @original_enabled = RailsPulse.configuration.enabled
       @original_track_jobs = RailsPulse.configuration.track_jobs
       RailsPulse.configuration.enabled = true
@@ -26,7 +26,7 @@ module RailsPulse
     end
 
     def teardown
-      RequestStore.clear!
+      RailsPulse::Current.reset
       RailsPulse.configuration.enabled = @original_enabled
       RailsPulse.configuration.track_jobs = @original_track_jobs
       super

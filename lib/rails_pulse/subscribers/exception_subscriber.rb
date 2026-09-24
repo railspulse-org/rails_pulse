@@ -15,11 +15,11 @@ module RailsPulse
       def process
         return unless RailsPulse.configuration.enabled
         return unless RailsPulse.configuration.track_exceptions
-        return if RequestStore.store[:skip_recording_rails_pulse_activity]
+        return if RailsPulse::Current.skip_recording_rails_pulse_activity
 
         exception = @event.payload[:exception_object]
         return unless exception
-        return if RequestStore.store[:rails_pulse_captured_exception].equal?(exception)
+        return if RailsPulse::Current.rails_pulse_captured_exception.equal?(exception)
 
         RailsPulse::ExceptionCaptureService.capture(
           exception,

@@ -33,7 +33,7 @@ module RailsPulse
           # Convert to final values (weighted averages) and pad missing data
           step = time_step
           daily_data = {}
-          (@start_time.to_i..@end_time.to_i).step(step) do |timestamp|
+          (@window.start_time.to_i..@window.end_time.to_i).step(step) do |timestamp|
             if raw_data[timestamp]
               count = raw_data[timestamp][:total_count]
               daily_data[timestamp] = {

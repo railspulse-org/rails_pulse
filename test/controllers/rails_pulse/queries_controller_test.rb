@@ -165,8 +165,8 @@ class RailsPulse::QueriesControllerTest < ActionDispatch::IntegrationTest
 
     get rails_pulse_engine.queries_path
 
-    assert_not_nil assigns(:start_time)
-    assert_not_nil assigns(:end_time)
+    assert_not_nil assigns(:time_range)&.window&.start_time
+    assert_not_nil assigns(:time_range)&.window&.end_time
   end
 
   test "index assigns has_data flag" do
@@ -302,7 +302,7 @@ class RailsPulse::QueriesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # Default should be approximately 7 days
-    time_diff = assigns(:end_time) - assigns(:start_time)
+    time_diff = assigns(:time_range)&.window&.end_time - assigns(:time_range)&.window&.start_time
 
     assert_operator time_diff, :>, 6.days.to_i
     assert_operator time_diff, :<, 8.days.to_i
@@ -340,7 +340,7 @@ class RailsPulse::QueriesControllerTest < ActionDispatch::IntegrationTest
     get rails_pulse_engine.queries_path, params: { q: { period_start_range: "last_day" } }
 
     assert_response :success
-    time_diff_hours = (assigns(:end_time) - assigns(:start_time)) / 3600.0
+    time_diff_hours = (assigns(:time_range)&.window&.end_time - assigns(:time_range)&.window&.start_time) / 3600.0
 
     assert_operator time_diff_hours, :<=, 25
   end
@@ -351,7 +351,7 @@ class RailsPulse::QueriesControllerTest < ActionDispatch::IntegrationTest
     get rails_pulse_engine.queries_path
 
     assert_response :success
-    time_diff_hours = (assigns(:end_time) - assigns(:start_time)) / 3600.0
+    time_diff_hours = (assigns(:time_range)&.window&.end_time - assigns(:time_range)&.window&.start_time) / 3600.0
 
     assert_operator time_diff_hours, :>, 25
   end
@@ -365,7 +365,7 @@ class RailsPulse::QueriesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # start_duration should be 0 or nil
-    assert assigns(:start_duration).nil? || assigns(:start_duration) == 0
+    assert assigns(:time_range)&.start_duration.nil? || assigns(:time_range)&.start_duration == 0
   end
 
   test "index with slow duration filter" do
@@ -375,8 +375,8 @@ class RailsPulse::QueriesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # start_duration should be set (≥ 100ms)
-    assert_not_nil assigns(:start_duration)
-    assert_operator assigns(:start_duration), :>=, 0
+    assert_not_nil assigns(:time_range)&.start_duration
+    assert_operator assigns(:time_range)&.start_duration, :>=, 0
   end
 
   test "index with very_slow duration filter" do
@@ -386,8 +386,8 @@ class RailsPulse::QueriesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # start_duration should be set (≥ 500ms)
-    assert_not_nil assigns(:start_duration)
-    assert_operator assigns(:start_duration), :>=, 0
+    assert_not_nil assigns(:time_range)&.start_duration
+    assert_operator assigns(:time_range)&.start_duration, :>=, 0
   end
 
   test "index with critical duration filter" do
@@ -397,8 +397,8 @@ class RailsPulse::QueriesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # start_duration should be set (≥ 1000ms)
-    assert_not_nil assigns(:start_duration)
-    assert_operator assigns(:start_duration), :>=, 0
+    assert_not_nil assigns(:time_range)&.start_duration
+    assert_operator assigns(:time_range)&.start_duration, :>=, 0
   end
 
   test "index with invalid duration parameter" do
@@ -408,7 +408,7 @@ class RailsPulse::QueriesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # Should ignore invalid parameter
-    assert assigns(:start_duration).nil? || assigns(:start_duration) == 0
+    assert assigns(:time_range)&.start_duration.nil? || assigns(:time_range)&.start_duration == 0
   end
 
   test "duration filter passed to chart services" do
@@ -525,7 +525,7 @@ class RailsPulse::QueriesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_not_nil assigns(:table_data)
-    assert_not_nil assigns(:start_duration)
+    assert_not_nil assigns(:time_range)&.start_duration
   end
 
   test "time range and sorting combined" do
@@ -646,8 +646,8 @@ class RailsPulse::QueriesControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil assigns(:query_performance_chart_data)
     assert_not_nil assigns(:execution_volume_chart_data)
     assert_not_nil assigns(:pagination)
-    assert_not_nil assigns(:start_time)
-    assert_not_nil assigns(:end_time)
+    assert_not_nil assigns(:time_range)&.window&.start_time
+    assert_not_nil assigns(:time_range)&.window&.end_time
   end
 
   test "show action does not assign database_load_metric_card" do

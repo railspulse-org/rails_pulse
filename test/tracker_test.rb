@@ -2,8 +2,8 @@ require "test_helper"
 
 class RailsPulse::TrackerTest < ActiveSupport::TestCase
   setup do
-    # Clear RequestStore to avoid state leakage between tests
-    RequestStore.store[:skip_recording_rails_pulse_activity] = false
+    # Clear Current to avoid state leakage between tests
+    RailsPulse::Current.skip_recording_rails_pulse_activity = false
     RailsPulse::Tracker.reset_writer!
 
     @tracking_data = {
@@ -130,13 +130,13 @@ class RailsPulse::TrackerTest < ActiveSupport::TestCase
 
   test "sets recursion prevention flag during tracking" do
     # Flag should be false before tracking
-    refute RequestStore.store[:skip_recording_rails_pulse_activity]
+    refute RailsPulse::Current.skip_recording_rails_pulse_activity
 
     # Track a request
     RailsPulse::Tracker.track_request(@tracking_data)
 
     # Flag should be reset after tracking
-    refute RequestStore.store[:skip_recording_rails_pulse_activity], "Flag should be reset after tracking"
+    refute RailsPulse::Current.skip_recording_rails_pulse_activity, "Flag should be reset after tracking"
   end
 
   test "handles concurrent requests with connection pooling" do
@@ -159,7 +159,7 @@ class RailsPulse::TrackerTest < ActiveSupport::TestCase
   end
 
   test "skips tracking when recursion flag is set" do
-    RequestStore.store[:skip_recording_rails_pulse_activity] = true
+    RailsPulse::Current.skip_recording_rails_pulse_activity = true
 
     RailsPulse::Tracker.track_request(@tracking_data)
 

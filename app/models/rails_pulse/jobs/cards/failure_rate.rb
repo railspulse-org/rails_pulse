@@ -2,14 +2,8 @@ module RailsPulse
   module Jobs
     module Cards
       class FailureRate < RailsPulse::Cards::Base
-        def initialize(job: nil, disabled_tags: [], show_non_tagged: true, period: 14, period_type: "day", start_time: nil, end_time: nil)
-          @job = job
-          @disabled_tags = disabled_tags
-          @show_non_tagged = show_non_tagged
-          @period = period
-          @period_type = period_type
-          @start_time = start_time
-          @end_time = end_time
+        def initialize(job: nil, period: 14, **kwargs)
+          super(subject: job, period: period, **kwargs)
         end
 
         def to_metric_card
@@ -20,7 +14,7 @@ module RailsPulse
               period_type: @period_type,
               period_start: range_start..now
             )
-          base_query = base_query.where(summarizable_id: @job.id) if @job
+          base_query = base_query.where(summarizable_id: @subject.id) if @subject
 
           metrics = base_query.select(
             "SUM(rails_pulse_summaries.count) AS total_count",
@@ -52,7 +46,7 @@ module RailsPulse
               period_type: @period_type,
               period_start: current_window_start..now
             )
-          sparkline_query = sparkline_query.where(summarizable_id: @job.id) if @job
+          sparkline_query = sparkline_query.where(summarizable_id: @subject.id) if @subject
 
           grouped_errors = bucket_by_period(sparkline_query) { |relation| relation.sum("rails_pulse_summaries.error_count") }
           grouped_counts = bucket_by_period(sparkline_query) { |relation| relation.sum("rails_pulse_summaries.count") }

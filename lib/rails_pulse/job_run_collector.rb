@@ -7,9 +7,9 @@ module RailsPulse
         return yield unless tracking_enabled?
         return yield if ignore_job?(active_job)
 
-        previous_request_id = RequestStore.store[:rails_pulse_request_id]
-        previous_operations = RequestStore.store[:rails_pulse_operations]
-        previous_job_run_id = RequestStore.store[:rails_pulse_job_run_id]
+        previous_request_id = RailsPulse::Current.rails_pulse_request_id
+        previous_operations = RailsPulse::Current.rails_pulse_operations
+        previous_job_run_id = RailsPulse::Current.rails_pulse_job_run_id
 
         start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         occurred_at = Time.current
@@ -28,9 +28,9 @@ module RailsPulse
           job_run = nil
         end
 
-        RequestStore.store[:rails_pulse_request_id] = nil
-        RequestStore.store[:rails_pulse_job_run_id] = job_run&.id
-        RequestStore.store[:rails_pulse_operations] = []
+        RailsPulse::Current.rails_pulse_request_id = nil
+        RailsPulse::Current.rails_pulse_job_run_id = job_run&.id
+        RailsPulse::Current.rails_pulse_operations = []
 
         yield
 
@@ -65,7 +65,7 @@ module RailsPulse
           # checks skip_recording_rails_pulse_activity and would bail out.
           # The service's own SQL is already filtered by the rails_pulse_ prefix.
           RailsPulse::ExceptionCaptureService.capture(error, environment: Rails.env.to_s)
-          RequestStore.store[:rails_pulse_captured_exception] = error
+          RailsPulse::Current.rails_pulse_captured_exception = error
         rescue => e
           RailsPulse.logger.error "Failed to record job failure: #{e.class} - #{e.message}"
         end
@@ -76,9 +76,9 @@ module RailsPulse
         rescue => e
           RailsPulse.logger.error "Failed to persist job operations: #{e.class} - #{e.message}"
         ensure
-          RequestStore.store[:rails_pulse_job_run_id] = previous_job_run_id
-          RequestStore.store[:rails_pulse_operations] = previous_operations
-          RequestStore.store[:rails_pulse_request_id] = previous_request_id
+          RailsPulse::Current.rails_pulse_job_run_id = previous_job_run_id
+          RailsPulse::Current.rails_pulse_operations = previous_operations
+          RailsPulse::Current.rails_pulse_request_id = previous_request_id
         end
       end
 
@@ -155,14 +155,14 @@ module RailsPulse
       def save_operations(job_run)
         return unless job_run
 
-        ops = RequestStore.store[:rails_pulse_operations] || []
+        ops = RailsPulse::Current.rails_pulse_operations || []
         with_recording_suppressed do
           RailsPulse::Operation.persist_bulk(ops, job_run_id: job_run.id, request_id: nil)
         end
       rescue => e
         RailsPulse.logger.error "Failed to save job operations: #{e.class} - #{e.message}"
       ensure
-        RequestStore.store[:rails_pulse_operations] = nil
+        RailsPulse::Current.rails_pulse_operations = nil
       end
 
       def detect_adapter
@@ -198,11 +198,11 @@ module RailsPulse
       end
 
       def with_recording_suppressed
-        previous = RequestStore.store[:skip_recording_rails_pulse_activity]
-        RequestStore.store[:skip_recording_rails_pulse_activity] = true
+        previous = RailsPulse::Current.skip_recording_rails_pulse_activity
+        RailsPulse::Current.skip_recording_rails_pulse_activity = true
         yield
       ensure
-        RequestStore.store[:skip_recording_rails_pulse_activity] = previous
+        RailsPulse::Current.skip_recording_rails_pulse_activity = previous
       end
     end
   end
