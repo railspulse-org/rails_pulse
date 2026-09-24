@@ -1,6 +1,6 @@
 # The JSON API, CLI and MCP server ship in the free gem and are read-only
 
-_Recorded 2026-09, when the tooling moved out of rails_pulse_pro before 1.0._
+_Recorded 2026-09, when the tooling moved out of rails_pulse_pro for the 0.5 release._
 
 `rails_pulse` ships a token-authenticated JSON API (`app/controllers/rails_pulse/api/v1/`), the `rails-pulse` CLI (`lib/rails_pulse/cli/`) and an MCP server (`lib/rails_pulse/mcp/`) that talks to that API. All three are read-only. The API answers over the same engine mount as the dashboard but never consults the dashboard session: it accepts only `config.api_token`, and with no token configured it refuses every request.
 

@@ -67,7 +67,7 @@ _Avoid_: release, deploy marker (the marker is how a Deployment is drawn, not th
 ### Collection
 
 **API token**:
-`config.api_token`, the one shared secret outside the dashboard: it authenticates the read-only JSON API under `api/v1` and the deployments endpoint, sent as `X-Rails-Pulse-Token`. Was `deployment_api_token` before 1.0; the alias remains.
+`config.api_token`, the one shared secret outside the dashboard: it authenticates the read-only JSON API under `api/v1` and the deployments endpoint, sent as `X-Rails-Pulse-Token`. Was `deployment_api_token` before 0.5; the alias remains.
 _Avoid_: deployment token, dashboard token, license key
 
 **CLI and MCP server**:

@@ -337,7 +337,7 @@ RailsPulse.configure do |config|
   #   config.api_token = ENV["RAILS_PULSE_API_TOKEN"]
   #
   # With no token the API refuses every request; the deployments endpoint alone falls back to the
-  # dashboard authentication above. (Called deployment_api_token before 1.0; the old name still works.)
+  # dashboard authentication above. (Called deployment_api_token before 0.5; the old name still works.)
   #
   # Point the CLI and MCP server at this app with `rails-pulse configure`, or set RAILS_PULSE_URL
   # and RAILS_PULSE_TOKEN in the agent's environment.

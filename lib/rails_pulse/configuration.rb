@@ -41,7 +41,7 @@ module RailsPulse
                   :comparison_window,
                   :hourly_summary_retention
 
-    # deployment_api_token became api_token in 1.0, when the token started
+    # deployment_api_token became api_token in 0.5, when the token started
     # authenticating the whole read-only API rather than only the deployments
     # endpoint. The old name keeps working.
     alias_method :deployment_api_token, :api_token
