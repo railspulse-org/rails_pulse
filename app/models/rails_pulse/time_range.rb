@@ -1,10 +1,9 @@
 module RailsPulse
   # Resolves the dashboard's time range, chart-zoom/table window, and
   # duration-threshold filter from request params and session state, in one
-  # pass. Replaces TimeRangeConcern + ZoomRangeConcern + ResponseRangeConcern
-  # + the PageTimings struct: a controller called three methods and copied
-  # ten fields into ten ivars "for backward compat"; everything downstream
-  # now reads one frozen Result instead.
+  # pass. Returns a single frozen Result so every caller — controllers,
+  # views, cards, charts — reads the same object instead of each re-deriving
+  # its own answer.
   #
   # Priority order for the chart/page window (highest first):
   #   1. Page-specific preset from the dropdown (params[:q][:period_start_range])
@@ -15,11 +14,9 @@ module RailsPulse
   #   6. Default (default_key)
   #
   # Every input is parsed in Time.zone, matching how Summary rows are
-  # bucketed — a custom-range string used to be parsed as the server OS's
-  # local wall-clock time, which misinterpreted the intended instant on any
-  # host whose OS zone differs from Time.zone (the visible symptom, empty
-  # charts on an otherwise-populated page, was patched in #258 by rounding
-  # in Time.zone; this fixes the interpretation itself).
+  # bucketed — parsing a custom-range string in any other zone would
+  # misinterpret the intended instant whenever that zone differs from
+  # Time.zone, silently resolving to the wrong window.
   class TimeRange
     Result = Struct.new(
       :window, :table_window, :period_type, :selected_time_range,
@@ -195,7 +192,7 @@ module RailsPulse
       end
     end
 
-    # -- Zoom / table window (was ZoomRangeConcern) --------------------------
+    # -- Zoom / table window --------------------------------------------------
 
     def resolve_zoom(main_start, main_end)
       selected_column_time = params[:selected_column_time]
@@ -248,7 +245,7 @@ module RailsPulse
       end
     end
 
-    # -- Duration threshold (was ResponseRangeConcern) -----------------------
+    # -- Duration threshold -----------------------------------------------------
 
     def resolve_duration
       thresholds = RailsPulse.configuration.public_send("#{duration_range_type}_thresholds")
