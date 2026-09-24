@@ -222,3 +222,13 @@ Rails Pulse follows [Semantic Versioning](https://semver.org/):
 - **PATCH** (0.0.1): Bug fixes, security patches
 
 Pre-release suffixes use dots: `X.Y.Z.pre.1`, `X.Y.Z.beta.1`, `X.Y.Z.rc.1`
+
+### Public API
+
+"Breaking" is judged against [`docs/api.md`](api.md), not against the whole codebase.
+Renaming, moving, or changing the signature of something listed there is a MAJOR change.
+Everything not listed — `Cards::*`, `Charts::*`, `Tables::*`, controllers, concerns, and
+`Tracker`/`SchemaCheck` internals beyond the methods `docs/api.md` names — can change shape in
+a MINOR release. Adding something to the public surface, or widening a documented contract, is
+still just a MINOR change. When a change touches something on that page, update the page in
+the same PR.
