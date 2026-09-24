@@ -61,12 +61,16 @@ class MetricCardConcernTest < ActionController::TestCase
     travel_back
   end
 
+  def set_window(start_time, end_time)
+    window = start_time && end_time ? RailsPulse::TimeWindow.new(start_time, end_time) : nil
+    @controller.instance_variable_set(:@time_range, RailsPulse::TimeRange::Result.new(window: window))
+  end
+
   # setup_metric_cards Tests
 
   test "setup_metric_cards skips when partial_request returns true" do
     @controller.stubs(:partial_request?).returns(true)
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(7.days.ago, @now)
 
     @controller.send(:setup_metric_cards)
 
@@ -76,8 +80,7 @@ class MetricCardConcernTest < ActionController::TestCase
 
   test "setup_metric_cards instantiates cards from metric_card_definitions" do
     @controller.stubs(:partial_request?).returns(false)
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(7.days.ago, @now)
 
     @controller.send(:setup_metric_cards)
 
@@ -87,8 +90,7 @@ class MetricCardConcernTest < ActionController::TestCase
 
   test "setup_metric_cards sets instance variable for each card" do
     @controller.stubs(:partial_request?).returns(false)
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(7.days.ago, @now)
 
     @controller.send(:setup_metric_cards)
 
@@ -100,8 +102,7 @@ class MetricCardConcernTest < ActionController::TestCase
 
   test "setup_metric_cards passes metric_card_params to each card" do
     @controller.stubs(:partial_request?).returns(false)
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(7.days.ago, @now)
     @controller.session[:global_filters] = { "disabled_tags" => [ "tag1" ] }
 
     @controller.send(:setup_metric_cards)
@@ -114,8 +115,7 @@ class MetricCardConcernTest < ActionController::TestCase
 
   test "setup_metric_cards calls to_metric_card on each card class" do
     @controller.stubs(:partial_request?).returns(false)
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(7.days.ago, @now)
 
     @controller.send(:setup_metric_cards)
 
@@ -129,8 +129,7 @@ class MetricCardConcernTest < ActionController::TestCase
   test "setup_metric_cards handles empty metric_card_definitions" do
     @controller.stubs(:metric_card_definitions).returns({})
     @controller.stubs(:partial_request?).returns(false)
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(7.days.ago, @now)
 
     # Should not raise error with empty definitions
     assert_nothing_raised do
@@ -142,8 +141,7 @@ class MetricCardConcernTest < ActionController::TestCase
 
   test "metric_card_params includes resource_key and current_resource" do
     @controller.instance_variable_set(:@resource, rails_pulse_routes(:api_users))
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(7.days.ago, @now)
 
     params = @controller.send(:metric_card_params)
 
@@ -152,8 +150,7 @@ class MetricCardConcernTest < ActionController::TestCase
   end
 
   test "metric_card_params includes disabled_tags from session" do
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(7.days.ago, @now)
     @controller.session[:global_filters] = { "disabled_tags" => [ "tag1", "tag2" ] }
 
     params = @controller.send(:metric_card_params)
@@ -163,8 +160,7 @@ class MetricCardConcernTest < ActionController::TestCase
   end
 
   test "metric_card_params includes show_non_tagged from session" do
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(7.days.ago, @now)
     @controller.session[:show_non_tagged] = false
 
     params = @controller.send(:metric_card_params)
@@ -174,8 +170,7 @@ class MetricCardConcernTest < ActionController::TestCase
   end
 
   test "metric_card_params sets show_non_tagged true when nil" do
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(7.days.ago, @now)
     @controller.session[:show_non_tagged] = nil
 
     params = @controller.send(:metric_card_params)
@@ -185,8 +180,7 @@ class MetricCardConcernTest < ActionController::TestCase
   end
 
   test "metric_card_params sets show_non_tagged false when explicitly false" do
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(7.days.ago, @now)
     @controller.session[:show_non_tagged] = false
 
     params = @controller.send(:metric_card_params)
@@ -194,9 +188,8 @@ class MetricCardConcernTest < ActionController::TestCase
     refute params[:show_non_tagged]
   end
 
-  test "metric_card_params calculates period_days from start and end times" do
-    @controller.instance_variable_set(:@start_time, 14.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+  test "metric_card_params calculates period_days from the window" do
+    set_window(14.days.ago, @now)
 
     params = @controller.send(:metric_card_params)
 
@@ -204,18 +197,16 @@ class MetricCardConcernTest < ActionController::TestCase
     assert_equal 14, params[:period]
   end
 
-  test "metric_card_params defaults to 7 days when start_time nil" do
-    @controller.instance_variable_set(:@start_time, nil)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+  test "metric_card_params defaults to 7 days when @time_range has no window" do
+    set_window(nil, nil)
 
     params = @controller.send(:metric_card_params)
 
     assert_equal 7, params[:period]
   end
 
-  test "metric_card_params defaults to 7 days when end_time nil" do
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, nil)
+  test "metric_card_params defaults to 7 days when @time_range is nil" do
+    @controller.instance_variable_set(:@time_range, nil)
 
     params = @controller.send(:metric_card_params)
 
@@ -226,9 +217,7 @@ class MetricCardConcernTest < ActionController::TestCase
 
   test "metric_card_params rounds period_days correctly" do
     # 1.4 days should round to 1
-    start_time = (1.4 * 24 * 3600).seconds.ago.to_i
-    @controller.instance_variable_set(:@start_time, start_time)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window((1.4 * 24 * 3600).seconds.ago, @now)
 
     params = @controller.send(:metric_card_params)
 
@@ -237,9 +226,7 @@ class MetricCardConcernTest < ActionController::TestCase
 
   test "metric_card_params rounds fractional days correctly" do
     # Test with a clear case: 30.6 days should round to 31
-    start_time = 30.6.days.ago.to_i
-    @controller.instance_variable_set(:@start_time, start_time)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(30.6.days.ago, @now)
 
     params = @controller.send(:metric_card_params)
 
@@ -249,8 +236,7 @@ class MetricCardConcernTest < ActionController::TestCase
   end
 
   test "metric_card_params includes period_type from controller" do
-    @controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    @controller.instance_variable_set(:@end_time, @now.to_i)
+    set_window(7.days.ago, @now)
 
     params = @controller.send(:metric_card_params)
 
@@ -274,9 +260,10 @@ class MetricCardConcernTest < ActionController::TestCase
     abstract_controller = Class.new(ActionController::Base) do
       include MetricCardConcern
       def metric_card_definitions; {}; end
+      def period_type; "day"; end
     end.new
-    abstract_controller.instance_variable_set(:@start_time, 7.days.ago.to_i)
-    abstract_controller.instance_variable_set(:@end_time, Time.current.to_i)
+    abstract_controller.instance_variable_set(:@time_range,
+      RailsPulse::TimeRange::Result.new(window: RailsPulse::TimeWindow.new(7.days.ago, Time.current)))
 
     assert_raises NotImplementedError do
       abstract_controller.send(:metric_card_params)

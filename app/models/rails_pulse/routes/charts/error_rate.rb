@@ -30,7 +30,7 @@ module RailsPulse
           # Pad missing data with defaults
           default_value = { error_rate: nil, client_error_rate: nil }
           daily_data = {}
-          (@start_time.to_i..@end_time.to_i).step(time_step) do |timestamp|
+          (@window.start_time.to_i..@window.end_time.to_i).step(time_step) do |timestamp|
             daily_data[timestamp] = raw_data[timestamp] || default_value
           end
 

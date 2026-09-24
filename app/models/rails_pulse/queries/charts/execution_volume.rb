@@ -18,7 +18,7 @@ module RailsPulse
           end
 
           # Pad missing data with zeros using base class helper
-          execution_data = pad_data_with_zeros(raw_data, @start_time, @end_time, time_step)
+          execution_data = pad_data_with_zeros(raw_data, @window.start_time, @window.end_time, time_step)
 
           # Build series data as [timestamp_ms, value] pairs for ECharts time axis
           series = [ {

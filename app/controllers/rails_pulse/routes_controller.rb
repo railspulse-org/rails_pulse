@@ -52,7 +52,7 @@ module RailsPulse
 
     # Pass the route to chart classes on show pages
     def chart_options
-      show_action? ? { route: @route } : {}
+      show_action? ? { subject: @route } : {}
     end
 
     def show_resource_filter
@@ -103,7 +103,6 @@ module RailsPulse
         Routes::Tables::Index.new(
           ransack_query: @ransack_query,
           period_type: period_type,
-          start_time: @start_time,
           params: params,
           disabled_tags: session_disabled_tags,
           show_non_tagged: session[:show_non_tagged] != false
@@ -135,17 +134,14 @@ module RailsPulse
     # day/week/month periods) so the table isn't just blank for old ranges.
     def setup_archived_summary_data
       cutoff = retention_cutoff
-      window_start = @page_timings&.table_start_time
+      table_window = @time_range&.table_window
 
-      scope = if cutoff && window_start && Time.at(window_start) < cutoff
+      scope = if cutoff && table_window && table_window.start_time < cutoff
         scope = Summary.for_routes
           .where(summarizable_id: @route.id)
           .where(period_type: period_type)
           .where("period_start < ?", cutoff)
-
-        if @page_timings&.table_end_time
-          scope = scope.where("period_start < ?", Time.at(@page_timings.table_end_time))
-        end
+          .where("period_start < ?", table_window.end_time)
 
         scope.order(period_start: :desc)
       else

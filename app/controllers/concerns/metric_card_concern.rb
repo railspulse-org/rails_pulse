@@ -33,14 +33,13 @@ module MetricCardConcern
     end
   end
 
-  # Common parameters passed to all metric card classes
+  # Common parameters passed to all metric card classes. Deliberately does
+  # NOT pass window: — these cards show a "trailing period" figure, not the
+  # exact selected range (ChartTableConcern's charts get the exact window;
+  # see Cards::Base#window_days).
   def metric_card_params
-    # For "recent" mode with no time filtering, use a default period of 7 days
-    period_days = if @start_time.nil? || @end_time.nil?
-      7
-    else
-      ((@end_time - @start_time) / 1.day).round
-    end
+    window = @time_range&.window
+    period_days = window ? ((window.end_time - window.start_time) / 1.day).round : 7
 
     {
       resource_key => current_resource,

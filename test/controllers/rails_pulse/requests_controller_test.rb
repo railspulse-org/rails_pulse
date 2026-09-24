@@ -41,18 +41,6 @@ class RailsPulse::RequestsControllerTest < ActionDispatch::IntegrationTest
     assert_operator RailsPulse::RequestsController, :<, RailsPulse::ApplicationController
   end
 
-  test "controller uses standard TIME_RANGE_OPTIONS" do
-    expected_options = [
-      [ "Last 24 hours", :last_24_hours ],
-      [ "Last 7 days", :last_7_days ],
-      [ "Last 14 days", :last_14_days ],
-      [ "Last 30 days", :last_30_days ],
-      [ "Custom range", :custom ]
-    ]
-
-    assert_equal expected_options, RailsPulse::RequestsController::TIME_RANGE_OPTIONS
-  end
-
   test "uses correct chart and table models" do
     controller = RailsPulse::RequestsController.new
 

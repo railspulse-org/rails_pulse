@@ -2,14 +2,8 @@ module RailsPulse
   module Routes
     module Cards
       class ErrorRates < RailsPulse::Cards::Base
-        def initialize(route: nil, disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
-          @route = route
-          @disabled_tags = disabled_tags
-          @show_non_tagged = show_non_tagged
-          @period = period
-          @period_type = period_type
-          @start_time = start_time
-          @end_time = end_time
+        def initialize(route: nil, **kwargs)
+          super(subject: route, **kwargs)
         end
 
         def to_metric_card
@@ -35,7 +29,7 @@ module RailsPulse
           server_rate = has_data ? (total_errors.to_f / total_requests * 100).round(2) : 0
           client_rate = has_data ? (total_4xx.to_f / total_requests * 100).round(2) : 0
 
-          baseline = baseline_trend_for(@route, metric: :error_rate)
+          baseline = baseline_trend_for(@subject, metric: :error_rate)
 
           if baseline
             trend_icon, trend_amount, trend_caption = baseline
@@ -71,10 +65,6 @@ module RailsPulse
         end
 
         private
-
-        def subject_id
-          @route&.id
-        end
 
         def sparkline_from_error_rates(errors_by_period, client_errors_by_period, counts_by_period)
           if @period_type == "hour"

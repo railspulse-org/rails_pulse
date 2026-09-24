@@ -2,14 +2,8 @@ module RailsPulse
   module Queries
     module Cards
       class PercentileQueryTimes < RailsPulse::Cards::Base
-        def initialize(query: nil, disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
-          @query = query
-          @disabled_tags = disabled_tags
-          @show_non_tagged = show_non_tagged
-          @period = period
-          @period_type = period_type
-          @start_time = start_time
-          @end_time = end_time
+        def initialize(query: nil, **kwargs)
+          super(subject: query, **kwargs)
         end
 
         def to_metric_card
@@ -28,7 +22,7 @@ module RailsPulse
           current_period_p95 = metrics.current_p95 || 0
           previous_period_p95 = metrics.previous_p95 || 0
 
-          baseline = baseline_trend_for(@query, metric: :p95)
+          baseline = baseline_trend_for(@subject, metric: :p95)
 
           if baseline
             trend_icon, trend_amount, trend_caption = baseline
@@ -44,7 +38,7 @@ module RailsPulse
               period_type: @period_type,
               period_start: current_window_start..now
             )
-          sparkline_query = sparkline_query.where(summarizable_id: @query.id) if @query
+          sparkline_query = sparkline_query.where(summarizable_id: @subject.id) if @subject
 
           weighted_sums = bucket_by_period(sparkline_query) { |relation| relation.sum("p95_duration * count") }
           period_counts = bucket_by_period(sparkline_query) { |relation| relation.sum(:count) }

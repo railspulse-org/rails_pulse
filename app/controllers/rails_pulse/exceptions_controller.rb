@@ -1,6 +1,6 @@
 module RailsPulse
   class ExceptionsController < ApplicationController
-    include TimeRangeConcern
+    include RansackParamsConcern
     include TagFilterConcern
     include DeploymentMarkersConcern
 
@@ -38,22 +38,20 @@ module RailsPulse
     # without them the page can say what is failing but not whether it is
     # getting worse, which is the question users actually arrive with.
     def setup_frequency_view
-      # Timestamps, not Times, to match every other index controller — the
-      # shared concerns and helpers that read @start_time expect integers.
-      @start_time, @end_time, @selected_time_range, @time_diff_hours = setup_time_range
+      @time_range = RailsPulse::TimeRange.resolve(
+        params: params, session: session, default_key: default_time_range_key
+      )
 
-      @period_type = @time_diff_hours <= 25 ? "hour" : "day"
-      period_days  = window_days_for(@selected_time_range)
+      period_days = window_days_for(@time_range.selected_time_range, @time_range.window)
 
       populate_deployment_markers
 
       @occurrence_volume_chart = Exceptions::Charts::OccurrenceVolume.new(
-        start_time: Time.zone.at(@start_time),
-        end_time: Time.zone.at(@end_time),
-        period_type: @period_type
+        window: @time_range.window,
+        period_type: @time_range.period_type
       ).to_chart_data
 
-      card_params = { period: period_days, period_type: @period_type }
+      card_params = { period: period_days, period_type: @time_range.period_type }
 
       @total_occurrences_metric_card = Exceptions::Cards::TotalOccurrences.new(**card_params).to_metric_card
       @exception_rate_metric_card    = Exceptions::Cards::ExceptionRate.new(**card_params).to_metric_card
@@ -67,13 +65,13 @@ module RailsPulse
     # The card copy ("compared to previous N days") has to name the range the
     # user picked. Measuring the span instead reads one day long, because the
     # range runs from the start of the first day to the end of the last.
-    def window_days_for(selected_range)
+    def window_days_for(selected_range, window)
       case selected_range.to_s
       when "last_24_hours" then 1
       when "last_7_days"   then 7
       when "last_14_days"  then 14
       when "last_30_days"  then 30
-      else [ ((@end_time - @start_time) / 1.day.to_i).round, 1 ].max
+      else window.days
       end
     end
 

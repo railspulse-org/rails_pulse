@@ -17,8 +17,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -31,8 +30,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -46,8 +44,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -60,8 +57,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -73,8 +69,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -86,8 +81,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -100,8 +94,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -114,8 +107,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -127,8 +119,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -140,8 +131,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -153,8 +143,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -166,8 +155,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -181,8 +169,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -202,8 +189,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -223,8 +209,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -251,8 +236,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: start_time,
-            end_time: end_time
+            window: RailsPulse::TimeWindow.new(start_time, end_time)
           )
 
           data = chart.to_chart_data
@@ -271,8 +255,7 @@ module RailsPulse
             ransack_query: @ransack_query,
             period_type: :day,
             route: nil, # Aggregate all routes
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -286,8 +269,7 @@ module RailsPulse
             ransack_query: @ransack_query,
             period_type: :day,
             route: nil, # Aggregate all routes
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -300,8 +282,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -317,8 +298,7 @@ module RailsPulse
             ransack_query: @ransack_query,
             period_type: :day,
             route: @route,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -332,8 +312,7 @@ module RailsPulse
             ransack_query: @ransack_query,
             period_type: :day,
             route: nil,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -346,8 +325,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -361,8 +339,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -375,8 +352,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             disabled_tags: [ "api" ]
           )
 
@@ -390,8 +366,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             show_non_tagged: false
           )
 
@@ -405,8 +380,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time,
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time),
             disabled_tags: [ "maintenance" ],
             show_non_tagged: true
           )
@@ -427,8 +401,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: start_time,
-            end_time: end_time
+            window: RailsPulse::TimeWindow.new(start_time, end_time)
           )
 
           data = chart.to_chart_data
@@ -444,8 +417,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -463,8 +435,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -485,8 +456,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: start_time,
-            end_time: end_time
+            window: RailsPulse::TimeWindow.new(start_time, end_time)
           )
 
           data = chart.to_chart_data
@@ -509,8 +479,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: ransack_query,
             period_type: :day,
-            start_time: 1000.days.ago,
-            end_time: 999.days.ago
+            window: RailsPulse::TimeWindow.new(1000.days.ago, 999.days.ago)
           )
 
           data = chart.to_chart_data
@@ -530,8 +499,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :hour,
-            start_time: start_time,
-            end_time: end_time
+            window: RailsPulse::TimeWindow.new(start_time, end_time)
           )
 
           data = chart.to_chart_data
@@ -550,8 +518,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: start_time,
-            end_time: end_time
+            window: RailsPulse::TimeWindow.new(start_time, end_time)
           )
 
           data = chart.to_chart_data
@@ -571,8 +538,7 @@ module RailsPulse
           chart = ErrorRate.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: start_time,
-            end_time: end_time
+            window: RailsPulse::TimeWindow.new(start_time, end_time)
           )
 
           data = chart.to_chart_data

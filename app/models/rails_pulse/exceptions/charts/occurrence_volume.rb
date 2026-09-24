@@ -8,16 +8,15 @@ module RailsPulse
       # silently flattens toward zero the further back you look. Summaries are
       # retained at day granularity indefinitely.
       class OccurrenceVolume
-        def initialize(start_time:, end_time:, period_type: "day")
-          @start_time  = start_time
-          @end_time    = end_time
+        def initialize(window:, period_type: "day")
+          @window      = window
           @period_type = period_type
         end
 
         def to_chart_data
           totals = RailsPulse::Summary
             .overall_exceptions
-            .where(period_type: @period_type, period_start: @start_time..@end_time)
+            .where(period_type: @period_type, period_start: @window.start_time..@window.end_time)
             .group(:period_start)
             .sum(:count)
 
@@ -45,7 +44,7 @@ module RailsPulse
           step = @period_type.to_s == "hour" ? 3600 : 86_400
 
           {}.tap do |padded|
-            (@start_time.to_i..@end_time.to_i).step(step) do |timestamp|
+            (@window.start_time.to_i..@window.end_time.to_i).step(step) do |timestamp|
               padded[timestamp] = raw[timestamp] || 0
             end
           end

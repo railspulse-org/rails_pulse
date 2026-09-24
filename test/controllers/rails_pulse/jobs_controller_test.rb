@@ -15,7 +15,7 @@ class RailsPulse::JobsControllerTest < ActionDispatch::IntegrationTest
 
   test "controller includes required concerns" do
     assert_includes RailsPulse::JobsController.included_modules, TagFilterConcern
-    assert_includes RailsPulse::JobsController.included_modules, TimeRangeConcern
+    assert_includes RailsPulse::JobsController.included_modules, ChartTableConcern
 
     assert_includes RailsPulse::JobsController.private_instance_methods(true), :paginate
   end
@@ -29,18 +29,6 @@ class RailsPulse::JobsControllerTest < ActionDispatch::IntegrationTest
 
   test "controller inherits from ApplicationController" do
     assert_operator RailsPulse::JobsController, :<, RailsPulse::ApplicationController
-  end
-
-  test "controller uses standard TIME_RANGE_OPTIONS" do
-    expected_options = [
-      [ "Last 24 hours", :last_24_hours ],
-      [ "Last 7 days", :last_7_days ],
-      [ "Last 14 days", :last_14_days ],
-      [ "Last 30 days", :last_30_days ],
-      [ "Custom range", :custom ]
-    ]
-
-    assert_equal expected_options, RailsPulse::JobsController::TIME_RANGE_OPTIONS
   end
 
   # Index Action Tests
@@ -137,7 +125,7 @@ class RailsPulse::JobsControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil assigns(:pagination)
     assert_not_nil assigns(:table_data)
     assert_not_nil assigns(:table_data)
-    assert_not_nil assigns(:selected_time_range)
+    assert_not_nil assigns(:time_range)&.selected_time_range
     assert_equal @job, assigns(:job)
   end
 
@@ -145,7 +133,7 @@ class RailsPulse::JobsControllerTest < ActionDispatch::IntegrationTest
     get rails_pulse.job_path(@job)
 
     assert_response :success
-    assert_equal "last_7_days", assigns(:selected_time_range)
+    assert_equal "last_7_days", assigns(:time_range)&.selected_time_range
   end
 
   test "show action filters by time range" do
@@ -153,8 +141,8 @@ class RailsPulse::JobsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # Time filtering should be applied
-    assert_not_nil assigns(:start_time)
-    assert_not_nil assigns(:end_time)
+    assert_not_nil assigns(:time_range)&.window&.start_time
+    assert_not_nil assigns(:time_range)&.window&.end_time
   end
 
   test "show action orders runs by occurred_at desc" do

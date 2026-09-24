@@ -34,7 +34,7 @@
     <div>
       <p class="font-semibold uppercase text-xs text-subtle mbe-1">In this range</p>
       <p class="text-lg font-bold"><%= number_with_delimiter(@deployment_count) %></p>
-      <p class="text-xs text-subtle"><%= humanize_time_range(@selected_time_range) %></p>
+      <p class="text-xs text-subtle"><%= humanize_time_range(@time_range.selected_time_range) %></p>
     </div>
   </div>
 
@@ -55,7 +55,7 @@
       <% end %>
     <% else %>
       <p class="text-sm text-subtle">
-        No deployments recorded in the <%= humanize_time_range(@selected_time_range) %>.
+        No deployments recorded in the <%= humanize_time_range(@time_range.selected_time_range) %>.
         Post to the deployments endpoint from your deploy pipeline, or run
         <code>rails_pulse:record_deployment</code>, and they will appear here and as markers on the charts.
       </p>

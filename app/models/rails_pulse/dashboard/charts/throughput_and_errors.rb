@@ -2,13 +2,12 @@ module RailsPulse
   module Dashboard
     module Charts
       class ThroughputAndErrors
-        def initialize(disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", start_time: nil, end_time: nil)
+        def initialize(disabled_tags: [], show_non_tagged: true, period: 7, period_type: "day", window: nil)
           @disabled_tags = disabled_tags
           @show_non_tagged = show_non_tagged
           @period = period
           @period_type = period_type
-          @start_time = start_time
-          @end_time = end_time
+          @window = window
         end
 
         def to_chart_data
@@ -125,10 +124,10 @@ module RailsPulse
 
         private
 
-        # nil unless both start_time and end_time were given, so the default
+        # nil unless a window was given, so the default
         # "recent" view keeps using the trailing-@period-days fallback below.
         def time_window
-          @time_window ||= RailsPulse::TimeWindow.build(@start_time, @end_time)
+          @window
         end
 
         def default_hour_range

@@ -29,7 +29,7 @@
         %>
         <%= form.select :avg_duration,
           duration_options(:job),
-          { selected: @selected_response_range },
+          { selected: @time_range&.selected_response_range },
           { class: "input" }
         %>
         <%= if params.has_key?(:q) || params[:queue_name].present?

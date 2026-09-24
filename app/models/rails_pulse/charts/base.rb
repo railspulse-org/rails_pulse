@@ -1,18 +1,14 @@
 module RailsPulse
   module Charts
     class Base
-      def initialize(ransack_query:, period_type: nil, subject: nil, start_time: nil, end_time: nil, start_duration: nil, disabled_tags: [], show_non_tagged: true, **options)
+      def initialize(ransack_query:, period_type: nil, subject: nil, window: nil, start_duration: nil, disabled_tags: [], show_non_tagged: true)
         @ransack_query = ransack_query
         @period_type = period_type
         @subject = subject
-        @start_time = start_time
-        @end_time = end_time
+        @window = window
         @start_duration = start_duration
         @disabled_tags = disabled_tags
         @show_non_tagged = show_non_tagged
-
-        # Support legacy parameter names (job, query, route)
-        @subject ||= options[:job] || options[:query] || options[:route]
       end
 
       private

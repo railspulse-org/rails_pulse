@@ -34,7 +34,7 @@ module RailsPulse
 
     # Base chart options shared across all chart types
     def base_chart_options(units: nil, zoom: false)
-      hourly = @period_type == "hour" || (@time_diff_hours && @time_diff_hours <= 25)
+      hourly = @time_range&.period_type == "hour"
       x_formatter = hourly ? "time" : "timestamp_to_date"
       tooltip_formatter = units == "%" ? "tooltip_with_timestamp_rate" : "tooltip_with_timestamp"
       {

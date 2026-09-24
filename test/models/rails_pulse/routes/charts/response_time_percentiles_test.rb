@@ -15,8 +15,7 @@ module RailsPulse
           chart = ResponseTimePercentiles.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           assert_kind_of ResponseTimePercentiles, chart
@@ -26,8 +25,7 @@ module RailsPulse
           chart = ResponseTimePercentiles.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -40,8 +38,7 @@ module RailsPulse
           chart = ResponseTimePercentiles.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -56,8 +53,7 @@ module RailsPulse
           chart = ResponseTimePercentiles.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -72,8 +68,7 @@ module RailsPulse
           chart = ResponseTimePercentiles.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -88,8 +83,7 @@ module RailsPulse
           chart = ResponseTimePercentiles.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -105,8 +99,7 @@ module RailsPulse
             ransack_query: @ransack_query,
             period_type: :day,
             route: @route,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           # Should not raise error
@@ -122,8 +115,7 @@ module RailsPulse
           chart = ResponseTimePercentiles.new(
             ransack_query: empty_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -146,8 +138,7 @@ module RailsPulse
           chart = ResponseTimePercentiles.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data
@@ -168,8 +159,7 @@ module RailsPulse
           chart = ResponseTimePercentiles.new(
             ransack_query: @ransack_query,
             period_type: :day,
-            start_time: @start_time,
-            end_time: @end_time
+            window: RailsPulse::TimeWindow.new(@start_time, @end_time)
           )
 
           data = chart.to_chart_data

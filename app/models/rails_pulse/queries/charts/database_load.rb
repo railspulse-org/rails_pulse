@@ -2,9 +2,8 @@ module RailsPulse
   module Queries
     module Charts
       class DatabaseLoad
-        def initialize(start_time:, end_time:, period_type: :day, disabled_tags: [], show_non_tagged: true)
-          @start_time = start_time
-          @end_time = end_time
+        def initialize(window:, period_type: :day, disabled_tags: [], show_non_tagged: true)
+          @window = window
           @period_type = period_type
           @disabled_tags = disabled_tags
           @show_non_tagged = show_non_tagged
@@ -19,7 +18,7 @@ module RailsPulse
             .where(
               summarizable_type: "RailsPulse::Query",
               period_type: @period_type,
-              period_start: Time.at(@start_time)..Time.at(@end_time)
+              period_start: @window.start_time..@window.end_time
             )
 
           # Get route summaries (total request time)
@@ -28,7 +27,7 @@ module RailsPulse
             .where(
               summarizable_type: "RailsPulse::Route",
               period_type: @period_type,
-              period_start: Time.at(@start_time)..Time.at(@end_time)
+              period_start: @window.start_time..@window.end_time
             )
 
           return nil if query_summaries.empty? || route_summaries.empty?
@@ -52,7 +51,7 @@ module RailsPulse
           # <25% = green (healthy), 25-40% = yellow (watch), >40% = red (bottleneck)
           bar_data = []
 
-          (@start_time.to_i..@end_time.to_i).step(step) do |timestamp|
+          (@window.start_time.to_i..@window.end_time.to_i).step(step) do |timestamp|
             query_time = query_time_by_period[timestamp] || 0
             request_time = request_time_by_period[timestamp] || 0
             percentage = request_time > 0 ? (query_time.to_f / request_time * 100).round(1) : 0

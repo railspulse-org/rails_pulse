@@ -18,7 +18,6 @@ module RailsPulse
           RailsPulse::Jobs::Tables::Index.new(
             ransack_query: @ransack_query,
             period_type: period_type,
-            start_time: @start_time,
             params: @params,
             disabled_tags: disabled_tags,
             show_non_tagged: show_non_tagged,

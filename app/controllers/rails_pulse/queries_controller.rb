@@ -30,8 +30,7 @@ module RailsPulse
 
       # Database load chart doesn't use ransack_query, so generate it separately
       @database_load_chart_data = Queries::Charts::DatabaseLoad.new(
-        start_time: @start_time,
-        end_time: @end_time,
+        window: @time_range&.window,
         period_type: period_type,
         disabled_tags: session_disabled_tags,
         show_non_tagged: session[:show_non_tagged] != false
@@ -55,10 +54,13 @@ module RailsPulse
 
       # Database load card only shows on index page and doesn't accept query param
       if current_resource.nil?
+        window = @time_range&.window
+        period_days = window ? ((window.end_time - window.start_time) / 1.day).round : 7
+
         @database_load_metric_card = Queries::Cards::DatabaseLoad.new(
           disabled_tags: session_disabled_tags,
           show_non_tagged: session[:show_non_tagged] != false,
-          period: ((@end_time - @start_time) / 1.day).round,
+          period: period_days,
           period_type: period_type.to_s
         ).to_metric_card
       end
@@ -87,7 +89,7 @@ module RailsPulse
 
     # Pass the query to chart classes on show pages
     def chart_options
-      show_action? ? { query: @query } : {}
+      show_action? ? { subject: @query } : {}
     end
 
     # Queries use polymorphic summaries, so we need to filter by type
@@ -127,7 +129,6 @@ module RailsPulse
         Queries::Tables::Index.new(
           ransack_query: @ransack_query,
           period_type: period_type,
-          start_time: @start_time,
           params: params,
           disabled_tags: session_disabled_tags,
           show_non_tagged: session[:show_non_tagged] != false

@@ -6,8 +6,8 @@
           <%= column[:label] %>
         <% else %>
           <% sort_params = {} %>
-          <% sort_params[:zoom_start_time] = @zoom_start if @zoom_start.present? %>
-          <% sort_params[:zoom_end_time] = @zoom_end if @zoom_end.present? %>
+          <% sort_params[:zoom_start_time] = @time_range&.zoom_start if @time_range&.zoom_start.present? %>
+          <% sort_params[:zoom_end_time] = @time_range&.zoom_end if @time_range&.zoom_end.present? %>
           <% sort_params[:selected_column_time] = params[:selected_column_time] if params[:selected_column_time].present? %>
           <%= sort_link @ransack_query, column[:field], column[:label],
             sort_params.merge(

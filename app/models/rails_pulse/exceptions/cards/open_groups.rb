@@ -9,10 +9,7 @@ module RailsPulse
       # you about the other.
       class OpenGroups < RailsPulse::Cards::Base
         def initialize(disabled_tags: [], show_non_tagged: true, period: 14, period_type: "day")
-          @disabled_tags   = disabled_tags
-          @show_non_tagged = show_non_tagged
-          @period          = period
-          @period_type     = period_type
+          super
         end
 
         def to_metric_card
