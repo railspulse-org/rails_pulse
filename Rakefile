@@ -308,7 +308,7 @@ task :test do
   verify_test_setup_adapter!(ENV["DB"] || "sqlite3")
 
   pulse_session(pulse_meta) do
-    pulse_phase("main suite", "main", "rails test test/controllers test/generators test/helpers test/instrumentation test/jobs test/lib test/middleware test/models test/services test/rails_pulse_test.rb test/tracker_test.rb")
+    pulse_phase("main suite", "main", "rails test test/controllers test/generators test/helpers test/instrumentation test/jobs test/lib test/middleware test/models test/serializers test/services test/rails_pulse_test.rb test/tracker_test.rb")
     Rake::Task[:test_migrations].invoke
   end
 end
@@ -375,7 +375,7 @@ desc "Test all database and Rails version combinations"
 task :test_matrix do
   databases = %w[mysql2 postgresql sqlite3]
   rails_versions = %w[rails-7-2 rails-8-0 rails-8-1]
-  base_test_paths = "test/controllers test/generators test/helpers test/instrumentation test/jobs test/lib test/middleware test/models test/services test/rails_pulse_test.rb test/tracker_test.rb test/system"
+  base_test_paths = "test/controllers test/generators test/helpers test/instrumentation test/jobs test/lib test/middleware test/models test/serializers test/services test/rails_pulse_test.rb test/tracker_test.rb test/system"
 
   steps = databases.product(rails_versions).map do |database, rails_version|
     label = "#{database} + #{rails_version.tr('-', ' ')}"

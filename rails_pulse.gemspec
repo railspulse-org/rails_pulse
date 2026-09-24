@@ -43,7 +43,7 @@ Gem::Specification.new do |spec|
   end
 
   spec.bindir = "exe"
-  spec.executables = [ "rails_pulse_server" ]
+  spec.executables = [ "rails_pulse_server", "rails-pulse" ]
 
   spec.post_install_message = <<~MSG
     Rails Pulse #{spec.version} installed.
@@ -66,6 +66,9 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "rails", ">= 7.2.0", "< 9.0.0"
   spec.add_dependency "ransack", ">= 4.0", "< 6"
+  # The rails-pulse CLI and its MCP server (exe/rails-pulse, lib/rails_pulse/cli, lib/rails_pulse/mcp).
+  spec.add_dependency "thor", "~> 1.0"
+  spec.add_dependency "mcp", "~> 1.0"
 
   spec.add_development_dependency "sqlite3", ">= 1.4"
   spec.add_development_dependency "pg", ">= 1.1"

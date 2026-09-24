@@ -1,0 +1,11 @@
+# The JSON API, CLI and MCP server ship in the free gem and are read-only
+
+_Recorded 2026-09, when the tooling moved out of rails_pulse_pro before 1.0._
+
+`rails_pulse` ships a token-authenticated JSON API (`app/controllers/rails_pulse/api/v1/`), the `rails-pulse` CLI (`lib/rails_pulse/cli/`) and an MCP server (`lib/rails_pulse/mcp/`) that talks to that API. All three are read-only. The API answers over the same engine mount as the dashboard but never consults the dashboard session: it accepts only `config.api_token`, and with no token configured it refuses every request.
+
+The MCP server and CLI run on the developer's machine, not inside the application, and reach it only over HTTP. That is why all twelve MCP tools and every CLI command live in the free gem even though six tools and five commands read data only `rails_pulse_pro` produces: there is one client to install and no version skew between a free client and a Pro server. For those endpoints the free gem draws stub routes (`ProController`) that answer 402 with the feature name and a link; `rails_pulse_pro` appends the real routes and the stubs are skipped. The client turns a 402 into a message for the user rather than an error, so an agent mid-investigation learns what Pro would add and carries on with the free tools.
+
+The alternative was the original packaging: tooling in the paid gem, as the headline Pro feature. It was rejected because the tooling is distribution, not product. Every APM will have an MCP server; the value of Pro is in what it notices unattended and how it judges it, not in the pipe. Keeping the client free also means the diagnosis workflow an agent runs (deploy, slow requests, endpoint, queries, jobs) works for every install, which is the demo that sells the gem.
+
+Read-only is a promise, not an implementation detail. `MCP::Tool` annotations declare `read_only_hint`, the controllers expose only index and show actions, and nothing under the API namespace may write. A feature that needs an agent to change the application belongs in a workflow the customer runs (a PR from their own agent runner), never in these endpoints. The other constraint this inherits is decision 0006: the API serves the host's own database and sends nothing anywhere else.

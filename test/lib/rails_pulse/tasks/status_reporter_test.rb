@@ -20,7 +20,7 @@ class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
     report
 
     assert_match(/\ARails Pulse #{Regexp.escape(RailsPulse::VERSION)}/, @output.string)
-    %w[Database: Schema: Migrations: Routes: Initializer: Tracking: Dashboard: Writer: Summaries:].each do |label|
+    %w[Database: Schema: Migrations: Routes: Initializer: Tracking: Dashboard: API: Writer: Summaries:].each do |label|
       assert_includes @output.string, label
     end
   end

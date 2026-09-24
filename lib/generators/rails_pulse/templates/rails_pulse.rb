@@ -327,26 +327,29 @@ RailsPulse.configure do |config|
   # }
 
   # ====================================================================================================
-  #                                             DEPLOYMENT TRACKING
+  #                                    API TOKEN AND DEPLOYMENT TRACKING
   # ====================================================================================================
-  # Record deployments to display vertical marker lines on performance charts, making it easy
-  # to correlate performance changes with specific releases.
+  # One token authenticates everything that is not the dashboard: the read-only JSON API under
+  # /rails_pulse/api/v1 (what the `rails-pulse` CLI and the MCP server your coding agent uses talk
+  # to) and the POST /rails_pulse/deployments endpoint your CI calls to record a release. Requests
+  # send it as an `X-Rails-Pulse-Token` header. Keep it in credentials or an environment variable:
+  #   config.api_token = Rails.application.credentials.dig(:rails_pulse, :api_token)
+  #   config.api_token = ENV["RAILS_PULSE_API_TOKEN"]
   #
-  # API token for the POST /rails_pulse/deployments endpoint.
-  # When set, requests must include an `X-Rails-Pulse-Token` header matching this value.
-  # When nil, the endpoint falls back to the standard dashboard authentication.
+  # With no token the API refuses every request; the deployments endpoint alone falls back to the
+  # dashboard authentication above. (Called deployment_api_token before 1.0; the old name still works.)
   #
-  # Set this in your CI/CD pipeline and store the value in credentials or an environment variable:
-  #   config.deployment_api_token = Rails.application.credentials.dig(:rails_pulse, :deployment_api_token)
-  #   config.deployment_api_token = ENV["RAILS_PULSE_DEPLOYMENT_TOKEN"]
+  # Point the CLI and MCP server at this app with `rails-pulse configure`, or set RAILS_PULSE_URL
+  # and RAILS_PULSE_TOKEN in the agent's environment.
   #
-  # Limits: revision ≤ 255 characters, metadata ≤ 4 KB serialized, started_at at most
-  # one hour in the future. Rows beyond max_table_records[:rails_pulse_deployments]
-  # are pruned oldest-first by the cleanup task.
+  # Deployments draw vertical markers on the charts so a change in performance can be lined up
+  # with the release that caused it. Limits: revision ≤ 255 characters, metadata ≤ 4 KB
+  # serialized, started_at at most one hour in the future. Rows beyond
+  # max_table_records[:rails_pulse_deployments] are pruned oldest-first by the cleanup task.
   #
   # Record a deployment from your CI/CD pipeline:
   #   curl -X POST https://yourapp.com/rails_pulse/deployments \
-  #     -H "X-Rails-Pulse-Token: $RAILS_PULSE_DEPLOYMENT_TOKEN" \
+  #     -H "X-Rails-Pulse-Token: $RAILS_PULSE_API_TOKEN" \
   #     -H "Content-Type: application/json" \
   #     -d '{"deployment": {"revision": "abc1234", "metadata": {"environment": "production"}}}'
   #
@@ -356,7 +359,7 @@ RailsPulse.configure do |config|
   # Metadata for the rake task comes from an environment variable, as a JSON object:
   #   RAILS_PULSE_DEPLOYMENT_METADATA='{"environment":"production"}' rake rails_pulse:record_deployment[abc1234]
 
-  # config.deployment_api_token = ENV["RAILS_PULSE_DEPLOYMENT_TOKEN"]
+  # config.api_token = ENV["RAILS_PULSE_API_TOKEN"]
 
   # ====================================================================================================
   #                                               DATA CLEANUP

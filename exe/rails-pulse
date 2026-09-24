@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Runs outside the Rails app: talks to it over the JSON API, so only the CLI
+# is loaded here, never the engine.
+require "rails_pulse/cli/main"
+RailsPulse::CLI::Main.start(ARGV)

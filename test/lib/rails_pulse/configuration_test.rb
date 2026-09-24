@@ -26,6 +26,17 @@ module RailsPulse
       assert config.enabled
     end
 
+    test "api_token defaults to nil and deployment_api_token is an alias for it" do
+      config = Configuration.new
+
+      assert_nil config.api_token
+
+      config.deployment_api_token = "legacy-token"
+
+      assert_equal "legacy-token", config.api_token
+      assert_equal "legacy-token", config.deployment_api_token
+    end
+
     test "track_jobs defaults to false" do
       config = Configuration.new
 

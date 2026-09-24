@@ -37,6 +37,26 @@ RailsPulse::Engine.routes.draw do
     end
   end
 
+  # Read-only JSON API for the rails-pulse CLI, the MCP server and CI, all
+  # authenticated by config.api_token (app/controllers/rails_pulse/api/v1).
+  scope path: "api/v1", module: "api/v1", as: :api_v1 do
+    resources :routes,      only: :index
+    resources :requests,    only: :index
+    resources :queries,     only: :index
+    resources :jobs,        only: :index
+    resources :job_runs,    only: :index
+    resources :deployments, only: :index
+
+    # rails_pulse_pro appends the real routes for these. Without it they
+    # answer 402 with what is missing, so the CLI and MCP tools can say so
+    # instead of 404ing. Keep the list in step with ProController::FEATURES.
+    unless RailsPulse.pro?
+      %w[alerts alert_rules summary threshold_suggestions setup].each do |feature|
+        get feature, to: "pro#show", defaults: { feature: feature }, as: feature
+      end
+    end
+  end
+
   # CSP compliance testing (development/test only)
   if Rails.env.local?
     get "csp_test", to: "csp_test#show", as: :csp_test

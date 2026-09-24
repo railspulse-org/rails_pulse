@@ -6,7 +6,7 @@ What you cannot work out from the code: how the pieces fit, why the important ch
 
 | File | Read it before |
 |---|---|
-| `architecture.md` | touching collection, the tracker, summaries, cleanup, the schema check, the standalone server, or assets |
+| `architecture.md` | touching collection, the tracker, summaries, cleanup, the schema check, the standalone server, assets, or the API, CLI and MCP server |
 | `api.md` | changing anything that might be part of the public API, or deciding whether a change is breaking |
 | `migrations.md` | any schema change |
 | `testing.md` | writing or changing a test |

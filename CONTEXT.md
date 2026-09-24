@@ -66,6 +66,14 @@ _Avoid_: release, deploy marker (the marker is how a Deployment is drawn, not th
 
 ### Collection
 
+**API token**:
+`config.api_token`, the one shared secret outside the dashboard: it authenticates the read-only JSON API under `api/v1` and the deployments endpoint, sent as `X-Rails-Pulse-Token`. Was `deployment_api_token` before 1.0; the alias remains.
+_Avoid_: deployment token, dashboard token, license key
+
+**CLI and MCP server**:
+`rails-pulse`, the Thor executable in the gem, and its `mcp` subcommand, which serves the same data to coding agents over stdio. Both run outside the application and read it only through the JSON API. The six tools and five commands that need Rails Pulse Pro data answer with a "requires Pro" message when the Pro gem is absent.
+_Avoid_: agent, plugin, integration (for the tooling itself)
+
 **Tracker**:
 The single background writer per process. The middleware pushes each request's collected data onto a bounded queue (`async_queue_size`, default 1000); the Tracker drains it on one connection and drops the newest request when the queue is full. With `config.async = false`, or on a transactional-test connection, it writes inline.
 _Avoid_: worker, collector (that is the middleware), reporter

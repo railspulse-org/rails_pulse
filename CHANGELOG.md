@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **JSON API, `rails-pulse` CLI and MCP server.** The agent tooling that shipped in Rails Pulse Pro now comes with the free gem: a read-only, token-authenticated API under `/rails_pulse/api/v1` (routes, requests, queries, jobs, job runs, deployments), a `rails-pulse` executable for the terminal and CI, an MCP server (`rails-pulse mcp`) with twelve tools for Claude Code, Codex, Cursor and other clients, and `rails-pulse install claude` to add a Claude Code skill. The six tools that read Pro data (alerts, alert rules, suggested thresholds, request stats, setup, and regression outcomes on deployments) explain what Rails Pulse Pro adds when it is not installed instead of failing. Adds the `thor` and `mcp` gems as dependencies.
+- `rails rails_pulse:status` reports whether the API token is set.
+
+### Changed
+
+- **`config.deployment_api_token` is now `config.api_token`.** One token authenticates the JSON API and the deployments endpoint; the old name still works as an alias, and the install template documents the new one.
+
+## [0.4.0.pre.6] - 2026-09-20
+
 - **Dropped requests are now visible.** Each background writer records a heartbeat once a minute (queue depth and requests dropped since the last one), pruned after a day. The dashboard's health bar gains a Tracking badge, shown only when a writer is backlogged or dropping requests; the Storage page lists every live writer with its queue and drops; and `rails rails_pulse:status` reports the totals and exits 1 when anything was dropped in the last hour. (#281)
 - **A `rails_pulse_events` table** for what Rails Pulse notices rather than measures: the writer heartbeats above, and Rails Pulse Pro's alert triggers, regression checks and exception alerts, so Pro no longer needs a migration of its own. `config.event_retention_period` (default 90 days) prunes it. Run `rails generate rails_pulse:upgrade` and migrate; tracking pauses until the table exists.
 - CI now exercises the separate-database upgrade path (`bin/test_separate_database_upgrade`, SQLite and PostgreSQL), and the migration regression suite gains a 0.3.2 baseline. (#284)
