@@ -22,7 +22,14 @@ module RailsPulse
         rails_pulse__chart_type_value: type,
         rails_pulse__chart_data_value: data.to_json,
         rails_pulse__chart_options_value: chart_options.to_json,
-        rails_pulse__chart_theme_value: theme
+        rails_pulse__chart_theme_value: theme,
+        # Lets the chart format daily labels/tooltips in the zone summaries
+        # were actually bucketed in, instead of the browser's zone (which can
+        # land a daily boundary on the wrong calendar day — see #303). The
+        # short label keeps sparkline tooltips readable; the full zone name
+        # is in the badge's title next to each chart.
+        rails_pulse__chart_timezone_value: RailsPulse::TimeRange.aggregation_zone_iana,
+        rails_pulse__chart_timezone_label_value: RailsPulse::TimeRange.aggregation_zone_short_label
       }
 
       content_tag(:div, "",

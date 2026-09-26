@@ -37,11 +37,11 @@ module RailsPulse
         if age >= STALE_CRITICAL_THRESHOLD
           hours = (age / 1.hour).round
           [ stale_item(:critical, "Summary job is #{hours}h behind",
-                       "#{hours}h stale", "Last run: #{latest_end.strftime("%Y-%m-%d %H:%M UTC")}") ]
+                       "#{hours}h stale", "Last run: #{latest_end.strftime("%Y-%m-%d %H:%M")} (#{RailsPulse::TimeRange.aggregation_zone_label})") ]
         elsif age >= STALE_WARNING_THRESHOLD
           hours = (age / 1.hour).round
           [ stale_item(:warning, "Summary job is #{hours}h behind",
-                       "#{hours}h stale", "Last run: #{latest_end.strftime("%Y-%m-%d %H:%M UTC")}") ]
+                       "#{hours}h stale", "Last run: #{latest_end.strftime("%Y-%m-%d %H:%M")} (#{RailsPulse::TimeRange.aggregation_zone_label})") ]
         else
           []
         end

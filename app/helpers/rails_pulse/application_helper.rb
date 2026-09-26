@@ -28,6 +28,21 @@ module RailsPulse
       end
     end
 
+    # Tooltip text for the chart-panel zone badge: the exact resolved interval
+    # (when a controller has resolved one) plus the aggregation zone every
+    # chart — hourly or daily — is consistently labeled in.
+    def time_range_zone_tooltip
+      zone = RailsPulse::TimeRange.aggregation_zone_label
+      lines = []
+
+      if (window = @time_range&.window)
+        lines << "Showing #{window.start_time.strftime('%b %-d, %Y %l:%M %p')} – #{window.end_time.strftime('%b %-d, %Y %l:%M %p')} (#{zone})"
+      end
+
+      lines << "All times are shown in #{zone}."
+      lines.join("\n")
+    end
+
     def page_url(page_number)
       url_for(request.query_parameters.merge(page: page_number))
     end

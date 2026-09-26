@@ -382,6 +382,46 @@ class RailsPulse::TimeRangeTest < ActiveSupport::TestCase
     assert_equal "unknown", result.selected_response_range
   end
 
+  # Aggregation Zone Tests (#303 — surfacing the zone daily summaries are bucketed in)
+
+  test "aggregation_zone_label is a bare UTC when Time.zone is UTC" do
+    Time.use_zone("UTC") do
+      assert_equal "UTC", RailsPulse::TimeRange.aggregation_zone_label
+    end
+  end
+
+  test "aggregation_zone_label names the zone and its offset when Time.zone is not UTC" do
+    Time.use_zone("Eastern Time (US & Canada)") do
+      assert_equal "Eastern Time (US & Canada) (UTC#{Time.zone.now.formatted_offset})", RailsPulse::TimeRange.aggregation_zone_label
+    end
+  end
+
+  test "aggregation_zone_short_label is a bare UTC when Time.zone is UTC" do
+    Time.use_zone("UTC") do
+      assert_equal "UTC", RailsPulse::TimeRange.aggregation_zone_short_label
+    end
+  end
+
+  test "aggregation_zone_short_label uses the zone abbreviation when it has one" do
+    Time.use_zone("Eastern Time (US & Canada)") do
+      assert_includes %w[EST EDT], RailsPulse::TimeRange.aggregation_zone_short_label
+    end
+  end
+
+  test "aggregation_zone_short_label falls back to the offset when the abbreviation is numeric" do
+    Time.use_zone("Brasilia") do
+      travel_to Time.utc(2024, 7, 1) do
+        assert_equal "UTC-03:00", RailsPulse::TimeRange.aggregation_zone_short_label
+      end
+    end
+  end
+
+  test "aggregation_zone_iana returns the IANA identifier for Time.zone" do
+    Time.use_zone("Eastern Time (US & Canada)") do
+      assert_equal "America/New_York", RailsPulse::TimeRange.aggregation_zone_iana
+    end
+  end
+
   # Edge Cases
 
   test "handles a reversed custom range without raising" do

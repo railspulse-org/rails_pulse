@@ -2,10 +2,12 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   static values = {
-    type: String,        // "bar", "line", "area", "sparkline"
-    data: Object,        // Chart data
-    options: Object,     // ECharts configuration
-    theme: String        // ECharts theme
+    type: String,            // "bar", "line", "area", "sparkline"
+    data: Object,            // Chart data
+    options: Object,         // ECharts configuration
+    theme: String,           // ECharts theme
+    timezone: String,        // IANA zone summaries were bucketed in (e.g. "Etc/UTC")
+    timezoneLabel: String    // Human label for the same zone (e.g. "UTC")
   }
 
   connect() {
@@ -401,6 +403,46 @@ export default class extends Controller {
     return this.getSafeFormatter(cleanString)
   }
 
+  // Formats in the aggregation zone, not the browser's — SummaryJob fixes a
+  // day's boundary at write time, so browser-zone display can flip the date.
+  formatDailyDate(date, extraOptions = {}) {
+    const timeZone = this.timezoneValue || undefined
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone, ...extraOptions })
+  }
+
+  // "Mon D, HH:MM" — the hourly-granularity counterpart to formatDailyDate.
+  formatDailyDateTime(date) {
+    const timeZone = this.timezoneValue || undefined
+    return date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone })
+  }
+
+  // "HH:MM" only, same zone as the above.
+  formatHourMinute(date) {
+    const timeZone = this.timezoneValue || undefined
+    return date.toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone })
+  }
+
+  // Year comparison in the same zone as the label it decorates, so a point
+  // near New Year is not tagged with a year the aggregation zone has not
+  // reached yet (or has already left).
+  isCurrentYear(date) {
+    const options = { year: 'numeric', timeZone: this.timezoneValue || undefined }
+    return date.toLocaleDateString('en-US', options) === new Date().toLocaleDateString('en-US', options)
+  }
+
+  // Hourly vs. daily comes from the formatter key Ruby chose, not ECharts'
+  // generated axisValueLabel (unreliable for some axis-pointer/series combos).
+  isHourlyAxis() {
+    return this.optionsValue?.xAxis?.axisLabel?.formatter === "time"
+  }
+
+  // Appends " (Zone)" to a tooltip's date/time string when a zone label is
+  // available, so a hover always says which zone the point is in.
+  withZoneSuffix(dateString) {
+    const zone = this.timezoneLabelValue || ''
+    return zone ? `${dateString} (${zone})` : dateString
+  }
+
   /**
    * Returns a safe formatter function based on the formatter string.
    * This prevents arbitrary code execution by using a whitelist approach.
@@ -455,7 +497,7 @@ export default class extends Controller {
             return value.toString()
           }
 
-          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          return this.formatDailyDate(date)
         }
         return value
       },
@@ -463,17 +505,14 @@ export default class extends Controller {
       // Time only (formatted as "HH:00" to match Rails Pulse formatters)
       'time': (value) => {
         if (typeof value === 'number' || typeof value === 'string') {
-          // Convert to number if string
           const numValue = typeof value === 'string' ? parseInt(value) : value
           const date = new Date(numValue)
 
-          const hours = date.getHours()
-          if (isNaN(hours)) {
+          if (isNaN(date.getTime())) {
             return value.toString()
           }
 
-          const minutes = date.getMinutes()
-          return hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0')
+          return this.formatHourMinute(date)
         }
         return value
       },
@@ -501,9 +540,7 @@ export default class extends Controller {
 
         const data = params[0]
         const date = new Date(data.axisValue)
-        const hours = date.getHours().toString().padStart(2, '0')
-        const minutes = date.getMinutes().toString().padStart(2, '0')
-        const dateString = `${hours}:${minutes}`
+        const dateString = this.withZoneSuffix(this.formatHourMinute(date))
         const value = parseInt(data.data)
 
         return `${dateString} <br /> ${data.marker} ${value} ms`
@@ -515,7 +552,7 @@ export default class extends Controller {
 
         const data = params[0]
         const date = new Date(data.axisValue)
-        const dateString = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        const dateString = this.withZoneSuffix(this.formatDailyDate(date))
         const value = parseInt(data.data)
 
         return `${dateString} <br /> ${data.marker} ${value} ms`
@@ -527,9 +564,7 @@ export default class extends Controller {
 
         const data = params[0]
         const date = new Date(data.axisValue)
-        const hours = date.getHours().toString().padStart(2, '0')
-        const minutes = date.getMinutes().toString().padStart(2, '0')
-        const dateString = `${hours}:${minutes}`
+        const dateString = this.withZoneSuffix(this.formatHourMinute(date))
 
         return `${dateString} <br /> ${data.marker} ${data.data}`
       },
@@ -540,7 +575,7 @@ export default class extends Controller {
 
         const data = params[0]
         const date = new Date(data.axisValue)
-        const dateString = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        const dateString = this.withZoneSuffix(this.formatDailyDate(date))
 
         return `${dateString} <br /> ${data.marker} ${data.data}`
       },
@@ -558,13 +593,14 @@ export default class extends Controller {
           const timestamp = Number(axisValue)
           const date = new Date(timestamp)
           if (!isNaN(date.getTime())) {
-            dateString = date.toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+            dateString = this.formatDailyDate(date, {
+              year: this.isCurrentYear(date) ? undefined : 'numeric'
             })
           }
         }
+        // Category axis sends an already-formatted label (e.g. "Apr 28")
+        // instead of a timestamp — still needs the suffix below.
+        dateString = this.withZoneSuffix(dateString)
 
         // Build tooltip HTML with all series
         let html = `${dateString}<br/>`
@@ -587,7 +623,7 @@ export default class extends Controller {
         if (typeof numValue === 'number' && !isNaN(numValue) && numValue > 1000000000000) {
           const date = new Date(numValue)
           if (!isNaN(date.getTime())) {
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            return this.formatDailyDate(date)
           }
         }
 
@@ -599,23 +635,26 @@ export default class extends Controller {
       'tooltip_with_timestamp': (params) => {
         if (!Array.isArray(params) || params.length === 0) return ''
 
-        // axisValueLabel is the pre-formatted axis label (e.g. "Apr/28" or "04:00")
-        // axisValue is the raw value — a ms timestamp for time axis, category string otherwise
+        // axisValue is the raw value — a ms timestamp for time axis, an
+        // already-formatted category string (e.g. "Apr 28") otherwise
         const axisValue = params[0].axisValue
         const ts = Number(axisValue)
         let dateString
 
         if (!isNaN(ts) && ts > 1000000000000) {
           const date = new Date(ts)
-          // Show time component if sub-day granularity (axis label is HH:mm style)
-          const axisLabel = params[0].axisValueLabel || ''
-          const isHourly = /^\d{2}:\d{2}$/.test(axisLabel)
-          dateString = isHourly
-            ? date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
-            : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          // Sub-day granularity comes from the formatter Ruby chose for this
+          // chart, not from ECharts' own generated axisValueLabel (unreliable
+          // for some axis-pointer/series combinations — see isHourlyAxis()).
+          dateString = this.isHourlyAxis() ? this.formatDailyDateTime(date) : this.formatDailyDate(date)
         } else {
+          // Category axis (daily/weekly/monthly charts send a plain,
+          // already-formatted label like "Apr 28" instead of an epoch
+          // timestamp) — still needs the zone suffix, same as the time-axis
+          // branch above, or daily-grouped charts silently lose it.
           dateString = axisValue
         }
+        dateString = this.withZoneSuffix(dateString)
 
         // Build tooltip HTML with all series
         let html = `${dateString}<br/>`
@@ -643,12 +682,13 @@ export default class extends Controller {
         if (typeof numValue === 'number' && !isNaN(numValue) && numValue > 1000000000000) {
           const date = new Date(numValue)
           if (!isNaN(date.getTime())) {
-            const hours = date.getHours().toString().padStart(2, '0')
-            const minutes = date.getMinutes().toString().padStart(2, '0')
-            axisValue = `${hours}:${minutes}`
+            axisValue = this.formatHourMinute(date)
           }
         }
-        // If it's already a formatted string (like "Apr 5"), leave it as-is
+        // Either the hour just computed above, or an already-formatted daily
+        // label (like "Apr 5") — both need the suffix, or daily sparklines
+        // silently lose it.
+        axisValue = this.withZoneSuffix(axisValue)
 
         // Show marker, series name, and value (e.g., "● P95: 150")
         return `${axisValue}<br/>${data.marker} ${seriesName}: ${value}`
@@ -669,11 +709,10 @@ export default class extends Controller {
         if (typeof numValue === 'number' && !isNaN(numValue) && numValue > 1000000000000) {
           const date = new Date(numValue)
           if (!isNaN(date.getTime())) {
-            const hours = date.getHours().toString().padStart(2, '0')
-            const minutes = date.getMinutes().toString().padStart(2, '0')
-            axisValue = `${hours}:${minutes}`
+            axisValue = this.formatHourMinute(date)
           }
         }
+        axisValue = this.withZoneSuffix(axisValue)
 
         return `${axisValue}<br/>${data.marker} ${seriesName}: ${value}`
       },
@@ -688,14 +727,12 @@ export default class extends Controller {
 
         if (!isNaN(ts) && ts > 1000000000000) {
           const date = new Date(ts)
-          const axisLabel = params[0].axisValueLabel || ''
-          const isHourly = /^\d{2}:\d{2}$/.test(axisLabel)
-          dateString = isHourly
-            ? date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
-            : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          dateString = this.isHourlyAxis() ? this.formatDailyDateTime(date) : this.formatDailyDate(date)
         } else {
+          // Category axis (daily/weekly/monthly) — see tooltip_with_timestamp.
           dateString = axisValue
         }
+        dateString = this.withZoneSuffix(dateString)
 
         let html = `${dateString}<br/>`
         params.forEach(param => {

@@ -14,6 +14,15 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
     assert_includes RailsPulse::RoutesController.included_modules, ChartTableConcern
   end
 
+  test "index chart tabs show the aggregation zone badge (#303)" do
+    Time.use_zone("UTC") do
+      get rails_pulse.routes_path
+
+      assert_response :success
+      assert_select ".panel-tabs .zone-badge", text: "UTC"
+    end
+  end
+
   test "controller has index and show actions" do
     controller = RailsPulse::RoutesController.new
 

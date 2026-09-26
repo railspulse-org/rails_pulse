@@ -31,6 +31,43 @@ module RailsPulse
       "last_30_days"  => -> { 1.month.ago }
     }.freeze
 
+    # Human-readable label for the zone daily/weekly/monthly summaries are
+    # bucketed in and custom ranges are rounded in (see class comment above)
+    # — the host app's config.time_zone, not the browser's zone. "UTC" or,
+    # e.g., "Eastern Time (US & Canada) (UTC-04:00)".
+    #
+    # This reads the Time.zone of the current dashboard request and assumes
+    # it is the zone SummaryJob ran under. That holds when both use
+    # config.time_zone (decision 0020). A host that overrides Time.zone per
+    # request for the dashboard as well would see a label that names the
+    # display zone while the daily buckets were still cut in the job's zone.
+    def self.aggregation_zone_label
+      return "UTC" if utc_zone?
+      "#{Time.zone.name} (UTC#{Time.zone.now.formatted_offset})"
+    end
+
+    # Compact form of aggregation_zone_label for chart headings and tooltip
+    # suffixes, where the full name would crowd out the data: "UTC", the
+    # zone's abbreviation when it has an alphabetic one ("EDT"), otherwise
+    # the offset ("UTC+05:45").
+    def self.aggregation_zone_short_label
+      return "UTC" if utc_zone?
+      abbreviation = Time.zone.now.zone
+      abbreviation.match?(/\A[A-Z]{2,5}\z/) ? abbreviation : "UTC#{Time.zone.now.formatted_offset}"
+    end
+
+    # IANA identifier for the same zone, for the chart JS (Intl.DateTimeFormat)
+    # to render daily labels in the zone summaries were actually bucketed in
+    # instead of the browser's zone.
+    def self.aggregation_zone_iana
+      Time.zone.tzinfo.name
+    end
+
+    def self.utc_zone?
+      Time.zone.utc_offset.zero? && Time.zone.now.zone == "UTC"
+    end
+    private_class_method :utc_zone?
+
     def self.resolve(params:, session:, default_key: :last_24_hours, duration_range_type: :route)
       new(params: params, session: session, default_key: default_key, duration_range_type: duration_range_type).resolve
     end

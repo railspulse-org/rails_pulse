@@ -26,7 +26,7 @@
         <div>
           <h4 class="text-xs font-medium text-subtle uppercase">Occurred At</h4>
           <div class="text-sm">
-            <%= operation.occurred_at.getlocal.strftime("%H:%M:%S.%L") %>
+            <%= operation.occurred_at.strftime("%H:%M:%S.%L") %>
           </div>
         </div>
       <% end %>

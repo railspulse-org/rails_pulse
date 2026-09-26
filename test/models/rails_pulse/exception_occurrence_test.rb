@@ -101,7 +101,7 @@ module RailsPulse
     test "to_breadcrumb returns a formatted occurred_at" do
       occurrence = rails_pulse_exception_occurrences(:occurrence_one)
 
-      assert_equal occurrence.occurred_at.getlocal.strftime("%b %d, %Y %l:%M %p"), occurrence.to_breadcrumb
+      assert_equal occurrence.occurred_at.strftime("%b %d, %Y %l:%M %p"), occurrence.to_breadcrumb
     end
   end
 end

@@ -31,6 +31,22 @@ class RailsPulse::TimeRangeSelectorTest < ActionView::TestCase
     assert_select "[data-rails-pulse--time-range-target=label]", text: "Last 14 days"
   end
 
+  test "does not show the aggregation zone on the trigger button itself (#303)" do
+    Time.use_zone("UTC") do
+      render_selector(nil)
+
+      assert_select ".time-range-trigger", text: "Last 14 days"
+    end
+  end
+
+  test "shows the aggregation zone in the custom date range modal (#303)" do
+    Time.use_zone("UTC") do
+      render_selector(nil)
+
+      assert_select "[data-rails-pulse--time-range-target=modal]", text: /UTC/
+    end
+  end
+
   test "renders a preset preference" do
     render_selector("last_7_days")
 

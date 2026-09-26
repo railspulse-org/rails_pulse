@@ -1,0 +1,4 @@
+<%# Zone every chart on the page is bucketed and labelled in. The short
+    label is always visible; the title carries the full zone name and, when
+    a controller resolved one, the exact window being shown. %>
+<span class="zone-badge" title="<%= time_range_zone_tooltip %>"><%= RailsPulse::TimeRange.aggregation_zone_short_label %></span>

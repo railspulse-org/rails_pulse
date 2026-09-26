@@ -154,6 +154,17 @@ class RailsPulse::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "chart"
   end
 
+  test "chart panels show the aggregation zone label without needing to hover (#303)" do
+    Time.use_zone("UTC") do
+      get rails_pulse.root_path
+
+      assert_response :success
+      assert_select ".chart-container", count: 2
+      assert_select "h2", text: /Response Time Percentiles.*UTC/m
+      assert_select "h2", text: /Throughput & Errors.*UTC/m
+    end
+  end
+
   test "response includes needs attention panel" do
     get rails_pulse.root_path
 
