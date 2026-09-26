@@ -79,4 +79,5 @@ class ActiveSupport::TestCase
 
   include Shoulda::Matchers::ActiveModel
   include Shoulda::Matchers::ActiveRecord
+  include ConfigurationTestHelpers
 end

@@ -54,43 +54,44 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "authentication is disabled by default" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(false)
-    get rails_pulse.root_path
+    with_configuration(authentication_enabled: false) do
+      get rails_pulse.root_path
 
-    assert_response :success
+      assert_response :success
+    end
   end
 
   test "authentication fallback with valid credentials" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(nil)
     ENV["RAILS_PULSE_USERNAME"] = "admin"
     ENV["RAILS_PULSE_PASSWORD"] = "secret"
 
-    get rails_pulse.root_path, headers: basic_auth_headers("admin", "secret")
+    with_configuration(authentication_enabled: true, authentication_method: nil) do
+      get rails_pulse.root_path, headers: basic_auth_headers("admin", "secret")
 
-    assert_response :success
+      assert_response :success
+    end
   end
 
   test "authentication fallback denies invalid credentials" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(nil)
     ENV["RAILS_PULSE_USERNAME"] = "admin"
     ENV["RAILS_PULSE_PASSWORD"] = "secret"
 
-    get rails_pulse.root_path, headers: basic_auth_headers("admin", "wrong")
+    with_configuration(authentication_enabled: true, authentication_method: nil) do
+      get rails_pulse.root_path, headers: basic_auth_headers("admin", "wrong")
 
-    assert_response :unauthorized
+      assert_response :unauthorized
+    end
   end
 
   test "authentication denies access when password not set" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(nil)
     ENV["RAILS_PULSE_USERNAME"] = "admin"
     ENV["RAILS_PULSE_PASSWORD"] = nil
 
-    get rails_pulse.root_path
+    with_configuration(authentication_enabled: true, authentication_method: nil) do
+      get rails_pulse.root_path
 
-    assert_response :unauthorized
+      assert_response :unauthorized
+    end
   end
 
   # Authentication Method: Proc
@@ -101,12 +102,11 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       @authenticated_by_proc = true
     end
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(auth_proc)
+    with_configuration(authentication_enabled: true, authentication_method: auth_proc) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :success
+      assert_response :success
+    end
   end
 
   test "authentication executes Proc that denies access" do
@@ -114,12 +114,11 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       render plain: "Unauthorized", status: :unauthorized
     end
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(auth_proc)
+    with_configuration(authentication_enabled: true, authentication_method: auth_proc) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :unauthorized
+      assert_response :unauthorized
+    end
   end
 
   test "authentication executes Proc that raises exception" do
@@ -127,13 +126,15 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       raise StandardError, "Authentication failed"
     end
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(auth_proc)
-    RailsPulse.configuration.stubs(:authentication_redirect_path).returns("/login")
+    with_configuration(
+      authentication_enabled: true,
+      authentication_method: auth_proc,
+      authentication_redirect_path: "/login"
+    ) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_redirected_to "/login"
+      assert_redirected_to "/login"
+    end
   end
 
   # Authentication Method: Symbol/String
@@ -146,12 +147,11 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       end
     end
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(:custom_auth_method)
+    with_configuration(authentication_enabled: true, authentication_method: :custom_auth_method) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :success
+      assert_response :success
+    end
   ensure
     # Clean up custom method
     RailsPulse::ApplicationController.send(:remove_method, :custom_auth_method) if RailsPulse::ApplicationController.method_defined?(:custom_auth_method)
@@ -164,55 +164,50 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       end
     end
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns("string_auth_method")
+    with_configuration(authentication_enabled: true, authentication_method: "string_auth_method") do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :success
+      assert_response :success
+    end
   ensure
     RailsPulse::ApplicationController.send(:remove_method, :string_auth_method) if RailsPulse::ApplicationController.method_defined?(:string_auth_method)
   end
 
   test "authentication handles missing Symbol authentication method" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(:non_existent_method)
+    with_configuration(authentication_enabled: true, authentication_method: :non_existent_method) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :internal_server_error
-    assert_match "Authentication configuration error", response.body
+      assert_response :internal_server_error
+      assert_match "Authentication configuration error", response.body
+    end
   end
 
   test "authentication handles missing String authentication method" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns("non_existent_method")
+    with_configuration(authentication_enabled: true, authentication_method: "non_existent_method") do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :internal_server_error
-    assert_match "Authentication configuration error", response.body
+      assert_response :internal_server_error
+      assert_match "Authentication configuration error", response.body
+    end
   end
 
   # Invalid Authentication Type
 
   test "authentication handles invalid authentication method type Integer" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(12345)
+    with_configuration(authentication_enabled: true, authentication_method: 12345) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :internal_server_error
-    assert_match "Authentication configuration error", response.body
+      assert_response :internal_server_error
+      assert_match "Authentication configuration error", response.body
+    end
   end
 
   test "authentication handles invalid authentication method type Array" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns([ :invalid ])
+    with_configuration(authentication_enabled: true, authentication_method: [ :invalid ]) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :internal_server_error
+      assert_response :internal_server_error
+    end
   end
 
   # Exception Handling
@@ -222,13 +217,15 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       raise StandardError, "Authentication failed unexpectedly"
     end
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(auth_proc)
-    RailsPulse.configuration.stubs(:authentication_redirect_path).returns("/custom_login")
+    with_configuration(
+      authentication_enabled: true,
+      authentication_method: auth_proc,
+      authentication_redirect_path: "/custom_login"
+    ) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_redirected_to "/custom_login"
+      assert_redirected_to "/custom_login"
+    end
   end
 
   test "authentication rescues and uses root redirect path" do
@@ -236,13 +233,15 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       raise StandardError, "Test error"
     end
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(auth_proc)
-    RailsPulse.configuration.stubs(:authentication_redirect_path).returns("/")
+    with_configuration(
+      authentication_enabled: true,
+      authentication_method: auth_proc,
+      authentication_redirect_path: "/"
+    ) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_redirected_to "/"
+      assert_redirected_to "/"
+    end
   end
 
   # Edge Cases
@@ -254,13 +253,12 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       end
     end
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(:auth_with_render)
+    with_configuration(authentication_enabled: true, authentication_method: :auth_with_render) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :forbidden
-    assert_equal "Custom auth response", response.body
+      assert_response :forbidden
+      assert_equal "Custom auth response", response.body
+    end
   ensure
     RailsPulse::ApplicationController.send(:remove_method, :auth_with_render) if RailsPulse::ApplicationController.method_defined?(:auth_with_render)
   end
@@ -272,12 +270,11 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       end
     end
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(:auth_with_redirect)
+    with_configuration(authentication_enabled: true, authentication_method: :auth_with_redirect) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_redirected_to "/external_auth"
+      assert_redirected_to "/external_auth"
+    end
   ensure
     RailsPulse::ApplicationController.send(:remove_method, :auth_with_redirect) if RailsPulse::ApplicationController.method_defined?(:auth_with_redirect)
   end
@@ -292,12 +289,11 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       end
     end
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(auth_proc)
+    with_configuration(authentication_enabled: true, authentication_method: auth_proc) do
+      get rails_pulse.root_path, params: { token: "valid_token" }
 
-    get rails_pulse.root_path, params: { token: "valid_token" }
-
-    assert_response :success
+      assert_response :success
+    end
   end
 
   test "authentication Proc denies access with invalid context" do
@@ -309,13 +305,12 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       end
     end
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(auth_proc)
+    with_configuration(authentication_enabled: true, authentication_method: auth_proc) do
+      get rails_pulse.root_path, params: { token: "invalid_token" }
 
-    get rails_pulse.root_path, params: { token: "invalid_token" }
-
-    assert_response :unauthorized
-    assert_match "Invalid token", response.body
+      assert_response :unauthorized
+      assert_match "Invalid token", response.body
+    end
   end
 
   # Fail-closed Hook Semantics
@@ -325,13 +320,11 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
     # enforced, the request went straight through.
     auth_proc = proc { false }
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(auth_proc)
-    RailsPulse.configuration.stubs(:authorize).returns(nil)
+    with_configuration(authentication_enabled: true, authentication_method: auth_proc, authorize: nil) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :forbidden
+      assert_response :forbidden
+    end
   end
 
   test "authentication allows when the Proc returns nil without responding" do
@@ -339,13 +332,11 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
     # nil on success; that must keep working.
     auth_proc = proc { redirect_to "/login" unless true }
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(auth_proc)
-    RailsPulse.configuration.stubs(:authorize).returns(nil)
+    with_configuration(authentication_enabled: true, authentication_method: auth_proc, authorize: nil) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :success
+      assert_response :success
+    end
   end
 
   test "authentication denies when a Symbol method returns false without responding" do
@@ -355,13 +346,11 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       end
     end
 
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(:predicate_style_auth)
-    RailsPulse.configuration.stubs(:authorize).returns(nil)
+    with_configuration(authentication_enabled: true, authentication_method: :predicate_style_auth, authorize: nil) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :forbidden
+      assert_response :forbidden
+    end
   ensure
     RailsPulse::ApplicationController.send(:remove_method, :predicate_style_auth) if RailsPulse::ApplicationController.method_defined?(:predicate_style_auth)
   end
@@ -369,95 +358,103 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
   # authorize Predicate
 
   test "authorize allows when the predicate is truthy" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(nil)
-    RailsPulse.configuration.stubs(:authorize).returns(->(controller) { controller.params[:role] == "admin" })
+    with_configuration(
+      authentication_enabled: true,
+      authentication_method: nil,
+      authorize: ->(controller) { controller.params[:role] == "admin" }
+    ) do
+      get rails_pulse.root_path, params: { role: "admin" }
 
-    get rails_pulse.root_path, params: { role: "admin" }
-
-    assert_response :success
+      assert_response :success
+    end
   end
 
   test "authorize denies when the predicate is false" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(nil)
-    RailsPulse.configuration.stubs(:authorize).returns(->(controller) { controller.params[:role] == "admin" })
+    with_configuration(
+      authentication_enabled: true,
+      authentication_method: nil,
+      authorize: ->(controller) { controller.params[:role] == "admin" }
+    ) do
+      get rails_pulse.root_path, params: { role: "viewer" }
 
-    get rails_pulse.root_path, params: { role: "viewer" }
-
-    assert_response :forbidden
+      assert_response :forbidden
+    end
   end
 
   test "authorize denies when the predicate is nil" do
     # current_user&.admin? with no signed-in user.
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(nil)
-    RailsPulse.configuration.stubs(:authorize).returns(->(_controller) { nil })
+    with_configuration(authentication_enabled: true, authentication_method: nil, authorize: ->(_controller) { nil }) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :forbidden
+      assert_response :forbidden
+    end
   end
 
   test "authorize runs a zero-arity proc in the controller context" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(nil)
-    RailsPulse.configuration.stubs(:authorize).returns(proc { params[:role] == "admin" })
+    with_configuration(
+      authentication_enabled: true,
+      authentication_method: nil,
+      authorize: proc { params[:role] == "admin" }
+    ) do
+      get rails_pulse.root_path, params: { role: "admin" }
 
-    get rails_pulse.root_path, params: { role: "admin" }
-
-    assert_response :success
+      assert_response :success
+    end
   end
 
   test "authorize alone does not fall back to HTTP Basic" do
     ENV["RAILS_PULSE_PASSWORD"] = nil
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(nil)
-    RailsPulse.configuration.stubs(:authorize).returns(->(_c) { true })
 
-    get rails_pulse.root_path
+    with_configuration(authentication_enabled: true, authentication_method: nil, authorize: ->(_c) { true }) do
+      get rails_pulse.root_path
 
-    assert_response :success
+      assert_response :success
+    end
   end
 
   test "authorize is skipped when authentication_method already responded" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(proc { redirect_to "/login" })
-    RailsPulse.configuration.stubs(:authorize).returns(->(_c) { true })
+    with_configuration(
+      authentication_enabled: true,
+      authentication_method: proc { redirect_to "/login" },
+      authorize: ->(_c) { true }
+    ) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_redirected_to "/login"
+      assert_redirected_to "/login"
+    end
   end
 
   test "authorize runs after an authentication_method that allowed" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(proc { @signed_in = true })
-    RailsPulse.configuration.stubs(:authorize).returns(->(_c) { false })
+    with_configuration(
+      authentication_enabled: true,
+      authentication_method: proc { @signed_in = true },
+      authorize: ->(_c) { false }
+    ) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :forbidden
+      assert_response :forbidden
+    end
   end
 
   test "authorize raising is rescued and redirects" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(true)
-    RailsPulse.configuration.stubs(:authentication_method).returns(nil)
-    RailsPulse.configuration.stubs(:authorize).returns(->(_c) { raise "boom" })
-    RailsPulse.configuration.stubs(:authentication_redirect_path).returns("/login")
+    with_configuration(
+      authentication_enabled: true,
+      authentication_method: nil,
+      authorize: ->(_c) { raise "boom" },
+      authentication_redirect_path: "/login"
+    ) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_redirected_to "/login"
+      assert_redirected_to "/login"
+    end
   end
 
   test "authorize is not consulted when authentication is disabled" do
-    RailsPulse.configuration.stubs(:authentication_enabled).returns(false)
-    RailsPulse.configuration.stubs(:authorize).returns(->(_c) { false })
+    with_configuration(authentication_enabled: false, authorize: ->(_c) { false }) do
+      get rails_pulse.root_path
 
-    get rails_pulse.root_path
-
-    assert_response :success
+      assert_response :success
+    end
   end
 
   # set_global_filters Tests
@@ -515,45 +512,45 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "set_global_filters converts enabled tags to disabled tags" do
-    RailsPulse.configuration.stubs(:tags).returns([ "api", "admin", "maintenance" ])
+    with_configuration(tags: [ "api", "admin", "maintenance" ]) do
+      patch rails_pulse.settings_global_filters_path, params: {
+        enabled_tags: [ "api", "admin" ]
+      }
 
-    patch rails_pulse.settings_global_filters_path, params: {
-      enabled_tags: [ "api", "admin" ]
-    }
-
-    # Only maintenance should be disabled
-    assert_equal [ "maintenance" ], session[:global_filters]["disabled_tags"]
+      # Only maintenance should be disabled
+      assert_equal [ "maintenance" ], session[:global_filters]["disabled_tags"]
+    end
   end
 
   test "set_global_filters handles non_tagged separately" do
-    RailsPulse.configuration.stubs(:tags).returns([ "api", "admin" ])
+    with_configuration(tags: [ "api", "admin" ]) do
+      patch rails_pulse.settings_global_filters_path, params: {
+        enabled_tags: [ "api", "non_tagged" ]
+      }
 
-    patch rails_pulse.settings_global_filters_path, params: {
-      enabled_tags: [ "api", "non_tagged" ]
-    }
-
-    assert session[:show_non_tagged]
-    assert_equal [ "admin" ], session[:global_filters]["disabled_tags"]
+      assert session[:show_non_tagged]
+      assert_equal [ "admin" ], session[:global_filters]["disabled_tags"]
+    end
   end
 
   test "set_global_filters removes disabled_tags when all enabled" do
-    RailsPulse.configuration.stubs(:tags).returns([ "api", "admin" ])
+    with_configuration(tags: [ "api", "admin" ]) do
+      patch rails_pulse.settings_global_filters_path, params: {
+        enabled_tags: [ "api", "admin" ]
+      }
 
-    patch rails_pulse.settings_global_filters_path, params: {
-      enabled_tags: [ "api", "admin" ]
-    }
-
-    refute_includes session[:global_filters].keys, "disabled_tags"
+      refute_includes session[:global_filters].keys, "disabled_tags"
+    end
   end
 
   test "set_global_filters handles no enabled_tags param" do
-    RailsPulse.configuration.stubs(:tags).returns([ "api", "admin", "maintenance" ])
+    with_configuration(tags: [ "api", "admin", "maintenance" ]) do
+      patch rails_pulse.settings_global_filters_path, params: {}
 
-    patch rails_pulse.settings_global_filters_path, params: {}
-
-    # All tags should be disabled when none enabled
-    assert_equal [ "api", "admin", "maintenance" ], session[:global_filters]["disabled_tags"]
-    refute session[:show_non_tagged]
+      # All tags should be disabled when none enabled
+      assert_equal [ "api", "admin", "maintenance" ], session[:global_filters]["disabled_tags"]
+      refute session[:show_non_tagged]
+    end
   end
 
   test "set_global_filters preserves existing filters when updating" do
@@ -667,8 +664,6 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "set_onboarding_state runs successfully with stale summaries" do
-    RailsPulse.configuration.stubs(:warn_on_stale_summaries).returns(true)
-
     RailsPulse::Summary.create!(
       summarizable_type: "RailsPulse::Route",
       summarizable_id: 1,
@@ -679,14 +674,14 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       updated_at: 3.hours.ago  # Stale (> 2 hours)
     )
 
-    get rails_pulse.root_path
+    with_configuration(warn_on_stale_summaries: true) do
+      get rails_pulse.root_path
 
-    assert_response :success
+      assert_response :success
+    end
   end
 
   test "set_onboarding_state runs successfully with recent summaries" do
-    RailsPulse.configuration.stubs(:warn_on_stale_summaries).returns(true)
-
     RailsPulse::Summary.create!(
       summarizable_type: "RailsPulse::Route",
       summarizable_id: 1,
@@ -697,14 +692,14 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       updated_at: 30.minutes.ago  # Recent (< 2 hours)
     )
 
-    get rails_pulse.root_path
+    with_configuration(warn_on_stale_summaries: true) do
+      get rails_pulse.root_path
 
-    assert_response :success
+      assert_response :success
+    end
   end
 
   test "set_onboarding_state runs successfully with warn_on_stale_summaries disabled" do
-    RailsPulse.configuration.stubs(:warn_on_stale_summaries).returns(false)
-
     RailsPulse::Summary.create!(
       summarizable_type: "RailsPulse::Route",
       summarizable_id: 1,
@@ -715,9 +710,11 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
       updated_at: 3.hours.ago  # Old but warning disabled
     )
 
-    get rails_pulse.root_path
+    with_configuration(warn_on_stale_summaries: false) do
+      get rails_pulse.root_path
 
-    assert_response :success
+      assert_response :success
+    end
   end
 
   test "shows migrate_routes banner when a live route has no controller_action" do
@@ -799,12 +796,12 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "set_global_filters tolerates enabled_tags sent as a string" do
-    RailsPulse.configuration.stubs(:tags).returns([ "api", "critical" ])
+    with_configuration(tags: [ "api", "critical" ]) do
+      patch rails_pulse.settings_global_filters_path, params: { enabled_tags: "critical" }
 
-    patch rails_pulse.settings_global_filters_path, params: { enabled_tags: "critical" }
-
-    assert_response :redirect
-    assert_equal [ "api" ], session[:global_filters]["disabled_tags"]
+      assert_response :redirect
+      assert_equal [ "api" ], session[:global_filters]["disabled_tags"]
+    end
   end
 
   test "set_time_range ignores an unknown preset" do
