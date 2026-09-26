@@ -153,6 +153,54 @@ module RailsPulse
       ActiveSupport::Notifications.unsubscribe(subscriber)
     end
 
+    # ============================================================================
+    # Transaction Timing
+    # ============================================================================
+
+    test "row computation runs before the transaction opens, not inside it" do
+      create_request(duration: 100, status: 200)
+      # The test itself runs inside a transactional fixture, so the baseline
+      # depth (not necessarily 0) is what "no transaction of ours is open yet"
+      # looks like here.
+      baseline = RailsPulse::ApplicationRecord.connection.open_transactions
+
+      service = Class.new(SummaryService) do
+        attr_reader :open_transactions_while_computing
+
+        private
+
+        def query_summary_rows
+          @open_transactions_while_computing = RailsPulse::ApplicationRecord.connection.open_transactions
+          super
+        end
+      end.new("hour", @hour_start)
+
+      service.perform
+
+      assert_equal baseline, service.open_transactions_while_computing
+    end
+
+    test "a write failure rolls back summaries already staged earlier in the same transaction" do
+      create_request(duration: 100, status: 200)
+
+      service = Class.new(SummaryService) do
+        private
+
+        def upsert_summaries(rows)
+          @upsert_call_count = (@upsert_call_count || 0) + 1
+          raise ActiveRecord::StatementInvalid, "boom" if @upsert_call_count == 2
+          super
+        end
+      end.new("hour", @hour_start)
+
+      assert_raises(ActiveRecord::StatementInvalid) { service.perform }
+
+      assert_nil Summary.find_by(
+        summarizable_type: "RailsPulse::Request", summarizable_id: 0,
+        period_type: "hour", period_start: @hour_start
+      )
+    end
+
     test "aggregate_requests writes an overall summary with count 0 when there are no requests" do
       SummaryService.new("hour", @hour_start).perform
 
