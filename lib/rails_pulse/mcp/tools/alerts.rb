@@ -6,7 +6,7 @@ module RailsPulse
 
         tool_name "rails_pulse_alerts"
         description "Recent alert-rule triggers grouped by rule: how often each rule fired, when, and the latest value. " \
-                    "Use this to see what alerting has been flagging. Needs Rails Pulse Pro in the application."
+                    "Use this to see what alerting has been flagging. Provided by an extension; without it the tool says so."
 
         annotations(
           read_only_hint: true,

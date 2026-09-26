@@ -13,9 +13,9 @@ module RailsPulse
 
       desc "list", "List recorded deployments"
       long_desc <<~DESC
-        Returns deployments ordered by most recent first. With Rails Pulse Pro each row
+        Returns deployments ordered by most recent first. With the regression extension each row
         also shows the outcome of the automatic regression check: triggered, clean,
-        insufficient_data, or unchecked (not evaluated yet, or Pro not installed).
+        insufficient_data, or unchecked (not evaluated yet, or the extension not installed).
 
         Filter by time window (ISO 8601):
           --since 2026-06-01T00:00:00Z

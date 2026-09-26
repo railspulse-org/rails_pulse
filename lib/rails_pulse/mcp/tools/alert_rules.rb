@@ -9,7 +9,7 @@ module RailsPulse
         tool_name "rails_pulse_alert_rules"
         description "The configured alert rules (threshold and anomaly), their metrics and thresholds, whether each is " \
                     "enabled or in cooldown, and how often it fired in the last 7 days, plus quiet hours and " \
-                    "deployment regression settings. Use this before proposing new alerts. Needs Rails Pulse Pro in the application."
+                    "deployment regression settings. Use this before proposing new alerts. Provided by an extension; without it the tool says so."
 
         annotations(
           read_only_hint: true,

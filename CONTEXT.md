@@ -71,7 +71,7 @@ _Avoid_: release, deploy marker (the marker is how a Deployment is drawn, not th
 _Avoid_: deployment token, dashboard token, license key
 
 **CLI and MCP server**:
-`rails-pulse`, the Thor executable in the gem, and its `mcp` subcommand, which serves the same data to coding agents over stdio. Both run outside the application and read it only through the JSON API. The six tools and five commands that need Rails Pulse Pro data answer with a "requires Pro" message when the Pro gem is absent.
+`rails-pulse`, the Thor executable in the gem, and its `mcp` subcommand, which serves the same data to coding agents over stdio. Both run outside the application and read it only through the JSON API. The tools and commands whose data comes from an extension answer with a "requires extension" message when it is absent.
 _Avoid_: agent, plugin, integration (for the tooling itself)
 
 **Tracker**:

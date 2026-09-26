@@ -59,7 +59,7 @@ module RailsPulse
         "meta" => { "total" => 2, "limit" => 10, "offset" => 0 }
       }.freeze
 
-      # The shape rails_pulse_pro's SummarySerializer returns from GET summary.
+      # The shape the extension's summary endpoint returns from GET summary.
       SUMMARY_RESPONSE = {
         "period" => {
           "type" => "week", "start" => "2026-05-26", "end" => "2026-06-01",

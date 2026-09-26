@@ -93,22 +93,22 @@ module RailsPulse
         assert_raises(Client::ApiError) { @client.get("/routes") }
       end
 
-      test "get raises ProRequiredError with the feature and link on 402" do
-        stub_http_response(402, { "error" => "requires_pro", "feature" => "alerts",
-                                  "message" => "Alert history needs Rails Pulse Pro.", "url" => "https://railspulse.com/pro" }.to_json)
-        err = assert_raises(Client::ProRequiredError) { @client.get("/alerts") }
+      test "get raises ExtensionRequiredError with the feature and link on 402" do
+        stub_http_response(402, { "error" => "requires_extension", "feature" => "alerts",
+                                  "message" => "Alert history is provided by an extension.", "url" => "https://example.com/extensions" }.to_json)
+        err = assert_raises(Client::ExtensionRequiredError) { @client.get("/alerts") }
 
         assert_kind_of Client::ApiError, err
-        assert_equal "Alert history needs Rails Pulse Pro.", err.message
+        assert_equal "Alert history is provided by an extension.", err.message
         assert_equal "alerts", err.feature
-        assert_equal "https://railspulse.com/pro", err.url
+        assert_equal "https://example.com/extensions", err.url
       end
 
-      test "get raises ProRequiredError with a default message when the 402 body is not JSON" do
+      test "get raises ExtensionRequiredError with a default message when the 402 body is not JSON" do
         stub_http_response(402, "Payment Required")
-        err = assert_raises(Client::ProRequiredError) { @client.get("/alerts") }
+        err = assert_raises(Client::ExtensionRequiredError) { @client.get("/alerts") }
 
-        assert_match(/Rails Pulse Pro/, err.message)
+        assert_match(/provided by an extension/, err.message)
         assert_nil err.feature
       end
 

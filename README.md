@@ -120,7 +120,7 @@ rails-pulse routes list --since 2026-06-01T00:00:00Z
 rails-pulse install claude     # Claude Code skill: when and how to use the tools
 ```
 
-Add `gem "mcp"` to your Gemfile (a development group is enough), register `rails-pulse mcp` as an MCP server, and the agent gets twelve read-only tools: routes, slow requests, errors, one endpoint in depth, expensive and N+1 queries, job health, deployments, and, with [Rails Pulse Pro](https://railspulse.com/pro), alert history, alert rules, backtested thresholds, period comparisons and a setup check. Nothing the agent can call changes production. [Agent tooling](https://railspulse.com/documentation/mcp)
+Add `gem "mcp"` to your Gemfile (a development group is enough), register `rails-pulse mcp` as an MCP server, and the agent gets twelve read-only tools: routes, slow requests, errors, one endpoint in depth, expensive and N+1 queries, job health, deployments. Nothing the agent can call changes production. [Agent tooling](https://railspulse.com/documentation/mcp)
 
 **Keep it in its own database.** `rails generate rails_pulse:install --database=separate` puts the tables somewhere your primary never has to vacuum. [Database setup](https://railspulse.com/documentation/database)
 

@@ -26,14 +26,14 @@ module RailsPulse
           rails_pulse_endpoint              — Deep profile of a single endpoint
           rails_pulse_queries               — Expensive and N+1 SQL queries
           rails_pulse_jobs                  — Background job health and recent failures
-          rails_pulse_deployments           — Deployments, with regression outcomes under Pro
-          rails_pulse_request_stats         — Period stats with comparison (Rails Pulse Pro)
-          rails_pulse_alerts                — Recent alert triggers grouped by rule (Rails Pulse Pro)
-          rails_pulse_alert_rules           — Configured rules, cooldown state, quiet hours (Rails Pulse Pro)
-          rails_pulse_suggested_thresholds  — Backtested alert threshold suggestions (Rails Pulse Pro)
-          rails_pulse_setup                 — Setup and tuning checklist (Rails Pulse Pro)
+          rails_pulse_deployments           — Deployments, with regression outcomes from an extension
+          rails_pulse_request_stats         — Period stats with comparison (extension)
+          rails_pulse_alerts                — Recent alert triggers grouped by rule (extension)
+          rails_pulse_alert_rules           — Configured rules, cooldown state, quiet hours (extension)
+          rails_pulse_suggested_thresholds  — Backtested alert threshold suggestions (extension)
+          rails_pulse_setup                 — Setup and tuning checklist (extension)
 
-        Tools marked Rails Pulse Pro need the rails_pulse_pro gem in the application;
+        Tools marked extension need an extension the application may not have;
         without it they explain what is missing instead of failing.
       DESC
       def start

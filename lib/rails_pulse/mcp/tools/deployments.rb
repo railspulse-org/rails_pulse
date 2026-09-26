@@ -6,7 +6,7 @@ module RailsPulse
 
         tool_name "rails_pulse_deployments"
         description "Recent deployments, with the automatic regression-check outcome (triggered, clean, " \
-                    "insufficient_data, or unchecked) when Rails Pulse Pro is installed. Use this to pin an " \
+                    "insufficient_data, or unchecked) when the regression extension is installed. Use this to pin an " \
                     "investigation to a deploy time or to see whether a release made things worse."
 
         annotations(
@@ -87,7 +87,7 @@ module RailsPulse
             steps << "Some deploys had insufficient traffic for a regression check — compare manually with rails_pulse_request_stats."
           end
           if deployments.all? { |d| d[:regression_outcome] == "unchecked" }
-            steps << "No regression checks recorded: deployment regression detection is a Rails Pulse Pro feature. " \
+            steps << "No regression checks recorded: deployment regression detection comes from an extension. " \
                      "Compare rails_pulse_slow_requests and rails_pulse_errors before and after a deploy's started_at instead."
           elsif deployments.any? { |d| d[:regression_outcome] == "unchecked" }
             steps << "Unchecked deploys are evaluated by RailsPulseProJob once the post-deploy window elapses."

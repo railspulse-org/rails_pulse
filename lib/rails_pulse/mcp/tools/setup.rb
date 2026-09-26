@@ -5,15 +5,15 @@ module RailsPulse
         extend Helpers
 
         tool_name "rails_pulse_setup"
-        description "Check what still needs configuring in Rails Pulse Pro and get data-driven suggestions: alert " \
+        description "Check what still needs configuring and get data-driven suggestions: alert " \
                     "thresholds backtested against real traffic, a route-scoped rule for the worst outlier, deployment " \
                     "regression detection, quiet hours, sender address, weekly summary email, and whether the scheduled " \
                     "jobs are actually running. Returns an ordered list of findings, each with a status (ok, pending, " \
                     "suggested, missing, needs_attention), a reason, and a paste-ready snippet with the file it belongs " \
-                    "in. This tool changes nothing: apply the snippets yourself to config/initializers/rails_pulse_pro.rb " \
-                    "(or the file named on the finding), then deploy. Snippets use REPLACE_WITH_EMAIL and " \
+                    "in. This tool changes nothing: apply the snippets yourself to the file named on each finding, " \
+                    "then deploy. Snippets use REPLACE_WITH_EMAIL and " \
                     "REPLACE_WITH_HOST placeholders; ask the user for real values, never invent them. Run it a week " \
-                    "after install and again every few months to retune. Needs Rails Pulse Pro in the application."
+                    "after install and again every few months to retune. Provided by an extension; without it the tool says so."
 
         annotations(
           read_only_hint: true,
@@ -60,7 +60,7 @@ module RailsPulse
           actionable = findings.select { |f| %w[missing needs_attention suggested].include?(f["status"]) }
           if actionable.any?
             steps << "Apply these in order: #{actionable.map { |f| "#{f['key']} (#{f['status']})" }.join(', ')}. " \
-                     "Each finding names the file its snippet belongs in; config_additions collects the Pro initializer ones."
+                     "Each finding names the file its snippet belongs in; config_additions collects the initializer ones."
             steps << "Replace REPLACE_WITH_EMAIL and REPLACE_WITH_HOST with values from the user before applying." if actionable.any? { |f| f["snippet"].to_s.include?("REPLACE_WITH") }
           else
             steps << "Nothing to change."

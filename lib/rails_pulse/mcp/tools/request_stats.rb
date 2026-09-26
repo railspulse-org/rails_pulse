@@ -8,7 +8,7 @@ module RailsPulse
 
         tool_name "rails_pulse_request_stats"
         description "Aggregate request performance statistics for a week or month: volume, latency, error rate, " \
-                    "with the change against the previous period. Needs Rails Pulse Pro in the application."
+                    "with the change against the previous period. Provided by an extension; without it the tool says so."
 
         annotations(
           read_only_hint: true,
@@ -39,7 +39,7 @@ module RailsPulse
           end
         end
 
-        # The summary endpoint (rails_pulse_pro's SummarySerializer) reports
+        # The summary endpoint (served by an extension) reports
         # the overview as p95_ms / avg_ms / total_requests / error_count /
         # error_rate_pct with the previous period under vs_previous, and each
         # slowest route as route / requests / avg_ms / p95_ms / error_count /

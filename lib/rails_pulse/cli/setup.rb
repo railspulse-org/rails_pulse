@@ -48,7 +48,7 @@ module RailsPulse
         findings = data["findings"] || []
 
         say ""
-        say "Rails Pulse Pro setup check — phase: #{data["phase"]}", :bold
+        say "Setup check — phase: #{data["phase"]}", :bold
         say "#{window["hours_with_data"]} of #{window["expected_hours"]} hours of summaries, #{window["total_requests"]} requests"
         say ""
 

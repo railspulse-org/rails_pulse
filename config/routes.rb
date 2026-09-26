@@ -47,12 +47,12 @@ RailsPulse::Engine.routes.draw do
     resources :job_runs,    only: :index
     resources :deployments, only: :index
 
-    # rails_pulse_pro appends the real routes for these. Without it they
+    # An extension engine appends the real routes for these. Without one they
     # answer 402 with what is missing, so the CLI and MCP tools can say so
-    # instead of 404ing. Keep the list in step with ProController::FEATURES.
+    # instead of 404ing. Keep the list in step with ExtensionController::FEATURES.
     unless RailsPulse.pro?
       %w[alerts alert_rules summary threshold_suggestions setup].each do |feature|
-        get feature, to: "pro#show", defaults: { feature: feature }, as: feature
+        get feature, to: "extension#show", defaults: { feature: feature }, as: feature
       end
     end
   end

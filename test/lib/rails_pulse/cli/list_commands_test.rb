@@ -297,10 +297,10 @@ module RailsPulse
         assert_match(/def456.*unchecked/, out)
       end
 
-      test "a Pro command explains what is missing when the app answers 402" do
-        stub_http_response(402, { "error" => "requires_pro", "feature" => "alerts",
-                                  "message" => "Alert history needs Rails Pulse Pro, which is not installed in this application.",
-                                  "url" => "https://railspulse.com/pro" }.to_json)
+      test "an extension command explains what is missing when the app answers 402" do
+        stub_http_response(402, { "error" => "requires_extension", "feature" => "alerts",
+                                  "message" => "Alert history is provided by an extension that is not installed in this application.",
+                                  "url" => "https://example.com/extensions" }.to_json)
 
         cmd = Alerts.new([], { "limit" => 25, "offset" => 0, "json" => false })
         out, _err = capture_io do
@@ -308,8 +308,8 @@ module RailsPulse
           assert_equal 1, err.status
         end
 
-        assert_includes out, "needs Rails Pulse Pro"
-        assert_includes out, "https://railspulse.com/pro"
+        assert_includes out, "provided by an extension"
+        assert_includes out, "https://example.com/extensions"
         assert_not_includes out, "API error"
       end
 

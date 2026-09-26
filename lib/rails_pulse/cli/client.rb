@@ -9,9 +9,9 @@ module RailsPulse
     class Client
       class ApiError < StandardError; end
 
-      # The endpoint exists but needs rails_pulse_pro in the application. The
-      # free gem answers 402 with the feature name and where to read more.
-      class ProRequiredError < ApiError
+      # The endpoint exists but is served by an extension the application
+      # does not have. The API answers 402 with the feature name.
+      class ExtensionRequiredError < ApiError
         attr_reader :feature, :url
 
         def initialize(message, feature: nil, url: nil)
@@ -51,8 +51,8 @@ module RailsPulse
         body = {} unless body.is_a?(Hash)
 
         if response.code == "402"
-          raise ProRequiredError.new(
-            body["message"] || "This endpoint needs Rails Pulse Pro",
+          raise ExtensionRequiredError.new(
+            body["message"] || "This endpoint is provided by an extension that is not installed",
             feature: body["feature"], url: body["url"]
           )
         end

@@ -37,7 +37,7 @@ module RailsPulse
           assert_equal({ "branch" => "main" }, body["data"].last["metadata"])
         end
 
-        test "regression is nil for every deployment without Rails Pulse Pro" do
+        test "regression is nil for every deployment without the regression extension" do
           get rails_pulse.api_v1_deployments_path, headers: HEADERS
           body = JSON.parse(response.body)
 

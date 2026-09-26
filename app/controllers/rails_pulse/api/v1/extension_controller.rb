@@ -1,11 +1,11 @@
 module RailsPulse
   module Api
     module V1
-      # Answers the API endpoints that rails_pulse_pro adds when that gem is
-      # not installed, so the CLI and the MCP tools can say what is missing
-      # instead of 404ing. rails_pulse_pro draws the real routes and these
-      # stubs are skipped (see config/routes.rb).
-      class ProController < BaseController
+      # Answers the API endpoints an extension engine adds when none is
+      # installed, so the CLI and the MCP tools can say what is missing
+      # instead of 404ing. An installed extension draws the real routes and
+      # these stubs are skipped (see config/routes.rb).
+      class ExtensionController < BaseController
         FEATURES = {
           "alerts"                => "Alert history",
           "alert_rules"           => "Alert rules",
@@ -14,16 +14,13 @@ module RailsPulse
           "setup"                 => "The setup and tuning check"
         }.freeze
 
-        URL = "https://railspulse.com/pro".freeze
-
         def show
           feature = params[:feature].to_s
 
           render json: {
-            error:   "requires_pro",
+            error:   "requires_extension",
             feature: feature,
-            message: "#{FEATURES.fetch(feature, feature)} needs Rails Pulse Pro, which is not installed in this application.",
-            url:     URL
+            message: "#{FEATURES.fetch(feature, feature)} is provided by an extension that is not installed in this application."
           }, status: :payment_required
         end
       end

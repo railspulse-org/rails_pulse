@@ -59,9 +59,9 @@ module RailsPulse
         )
       end
 
-      # The diagnosis tools work with the free gem alone. The rest read data
-      # only rails_pulse_pro produces; without it they answer with what is
-      # missing (see Tools::Helpers#respond).
+      # The diagnosis tools work with this gem alone. The rest read data an
+      # extension produces; without it they answer with what is missing
+      # (see Tools::Helpers#respond).
       def self.tools
         [
           Tools::Routes,

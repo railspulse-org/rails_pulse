@@ -59,10 +59,10 @@ header.
   scope; they accept `config.api_token` when it is set and fall back to the dashboard
   authentication only when it is not.
 - Five endpoints (`alerts`, `alert_rules`, `summary`, `threshold_suggestions`, `setup`) answer
-  `402 Payment Required` with `{ error: "requires_pro", feature:, message:, url: }` unless
-  `rails_pulse_pro` is installed, which draws the real routes in its place. A new Pro-only
-  endpoint needs a stub in `Api::V1::ProController::FEATURES`, the route in
-  `config/routes.rb`'s `api/v1` scope, and the same route appended by the Pro engine.
+  `402 Payment Required` with `{ error: "requires_extension", feature:, message: }` unless an
+  extension engine is installed and draws the real routes in their place. A new one needs a
+  stub in `Api::V1::ExtensionController::FEATURES`, the route in `config/routes.rb`'s `api/v1`
+  scope, and the same route appended by the extension engine.
 - `deployment_api_token` is the pre-0.5 name for `config.api_token`; the alias still works.
 
 ## CLI
@@ -72,9 +72,9 @@ over HTTP — it never loads the Rails app or the engine, so nothing under `lib/
 may reference Rails, models, or configuration directly. `rails-pulse configure` prompts for a
 URL and token and writes `~/.rails-pulse`; credentials otherwise come from `RAILS_PULSE_URL`
 and `RAILS_PULSE_TOKEN`. Each API resource above has a matching subcommand
-(`routes`, `requests`, `queries`, `jobs`, `job_runs`, `deployments`, plus the Pro-only
+(`routes`, `requests`, `queries`, `jobs`, `job_runs`, `deployments`, plus the extension-served
 `alerts`, `alert_rules`, `summary`, `thresholds`, `setup`); a `402` from the API is turned into
-a plain "needs Rails Pulse Pro" message rather than an error. `rails-pulse install claude`
+a plain "provided by an extension" message rather than an error. `rails-pulse install claude`
 writes an agent skill file to `~/.claude/skills/rails-pulse/SKILL.md`.
 
 ## MCP server
@@ -84,9 +84,9 @@ agents, built on the same HTTP client as the CLI. It needs the `mcp` gem, which 
 development dependency of this gem and not a runtime one: the host adds `gem "mcp"` to its
 own Gemfile, and without it the command exits 1 saying so. All twelve tools are read-only
 (`read_only_hint: true`) and named `rails_pulse_<resource>`: `routes`, `endpoint`, `queries`,
-`errors`, `jobs`, `slow_requests`, and `deployments` work with the free gem alone; `alerts`,
-`alert_rules`, `suggested_thresholds`, `setup`, and `request_stats` need `rails_pulse_pro` and
-otherwise return the same "needs Pro" message the CLI does.
+`errors`, `jobs`, `slow_requests`, and `deployments` work with this gem alone; `alerts`,
+`alert_rules`, `suggested_thresholds`, `setup`, and `request_stats` are served by an extension
+and otherwise return the same "provided by an extension" message the CLI does.
 
 ## Operations — regression detection
 

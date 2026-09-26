@@ -17,7 +17,7 @@ module RailsPulse
 
       desc "list", "List configured alert rules and their current state"
       long_desc <<~DESC
-        Returns the alert rules defined in the Rails Pulse Pro initializer, with each
+        Returns the alert rules defined in the alerting initializer, with each
         rule's last trigger time, 7-day trigger count, and cooldown state.
 
         Delivery targets (email addresses, webhook URLs) are never returned.

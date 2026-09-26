@@ -30,19 +30,19 @@ module RailsPulse
       register(Jobs,      "jobs",      "jobs SUBCOMMAND",
                "List background jobs with run counts, failure rates, and duration stats")
       register(Alerts,    "alerts",    "alerts SUBCOMMAND",
-               "List fired alert events with optional rule and time filters (Rails Pulse Pro)")
+               "List fired alert events with optional rule and time filters (extension)")
       register(JobRuns,   "job_runs",  "job_runs SUBCOMMAND",
                "List individual job runs with status, job, and time filters")
       register(AlertRules, "alert_rules", "alert_rules SUBCOMMAND",
-               "List configured alert rules with cooldown state and recent trigger counts (Rails Pulse Pro)")
+               "List configured alert rules with cooldown state and recent trigger counts (extension)")
       register(Deployments, "deployments", "deployments SUBCOMMAND",
-               "List deployments; regression check outcomes need Rails Pulse Pro")
+               "List deployments; regression check outcomes come from an extension")
       register(Thresholds, "thresholds", "thresholds SUBCOMMAND",
-               "Suggest backtested alert thresholds from recent performance data (Rails Pulse Pro)")
+               "Suggest backtested alert thresholds from recent performance data (extension)")
       register(Summary,   "summary",   "summary SUBCOMMAND",
-               "Show a weekly or monthly performance summary with insights and recommendations (Rails Pulse Pro)")
+               "Show a weekly or monthly performance summary with insights and recommendations (extension)")
       register(Setup,     "setup",     "setup SUBCOMMAND",
-               "Check what still needs configuring and get data-driven config suggestions (Rails Pulse Pro)")
+               "Check what still needs configuring and get data-driven config suggestions (extension)")
       register(Mcp,       "mcp",       "mcp",
                "Start MCP server for AI coding agents (Claude Code, Codex, Cursor)")
 
@@ -71,7 +71,7 @@ module RailsPulse
           say "  rails-pulse mcp                                             # Start MCP server for AI agents"
           say ""
           say "Credentials are read from RAILS_PULSE_URL / RAILS_PULSE_TOKEN env vars or ~/.rails-pulse."
-          say "Commands marked (Rails Pulse Pro) need the rails_pulse_pro gem in the application."
+          say "Commands marked (extension) need an extension the application may not have; they say so when run."
           say "Run 'rails-pulse configure' to set them up, or 'rails-pulse help COMMAND' for detailed flags."
         end
       end

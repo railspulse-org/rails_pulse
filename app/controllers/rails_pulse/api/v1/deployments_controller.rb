@@ -23,9 +23,9 @@ module RailsPulse
 
         private
 
-        # Extension point. rails_pulse_pro overrides this to return each
+        # Extension point. An extension overrides this to return each
         # deployment's regression check, keyed by deployment id, already
-        # serialized; the free gem has no regression data to attach.
+        # serialized; this gem has no regression data to attach.
         def deployment_regressions(_deployments)
           {}
         end

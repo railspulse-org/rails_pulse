@@ -30,14 +30,14 @@ module RailsPulse
           { "key" => "pro_job", "status" => "ok", "reason" => "Last ran 3 minutes ago, 0 rules evaluated." },
           { "key" => "alert_rules", "status" => "missing", "reason" => "No alert rules configured.",
             "snippet" => "config.alerts = [ { delivery: { method: :email, to: \"REPLACE_WITH_EMAIL\" } } ]",
-            "file" => "config/initializers/rails_pulse_pro.rb" },
+            "file" => "config/initializers/rails_pulse.rb" },
           { "key" => "quiet_hours", "status" => "suggested", "reason" => "Traffic drops overnight.",
-            "snippet" => "config.quiet_hours = { from: \"01:00\", to: \"06:00\" }", "file" => "config/initializers/rails_pulse_pro.rb" },
+            "snippet" => "config.quiet_hours = { from: \"01:00\", to: \"06:00\" }", "file" => "config/initializers/rails_pulse.rb" },
           { "key" => "from_email", "status" => "needs_attention", "reason" => "Still the default." },
           { "key" => "summary_email", "status" => "pending", "reason" => "Job has not run yet." }
         ],
         "next_check" => "Run again in 7 days to tune thresholds against real alert history.",
-        "config_additions" => "RailsPulse::Pro.configure do |config|\nend"
+        "config_additions" => "RailsPulse.configure do |config|\nend"
       }.freeze
 
       INSTALL_PLAN = {
@@ -113,7 +113,7 @@ module RailsPulse
       test "tool is read-only and its description tells the agent to apply snippets itself" do
         assert Tools::Setup.annotations.read_only_hint
         assert_includes Tools::Setup.description, "changes nothing"
-        assert_includes Tools::Setup.description, "config/initializers/rails_pulse_pro.rb"
+        assert_includes Tools::Setup.description, "the file named on each finding"
         assert_includes Tools::Setup.description, "never invent them"
       end
     end

@@ -15,7 +15,7 @@ module RailsPulse
         assert_includes registered, "mcp"
       end
 
-      # --- Pro gate: missing credentials ---
+      # --- Startup failure: missing credentials ---
 
       test "mcp start fails without RAILS_PULSE_URL" do
         ENV.delete("RAILS_PULSE_URL")
@@ -45,7 +45,7 @@ module RailsPulse
         ENV.delete("RAILS_PULSE_URL")
       end
 
-      # --- Pro gate: error message to stderr ---
+      # --- Startup failure: error message to stderr ---
 
       test "mcp start writes error to stderr not stdout" do
         ENV.delete("RAILS_PULSE_URL")

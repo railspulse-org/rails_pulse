@@ -11,7 +11,7 @@ module RailsPulse
           "last_7_days" => 604_800
         }.freeze
 
-        FREE_TOOLS = %w[
+        CORE_TOOLS = %w[
           rails_pulse_routes rails_pulse_slow_requests rails_pulse_errors rails_pulse_endpoint
           rails_pulse_queries rails_pulse_jobs rails_pulse_deployments
         ].freeze
@@ -35,23 +35,23 @@ module RailsPulse
         def respond(server_context)
           payload = yield server_context[:client]
           ::MCP::Tool::Response.new([ { type: "text", text: JSON.pretty_generate(payload) } ])
-        rescue CLI::Client::ProRequiredError => e
+        rescue CLI::Client::ExtensionRequiredError => e
           # Not an error from the agent's point of view: the answer is "this
-          # needs Pro", which it should relay rather than retry.
-          ::MCP::Tool::Response.new([ { type: "text", text: JSON.pretty_generate(pro_required_payload(e)) } ])
+          # needs an extension", which it should relay rather than retry.
+          ::MCP::Tool::Response.new([ { type: "text", text: JSON.pretty_generate(extension_required_payload(e)) } ])
         rescue CLI::Client::ApiError => e
           ::MCP::Tool::Response.new([ { type: "text", text: "Error querying Rails Pulse: #{e.message}" } ], error: true)
         end
 
-        def pro_required_payload(error)
+        def extension_required_payload(error)
           {
-            requires_pro: true,
+            requires_extension: true,
             feature: error.feature,
             message: error.message,
             url: error.url,
             next_steps: [
-              "This tool needs Rails Pulse Pro installed in the application. Tell the user what it would have provided and where to read more; do not retry.",
-              "Continue with the tools that work without Pro: #{FREE_TOOLS.join(', ')}."
+              "This tool is provided by an extension that is not installed in the application. Tell the user what it would have provided; do not retry.",
+              "Continue with the tools that work here: #{CORE_TOOLS.join(', ')}."
             ]
           }
         end

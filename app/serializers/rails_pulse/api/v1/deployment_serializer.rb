@@ -3,7 +3,7 @@ module RailsPulse
     module V1
       class DeploymentSerializer
         # `regression` is the already-serialized regression check that
-        # rails_pulse_pro attaches, or nil.
+        # an extension attaches, or nil.
         def self.serialize(deployment, regression: nil)
           {
             id:               deployment.id,

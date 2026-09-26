@@ -8,7 +8,7 @@ module RailsPulse
         description "Suggest alert-rule thresholds from the app's real performance history, backtested so you can see " \
                     "how many times each would have fired. Returns strict/balanced/relaxed tiers per metric and " \
                     "flags metrics already covered by an existing rule. Use this to configure alerts that are not noisy. " \
-                    "Needs Rails Pulse Pro in the application."
+                    "Provided by an extension; without it the tool says so."
 
         annotations(
           read_only_hint: true,
@@ -111,7 +111,7 @@ module RailsPulse
             steps << "Already covered by rules: #{covered.map { |m| "#{m[:metric]} (#{m[:existing_rules].join(', ')})" }.join('; ')} — compare their thresholds with the tiers before adding more."
           end
           steps << "Pick a tier by tolerance: 'strict' catches more but fires more often; 'relaxed' only fires on outliers. would_have_fired is the count over the analysed window."
-          steps << "Add the chosen rule to `config.alerts` in the Rails Pulse Pro initializer (see config_snippet), then watch rails_pulse_alerts for a week."
+          steps << "Add the chosen rule to `config.alerts` in the alerting initializer (see config_snippet), then watch rails_pulse_alerts for a week."
           steps
         end
       end
