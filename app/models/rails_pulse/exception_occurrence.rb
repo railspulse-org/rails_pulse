@@ -21,7 +21,7 @@ module RailsPulse
     end
 
     def to_breadcrumb
-      occurred_at.getlocal.strftime("%b %d, %Y %l:%M %p")
+      occurred_at.strftime("%b %d, %Y %l:%M %p")
     end
   end
 end

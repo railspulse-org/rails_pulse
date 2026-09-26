@@ -2,20 +2,19 @@ module RailsPulse
   module FormattingHelper
     def human_readable_occurred_at(occurred_at)
       return "" unless occurred_at.present?
-      time = occurred_at.is_a?(String) ? Time.parse(occurred_at) : occurred_at
-      # Convert to local system timezone (same as charts use)
-      time.getlocal.strftime("%b %d, %Y %l:%M %p")
+      # Time.zone, not the server's OS zone — the same zone charts label as
+      # the aggregation zone, so this and the charts always agree.
+      time = occurred_at.is_a?(String) ? Time.zone.parse(occurred_at) : occurred_at
+      return "" if time.nil?
+      time.strftime("%b %d, %Y %l:%M %p")
     end
 
     def time_ago_in_words(time)
       return "Unknown" if time.blank?
 
-      # Convert to Time object if it's a string
-      time = Time.parse(time.to_s) if time.is_a?(String)
-      # Convert to local system timezone for consistent calculation
-      time = time.getlocal
+      time = Time.zone.parse(time.to_s) if time.is_a?(String)
 
-      seconds_ago = [ Time.now - time, 0 ].max
+      seconds_ago = [ Time.current - time, 0 ].max
 
       case seconds_ago
       when 0..59
@@ -37,10 +36,10 @@ module RailsPulse
     def human_readable_summary_period(summary)
       return "" unless summary&.period_start&.present? && summary&.period_end&.present?
 
-      # Convert UTC times to local system timezone to match chart display
-      start_time = summary.period_start.getlocal
-      end_time = summary.period_end.getlocal
-
+      # Already Time.zone-aware from ActiveRecord — the same aggregation
+      # zone charts label, so no conversion needed.
+      start_time = summary.period_start
+      end_time = summary.period_end
 
       case summary.period_type
       when "hour"

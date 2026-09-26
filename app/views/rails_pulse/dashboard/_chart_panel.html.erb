@@ -1,7 +1,12 @@
 <div class="grid-item" style="<%= flex_style if defined?(flex_style) %>">
   <div class="card b-full flex flex-col">
     <div class="flex mbe-2">
-      <h2 class="grow font-semibold leading-none uppercase text-xs"><%= title %></h2>
+      <h2 class="grow font-semibold leading-none uppercase text-xs">
+        <%= title %>
+        <% if chart_data %>
+          · <%= render "rails_pulse/shared/aggregation_zone_badge" %>
+        <% end %>
+      </h2>
       <div class="panel-icon-bar flex gap items-center">
         <% if chart_data %>
           <%= series_toggles %>

@@ -136,7 +136,10 @@ end %>
         <div class="flex items-start justify-between">
           <div>
             <h2 class="text-lg font-semibold mbe-4">Custom Date Range</h2>
-            <p class="text-sm text-subtle">Select a custom date and time range for filtering data.</p>
+            <p class="text-sm text-subtle">
+              Select a custom date and time range for filtering data. All times are in
+              <%= RailsPulse::TimeRange.aggregation_zone_label %>.
+            </p>
           </div>
           <%= link_to '#', "aria-label": "Close", data: { action: "click->rails-pulse--time-range#cancelCustom" }, class: "text-subtle hover:text-default" do %>
             <%= rails_pulse_icon "x", width: "20" %>

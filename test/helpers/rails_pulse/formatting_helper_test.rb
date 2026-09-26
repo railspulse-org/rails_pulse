@@ -80,10 +80,8 @@ class RailsPulse::FormattingHelperTest < ActionView::TestCase
   end
 
   test "human_readable_occurred_at handles invalid string gracefully" do
-    # This should raise an error when parsed, but we're testing the error handling
-    assert_raises(ArgumentError) do
-      human_readable_occurred_at("invalid-date")
-    end
+    # Time.zone.parse returns nil for unparseable input rather than raising
+    assert_equal "", human_readable_occurred_at("invalid-date")
   end
 
   # ============================================================================

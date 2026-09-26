@@ -50,8 +50,8 @@ class RailsPulse::RequestTest < ActiveSupport::TestCase
   test "should return formatted string representation" do
     request = rails_pulse_requests(:users_request_1)
 
-    # The to_s method calls getlocal, so we need to expect the local time format
-    expected_format = request.occurred_at.getlocal.strftime("%b %d, %Y %l:%M %p")
+    # to_s formats in Time.zone (the aggregation zone), not the server's OS zone
+    expected_format = request.occurred_at.strftime("%b %d, %Y %l:%M %p")
 
     assert_equal expected_format, request.to_s
   end

@@ -33,7 +33,7 @@ Add a formatter by adding a key to that object. Never add string-to-function con
 
 ## Controller contract
 
-- Values: `type`, `data`, `options`, `theme` (default `railspulse`).
+- Values: `type`, `data`, `options`, `theme` (default `railspulse`), `timezone` (IANA name of `Time.zone`), `timezoneLabel` (its short label). Every date and time formatter renders in `timezone`, never the browser's zone, and tooltip formatters append `timezoneLabel` in parentheses. `isHourlyAxis()` decides hourly versus daily from `xAxis.axisLabel.formatter === "time"`, the key `chart_helper.rb` sets, not from ECharts' generated `axisValueLabel`.
 - `chartInstance` getter returns the ECharts instance; `update(event)` re-renders from `event.detail.data` / `.options`.
 - `connect` waits up to five seconds (100 × 50 ms) for `echarts`, inits, attaches a `ResizeObserver`, dispatches `stimulus:echarts:rendered` on `document` with `{ containerId, chart, controller }`. `index` and `chart_switcher` listen for it to attach click and zoom handlers.
 - `disconnect` disposes the chart and the observer and removes the `rails-pulse:color-scheme-changed` listener. Axis labels are `#999999` light, `rgba(255,255,255,0.55)` dark.

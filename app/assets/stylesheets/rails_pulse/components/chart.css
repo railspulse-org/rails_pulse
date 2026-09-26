@@ -85,6 +85,17 @@
   border-left: none;
 }
 
+/* Aggregation-zone badge beside a chart title or tab strip. Its title
+   attribute carries the full zone name and the resolved window, hence the
+   help cursor. */
+.zone-badge {
+  font-size: var(--text-xs);
+  font-weight: var(--font-normal);
+  color: var(--color-text-subtle);
+  white-space: nowrap;
+  cursor: help;
+}
+
 .panel-tab {
   display: inline-flex;
   align-items: center;

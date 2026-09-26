@@ -52,6 +52,8 @@ The per-event subscriber cost is not in this table because the pass-through app 
 
 `app/services/rails_pulse/operations/` (`Series`, `Metric`, `Compare`, `ChangePoint`) is the historical comparison layer over summaries: baseline window against comparison window, regression thresholds, change-point placement from hourly rows.
 
+Day, week and month boundaries are cut in `Time.zone` (`Summary.normalize_period_start`), which in the job process is the host's `config.time_zone`. The dashboard displays everything in that same zone and never in the browser's: `TimeRange` parses custom ranges in it, `render_stimulus_chart` hands its IANA name to the chart controller so axis labels and tooltips are formatted in it, and every timestamp helper and `to_s` formats the `Time.zone`-aware value ActiveRecord returns. `TimeRange.aggregation_zone_label` and `aggregation_zone_short_label` name that zone on every chart. Decision 0020 has the reasoning and the one assumption it rests on.
+
 ## Dashboard
 
 Controllers under `app/controllers/rails_pulse/` read summaries through `Tables::Index` classes and the card classes in `app/models/rails_pulse/cards/`. The requests page is the exception: it lists individual `Request` rows because per-request detail is the point. Filtering is Ransack with explicit `ransackable_attributes` on every model; tag filters run as subqueries (`TagFilterService`). Charts are one Stimulus controller over tree-shaken ECharts; see `docs/charts.md`.

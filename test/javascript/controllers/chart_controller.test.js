@@ -99,6 +99,217 @@ describe('ChartController', () => {
     })
   })
 
+  // # Daily formatters use the aggregation timezone, not the browser timezone (#303)
+
+  describe('daily formatters use the aggregation timezone', () => {
+    // Jan 15 in UTC, but Jan 14 in America/New_York (EST, UTC-5) — the exact
+    // boundary mismatch reported in #303.
+    const midnightBoundaryUTC = Date.UTC(2024, 0, 15, 2, 0, 0)
+
+    function html(timezone) {
+      return `
+        <div
+          id="chart-tz-test"
+          data-controller="rails-pulse--chart"
+          data-rails-pulse--chart-type-value="line"
+          data-rails-pulse--chart-data-value="{}"
+          data-rails-pulse--chart-options-value="{}"
+          data-rails-pulse--chart-timezone-value="${timezone}"
+          data-rails-pulse--chart-timezone-label-value="UTC"
+        ></div>
+      `
+    }
+
+    it('formats the "date" axis label in the aggregation zone', async () => {
+      const ctrl = await mountChart(html('America/New_York'))
+      const formatter = ctrl.getSafeFormatter('date')
+
+      expect(formatter(midnightBoundaryUTC)).toBe('Jan 14')
+    })
+
+    it('formats "timestamp_to_date" axis labels in the aggregation zone', async () => {
+      const ctrl = await mountChart(html('America/New_York'))
+      const formatter = ctrl.getSafeFormatter('timestamp_to_date')
+
+      expect(formatter(midnightBoundaryUTC)).toBe('Jan 14')
+    })
+
+    it('falls back to the browser zone when no aggregation timezone was provided', async () => {
+      const ctrl = await mountChart(html(''))
+      const formatter = ctrl.getSafeFormatter('date')
+
+      const expected = new Date(midnightBoundaryUTC)
+        .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      expect(formatter(midnightBoundaryUTC)).toBe(expected)
+    })
+  })
+
+  describe('tooltip zone suffix', () => {
+    // xAxis.axisLabel.formatter is the deterministic hourly/daily signal
+    // isHourlyAxis() reads — it must be set the same way chart_helper.rb's
+    // base_chart_options sets it, since that's the whole point of the fix
+    // (not sniffing ECharts' own generated axisValueLabel).
+    function html(timezone, timezoneLabel, hourly) {
+      const options = JSON.stringify({ xAxis: { axisLabel: { formatter: hourly ? 'time' : 'timestamp_to_date' } } })
+      return `
+        <div
+          id="chart-tz-tooltip-test"
+          data-controller="rails-pulse--chart"
+          data-rails-pulse--chart-type-value="line"
+          data-rails-pulse--chart-data-value="{}"
+          data-rails-pulse--chart-options-value='${options}'
+          data-rails-pulse--chart-timezone-value="${timezone}"
+          data-rails-pulse--chart-timezone-label-value="${timezoneLabel}"
+        ></div>
+      `
+    }
+
+    it('appends the aggregation zone label to a daily tooltip_with_timestamp', async () => {
+      const ctrl = await mountChart(html('Etc/UTC', 'UTC', false))
+      const formatter = ctrl.getSafeFormatter('tooltip_with_timestamp')
+
+      const params = [{
+        axisValue: Date.UTC(2024, 0, 15),
+        axisValueLabel: 'Jan 15',
+        seriesName: 'P95',
+        marker: '●',
+        value: [ Date.UTC(2024, 0, 15), 100 ]
+      }]
+
+      expect(formatter(params)).toContain('(UTC)')
+    })
+
+    it('appends the same aggregation zone label to an hourly tooltip_with_timestamp (no browser-zone split)', async () => {
+      const ctrl = await mountChart(html('America/New_York', 'EST', true))
+      const formatter = ctrl.getSafeFormatter('tooltip_with_timestamp')
+
+      // 02:00 UTC is 21:00 the previous day in America/New_York — if this
+      // were still browser-zone-formatted (and the test env's zone isn't
+      // America/New_York), the hour and/or day would come out wrong.
+      const params = [{
+        axisValue: Date.UTC(2024, 0, 15, 2, 0),
+        axisValueLabel: '02:00',
+        seriesName: 'P95',
+        marker: '●',
+        value: [ Date.UTC(2024, 0, 15, 2, 0), 100 ]
+      }]
+
+      const rendered = formatter(params)
+      expect(rendered).toContain('Jan 14, 21:00')
+      expect(rendered).toContain('(EST)')
+    })
+
+    it('formats hourly and daily tooltips in the same zone (the aggregation zone) for the same chart', async () => {
+      const hourlyCtrl = await mountChart(html('Etc/UTC', 'UTC', true))
+      const dailyCtrl = await mountChart(html('Etc/UTC', 'UTC', false))
+
+      const hourlyFormatter = hourlyCtrl.getSafeFormatter('tooltip_with_timestamp')
+      const dailyFormatter = dailyCtrl.getSafeFormatter('tooltip_with_timestamp')
+
+      const params = [{
+        axisValue: Date.UTC(2024, 0, 15, 10, 0),
+        seriesName: 'P95',
+        marker: '●',
+        value: [ Date.UTC(2024, 0, 15, 10, 0), 100 ]
+      }]
+
+      expect(hourlyFormatter(params)).toContain('(UTC)')
+      expect(dailyFormatter(params)).toContain('(UTC)')
+    })
+
+    it('appends the zone suffix to a category-axis tooltip too (daily/weekly/monthly charts send a pre-formatted label, not a timestamp)', async () => {
+      const ctrl = await mountChart(html('Etc/UTC', 'UTC', false))
+      const formatter = ctrl.getSafeFormatter('tooltip_with_timestamp')
+
+      // Category axis: axisValue is already a formatted string like "Apr 28",
+      // not a ms timestamp — this used to skip the zone suffix entirely.
+      const params = [{
+        axisValue: 'Apr 28',
+        seriesName: 'Requests',
+        marker: '●',
+        value: 42
+      }]
+
+      expect(formatter(params)).toContain('Apr 28 (UTC)')
+    })
+
+    it('appends the zone suffix to a category-axis sparkline tooltip too', async () => {
+      const ctrl = await mountChart(html('Etc/UTC', 'UTC', false))
+      const formatter = ctrl.getSafeFormatter('sparkline_tooltip')
+
+      const params = [{
+        axisValue: 'Apr 5',
+        seriesName: 'P95',
+        marker: '●',
+        value: 150
+      }]
+
+      expect(formatter(params)).toContain('Apr 5 (UTC)')
+    })
+
+    it('decides whether auto_date_tooltip needs a year in the aggregation zone, not the browser zone', async () => {
+      // "Now" is 2025-01-01 04:30 UTC, which is still 2024-12-31 23:30 in
+      // America/New_York. A point from noon UTC on Dec 31 is in the current
+      // year in the aggregation zone, so it must not carry a year suffix,
+      // even though a UTC browser would call it last year.
+      // Only Date is faked: connect() polls for echarts with setTimeout and
+      // would never resolve under fully faked timers.
+      vi.useFakeTimers({ toFake: [ 'Date' ] })
+      vi.setSystemTime(new Date(Date.UTC(2025, 0, 1, 4, 30)))
+      try {
+        const ctrl = await mountChart(html('America/New_York', 'EST', false))
+        const formatter = ctrl.getSafeFormatter('auto_date_tooltip')
+
+        const params = [{
+          axisValue: Date.UTC(2024, 11, 31, 12, 0),
+          seriesName: 'P95',
+          marker: '●',
+          value: [ Date.UTC(2024, 11, 31, 12, 0), 100 ]
+        }]
+
+        expect(formatter(params)).toMatch(/^Dec 31 \(EST\)/)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('omits the suffix entirely when no zone label is available', async () => {
+      const ctrl = await mountChart(html('', '', false))
+      const formatter = ctrl.getSafeFormatter('tooltip_with_timestamp')
+
+      const params = [{
+        axisValue: Date.UTC(2024, 0, 15),
+        axisValueLabel: 'Jan 15',
+        seriesName: 'P95',
+        marker: '●',
+        value: [ Date.UTC(2024, 0, 15), 100 ]
+      }]
+
+      expect(formatter(params)).not.toContain('(')
+    })
+
+    it('classifies hourly by the formatter Ruby chose, not by axisValueLabel shape (#303 combo-chart regression)', async () => {
+      // A stacked bar/shadow-pointer combo chart (e.g. Throughput & Errors)
+      // can hand back an axisValueLabel that is NOT "HH:MM" even when the
+      // underlying data is genuinely hourly. isHourlyAxis() must ignore that
+      // and trust xAxis.axisLabel.formatter instead.
+      const ctrl = await mountChart(html('Etc/UTC', 'UTC', true))
+      const formatter = ctrl.getSafeFormatter('tooltip_with_timestamp')
+
+      const params = [{
+        axisValue: Date.UTC(2024, 0, 15, 14, 0),
+        axisValueLabel: 'Mon Jan 15 2024 14:00:00 GMT+0000', // not "HH:MM"-shaped
+        seriesName: 'Requests',
+        marker: '●',
+        value: [ Date.UTC(2024, 0, 15, 14, 0), 13 ]
+      }]
+
+      const html_ = formatter(params)
+      expect(html_).not.toContain('Jan 15<br/>') // did not fall back to a date-only label
+      expect(html_).toMatch(/^Jan 15, \d{2}:\d{2} \(/)
+    })
+  })
+
   // # buildChartConfig() — formatter preservation
 
   describe('buildChartConfig() with time-pair data', () => {
