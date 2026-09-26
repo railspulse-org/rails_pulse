@@ -64,20 +64,26 @@ module RailsPulse
           end
         end
 
+        # Transaction control repeats within a request by design; it is never
+        # an N+1 however often it appears.
+        TRANSACTION_STATEMENT = /\A(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b/i
+
         private_class_method def self.format_query(query)
           stats = query["stats"] || {}
           analysis = query["n_plus_one"] || {}
           repetition = stats["max_repetition_count"].to_i
+          sql = query["normalized_sql"].to_s.gsub(/\s+/, " ").strip
+          repeated = repetition > 1 && !sql.match?(TRANSACTION_STATEMENT)
 
           {
             id: query["id"],
-            sql: truncate(query["normalized_sql"].to_s.gsub(/\s+/, " ").strip, SQL_LENGTH),
+            sql: truncate(sql, SQL_LENGTH),
             executions: stats["executions"],
             avg_duration_ms: stats["avg_duration_ms"],
             max_duration_ms: stats["max_duration_ms"],
             total_duration_ms: stats["total_duration_ms"],
             n_plus_one: {
-              likely: analysis["likely"] == true || repetition > 1,
+              likely: analysis["likely"] == true || repeated,
               confidence: analysis["confidence"],
               max_repetition_count: repetition > 0 ? repetition : nil
             },

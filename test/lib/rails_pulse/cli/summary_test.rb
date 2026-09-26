@@ -160,6 +160,20 @@ module RailsPulse
         assert_includes out, "OVERVIEW"
       end
 
+      test "explains an empty period instead of printing blank numbers" do
+        response = Marshal.load(Marshal.dump(FAKE_RESPONSE))
+        response["overview"] = {
+          "p95_ms" => nil, "avg_ms" => nil, "total_requests" => nil, "error_count" => 0, "error_rate_pct" => nil,
+          "vs_previous" => { "p95_ms" => nil, "total_requests" => nil, "error_rate_pct" => nil,
+                             "p95_delta_pct" => nil, "total_delta_pct" => nil, "error_rate_delta_pct" => nil }
+        }
+        out, _err = run_show(response: response)
+
+        assert_includes out, "No summary data for this period"
+        assert_includes out, "rails_pulse:backfill_summaries"
+        refute_includes out, " ms"
+      end
+
       test "outputs P95 stat with trend arrow for positive delta" do
         out, _err = run_show
 

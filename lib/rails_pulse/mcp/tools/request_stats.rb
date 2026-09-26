@@ -106,6 +106,12 @@ module RailsPulse
 
         private_class_method def self.build_summary(response)
           stats = response[:stats]
+          if stats[:total_requests].nil?
+            return "No summary data for #{response[:period][:label] || 'this period'}: no requests were tracked, " \
+                   "or RailsPulse::SummaryJob has not run for it yet (rails rails_pulse:backfill_summaries builds " \
+                   "summaries for past traffic). Use rails_pulse_routes or rails_pulse_slow_requests for live request data."
+          end
+
           parts = []
           parts << "#{stats[:total_requests]} requests"
           parts << "avg #{stats[:avg_duration_ms]}ms" if stats[:avg_duration_ms]

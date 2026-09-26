@@ -130,6 +130,27 @@ module RailsPulse
         assert data["next_steps"].any? { |s| s.include?("preload") }
       end
 
+      test "queries does not flag transaction statements as N+1 however often they repeat" do
+        response = {
+          "data" => [
+            { "id" => 9, "normalized_sql" => "COMMIT", "issues" => [], "suggestions" => [],
+              "n_plus_one" => { "likely" => false, "confidence" => nil },
+              "stats" => { "executions" => 9, "avg_duration_ms" => 10.0, "max_duration_ms" => 68.7, "total_duration_ms" => 89.9, "max_repetition_count" => 2 } },
+            { "id" => 10, "normalized_sql" => "SELECT * FROM words WHERE id = ?", "issues" => [], "suggestions" => [],
+              "n_plus_one" => { "likely" => false, "confidence" => nil },
+              "stats" => { "executions" => 10, "avg_duration_ms" => 0.7, "max_duration_ms" => 3.4, "total_duration_ms" => 7.2, "max_repetition_count" => 2 } }
+          ],
+          "meta" => { "total" => 2 }
+        }
+        _, data = call(Tools::Queries, client("/queries" => response))
+
+        commit, select = data["queries"]
+
+        refute commit["n_plus_one"]["likely"]
+        assert select["n_plus_one"]["likely"]
+        assert_includes data["summary"], "1 likely N+1 query"
+      end
+
       test "queries next_steps cover slow and very frequent queries" do
         _, data = call(Tools::Queries, client("/queries" => QUERIES_RESPONSE))
 

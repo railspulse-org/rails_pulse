@@ -53,16 +53,23 @@ module RailsPulse
         # Overview
         say ""
         say "OVERVIEW", :bold
-        render_stat "P95 Response Time", "#{ov["p95_ms"]} ms",
-                    vs_prev["p95_ms"] ? "#{ov["p95_ms"]} ms vs #{vs_prev["p95_ms"]} ms" : nil,
-                    vs_prev["p95_delta_pct"]
-        render_stat "Avg Response Time",  "#{ov["avg_ms"]} ms"
-        render_stat "Total Requests",     ov["total_requests"].to_s,
-                    vs_prev["total_requests"] ? "from #{vs_prev["total_requests"]}" : nil,
-                    vs_prev["total_delta_pct"]
-        render_stat "Error Rate",         "#{ov["error_rate_pct"]}%  (#{ov["error_count"]} errors)",
-                    vs_prev["error_rate_pct"] ? "from #{vs_prev["error_rate_pct"]}%" : nil,
-                    vs_prev["error_rate_delta_pct"]
+        if ov["total_requests"].nil?
+          # The period has no summary rows: nothing was tracked, or
+          # SummaryJob has not run for it yet.
+          say "  No summary data for this period. Summaries are built by RailsPulse::SummaryJob;", :yellow
+          say "  run `rails rails_pulse:backfill_summaries` to build them for past traffic.", :yellow
+        else
+          render_stat "P95 Response Time", "#{ov["p95_ms"]} ms",
+                      vs_prev["p95_ms"] ? "#{ov["p95_ms"]} ms vs #{vs_prev["p95_ms"]} ms" : nil,
+                      vs_prev["p95_delta_pct"]
+          render_stat "Avg Response Time",  "#{ov["avg_ms"]} ms"
+          render_stat "Total Requests",     ov["total_requests"].to_s,
+                      vs_prev["total_requests"] ? "from #{vs_prev["total_requests"]}" : nil,
+                      vs_prev["total_delta_pct"]
+          render_stat "Error Rate",         "#{ov["error_rate_pct"]}%  (#{ov["error_count"]} errors)",
+                      vs_prev["error_rate_pct"] ? "from #{vs_prev["error_rate_pct"]}%" : nil,
+                      vs_prev["error_rate_delta_pct"]
+        end
 
         # Needs Attention
         insights = data["insights"] || {}

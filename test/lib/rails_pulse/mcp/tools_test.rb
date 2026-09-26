@@ -202,6 +202,24 @@ module RailsPulse
         assert_equal "degrading", data["changes"]["error_rate_trend"]
       end
 
+      test "request_stats explains a period with no summaries instead of returning blank numbers" do
+        empty = SUMMARY_RESPONSE.deep_dup
+        empty["overview"] = {
+          "p95_ms" => nil, "avg_ms" => nil, "total_requests" => nil, "error_count" => 0, "error_rate_pct" => nil,
+          "vs_previous" => { "p95_ms" => nil, "total_requests" => nil, "error_rate_pct" => nil,
+                             "p95_delta_pct" => nil, "total_delta_pct" => nil, "error_rate_delta_pct" => nil }
+        }
+        empty["slowest_routes"] = []
+        ctx = server_context("/summary" => empty)
+        result = Tools::RequestStats.call(server_context: ctx)
+        data = JSON.parse(result.content.first[:text])
+
+        assert_not result.error?
+        assert_includes data["summary"], "No summary data for May 26 – Jun 1, 2026"
+        assert_includes data["summary"], "rails_pulse_slow_requests"
+        assert_nil data["changes"]
+      end
+
       test "request_stats omits the comparison when there is no previous period" do
         first_week = SUMMARY_RESPONSE.deep_dup
         first_week["overview"]["vs_previous"] = { "p95_ms" => nil, "total_requests" => nil, "error_rate_pct" => nil,
