@@ -16,7 +16,7 @@ module RailsPulse
       # that only boots the app.
       env = {
         "RAILS_ENV" => "test",
-        "RAILS_PULSE_TEST_ACRONYMS" => "SQL,CSP",
+        "RAILS_PULSE_TEST_ACRONYMS" => "SQL,CSP,API",
         "DB" => ENV.fetch("DB", "sqlite3"),
         "COVERAGE" => nil
       }

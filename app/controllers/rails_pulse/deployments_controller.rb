@@ -54,7 +54,7 @@ module RailsPulse
     private
 
     def authenticate_deployment_request!
-      token = RailsPulse.configuration.deployment_api_token
+      token = RailsPulse.configuration.api_token
       if token.present?
         provided = request.headers["X-Rails-Pulse-Token"].to_s
         unless ActiveSupport::SecurityUtils.secure_compare(provided, token)
@@ -65,7 +65,7 @@ module RailsPulse
       else
         # No token configured and authentication disabled — fail closed.
         # Without a token there is no way to verify the caller.
-        render json: { error: "Unauthorized — set deployment_api_token or enable authentication" }, status: :unauthorized
+        render json: { error: "Unauthorized — set config.api_token or enable authentication" }, status: :unauthorized
       end
     end
 

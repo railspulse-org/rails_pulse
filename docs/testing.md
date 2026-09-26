@@ -52,7 +52,8 @@ CI (`.github/workflows/test.yml`) runs the Ruby × Rails matrix on SQLite and Po
 | `test/migrations` | upgrade regression from `test/support/schemas/` baselines |
 | `test/generators` | install, upgrade, convert-to-migrations |
 | `test/javascript/controllers/*.test.js` | Vitest; shared `mountController` in `test/javascript/setup.js` |
-| `test/support` | helpers: `chart_validation_helpers.rb`, `generator_test_helpers.rb`, `database_helpers.rb`, `schemas/` |
+| `test/serializers` | the JSON API serializers |
+| `test/support` | helpers: `chart_validation_helpers.rb`, `generator_test_helpers.rb`, `database_helpers.rb`, `api_client_test_helpers.rb` (CLI and MCP tests: scrubs credentials, temp config file, no-network guard, `stub_http_response`), `schemas/` |
 | `test/dummy` | host app; its schema is synced by `rake sync_test_schema` |
 
 ## JavaScript tests

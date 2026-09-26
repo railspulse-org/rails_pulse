@@ -39,6 +39,55 @@ what each key does and its default; this page does not duplicate it.
 - `RailsPulse.pro?` — `true` when `RailsPulse::Pro` is defined, `false` otherwise. This is the
   documented way to branch on whether Pro is installed; do not check `defined?` directly.
 
+## JSON API
+
+A read-only, token-authenticated API under `/rails_pulse/api/v1`, for the `rails-pulse` CLI,
+the MCP server, CI scripts, and anything else that wants Rails Pulse data outside the
+dashboard. It never consults the dashboard session — only `config.api_token` — and with no
+token configured every request is refused (`401`). Send the token as an `X-Rails-Pulse-Token`
+header.
+
+- `GET routes`, `GET requests`, `GET queries`, `GET jobs`, `GET job_runs`, `GET deployments` —
+  index-only, paginated (`limit`, default 25, max 500; `offset`) and filterable by `since`/
+  `until` (ISO 8601). Response shape is `{ data: [...], meta: { total:, limit:, offset: } }`.
+  `requests` also takes `route` (substring of the controller action or route path) and
+  `status` (`500` or `5xx`); `jobs` and `job_runs` take `job` (exact class name). An
+  unrecognised `sort`, `status`, `since` or `until` is a `400` with the accepted values.
+- `POST deployments` and `PUT deployments/:id/finish` are the existing endpoints CI calls to
+  record a release (the same action as the `rails_pulse:record_deployment` and
+  `rails_pulse:finish_deployment` rake tasks below). They sit outside the `api/v1` read-only
+  scope; they accept `config.api_token` when it is set and fall back to the dashboard
+  authentication only when it is not.
+- Five endpoints (`alerts`, `alert_rules`, `summary`, `threshold_suggestions`, `setup`) answer
+  `402 Payment Required` with `{ error: "requires_extension", feature:, message: }` unless an
+  extension engine is installed and draws the real routes in their place. A new one needs a
+  stub in `Api::V1::ExtensionController::FEATURES`, the route in `config/routes.rb`'s `api/v1`
+  scope, and the same route appended by the extension engine.
+- `deployment_api_token` is the pre-0.5 name for `config.api_token`; the alias still works.
+
+## CLI
+
+The `rails-pulse` executable (`lib/rails_pulse/cli/`) is a Thor app that talks to the JSON API
+over HTTP — it never loads the Rails app or the engine, so nothing under `lib/rails_pulse/cli/`
+may reference Rails, models, or configuration directly. `rails-pulse configure` prompts for a
+URL and token and writes `~/.rails-pulse`; credentials otherwise come from `RAILS_PULSE_URL`
+and `RAILS_PULSE_TOKEN`. Each API resource above has a matching subcommand
+(`routes`, `requests`, `queries`, `jobs`, `job_runs`, `deployments`, plus the extension-served
+`alerts`, `alert_rules`, `summary`, `thresholds`, `setup`); a `402` from the API is turned into
+a plain "provided by an extension" message rather than an error. `rails-pulse install claude`
+writes an agent skill file to `~/.claude/skills/rails-pulse/SKILL.md`.
+
+## MCP server
+
+`rails-pulse mcp` (`lib/rails_pulse/mcp/`) starts an MCP server over stdio for AI coding
+agents, built on the same HTTP client as the CLI. It needs the `mcp` gem, which is a
+development dependency of this gem and not a runtime one: the host adds `gem "mcp"` to its
+own Gemfile, and without it the command exits 1 saying so. All twelve tools are read-only
+(`read_only_hint: true`) and named `rails_pulse_<resource>`: `routes`, `endpoint`, `queries`,
+`errors`, `jobs`, `slow_requests`, and `deployments` work with this gem alone; `alerts`,
+`alert_rules`, `suggested_thresholds`, `setup`, and `request_stats` are served by an extension
+and otherwise return the same "provided by an extension" message the CLI does.
+
 ## Operations — regression detection
 
 `RailsPulse::Operations` is the interface anything built on top of Rails Pulse (dashboards,
@@ -133,4 +182,7 @@ version expects, pausing tracking (and returning a 503 from the dashboard) when 
 Everything else — including but not limited to `RailsPulse::Cards::*`, `Charts::*`,
 `Tables::*`, all controllers and views, `TimeRangeConcern` and friends, `RequestCollector`,
 `OperationSubscriber`, and any method on the classes above not listed here — is internal
-implementation detail. It may change shape, move, or be removed in a minor release.
+implementation detail. It may change shape, move, or be removed in a minor release. This
+includes the CLI and MCP server's internals (`RailsPulse::CLI::Client`, `Formatter`, and each
+per-resource command/tool class) — only the commands and tools named above, and the JSON API
+endpoints they call, are the contract.

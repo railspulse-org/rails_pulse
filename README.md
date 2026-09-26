@@ -27,6 +27,7 @@ Rails Pulse is a Rails engine. It hooks into the instrumentation Rails already e
 - **Jobs and exceptions in the same place.** Duration, queue wait and failure rate for every Active Job class on any adapter. Unhandled exceptions from requests and jobs grouped by class and location, with filtered params and backtraces.
 - **Numbers over time.** Hourly, daily, weekly and monthly summaries with P50, P95 and P99, your service level objectives drawn as lines on the charts, and a marker for every deploy so a regression lines up with the release that caused it.
 - **Built for production.** Tracking is queued off the request thread and dropped rather than blocked under load. If the gem is deployed before its migrations, tracking pauses and tells you what to run. Retention is enforced by age and by row count so the tables never grow without bound.
+- **Your coding agent can read it.** A read-only JSON API, a `rails-pulse` CLI and an MCP server give Claude Code, Codex, Cursor or a CI script the same data: the slowest endpoints since the last deploy, the queries behind them, the jobs that failed. Ask the agent why checkout got slow and it can go and look.
 
 <table>
   <tr>
@@ -109,7 +110,17 @@ With nothing configured it falls back to HTTP Basic against `RAILS_PULSE_USERNAM
 
 **Run the dashboard on its own.** `bundle exec rails_pulse_server` serves the UI from a separate process with its own health endpoint, so a slow report never competes with your app for a thread. [Deployment modes](https://railspulse.com/documentation/deployment-modes)
 
-**Mark your deploys.** `rails rails_pulse:record_deployment[sha]` from a release script, or `POST /rails_pulse/deployments` with a token from CI, and every chart draws a line at that moment.
+**Mark your deploys.** `rails rails_pulse:record_deployment[sha]` from a release script, or `POST /rails_pulse/deployments` with the API token from CI, and every chart draws a line at that moment.
+
+**Brief your agent.** Set `config.api_token`, then on your machine:
+
+```bash
+rails-pulse configure          # URL and token, saved to ~/.rails-pulse
+rails-pulse routes list --since 2026-06-01T00:00:00Z
+rails-pulse install claude     # Claude Code skill: when and how to use the tools
+```
+
+Add `gem "mcp"` to your Gemfile (a development group is enough), register `rails-pulse mcp` as an MCP server, and the agent gets twelve read-only tools: routes, slow requests, errors, one endpoint in depth, expensive and N+1 queries, job health, deployments. Nothing the agent can call changes production. [Agent tooling](https://railspulse.com/documentation/mcp)
 
 **Keep it in its own database.** `rails generate rails_pulse:install --database=separate` puts the tables somewhere your primary never has to vacuum. [Database setup](https://railspulse.com/documentation/database)
 

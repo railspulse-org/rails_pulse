@@ -40,6 +40,7 @@ module RailsPulse
     # basenames contain a common acronym so the gem's constants do not depend
     # on the host's inflections.
     ACRONYM_SAFE_INFLECTIONS = {
+      "api" => "Api",
       "sql_query_normalizer" => "SqlQueryNormalizer",
       "csp_helper" => "CspHelper",
       "csp_test_controller" => "CspTestController"

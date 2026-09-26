@@ -2,7 +2,7 @@ module RailsPulse
   class Configuration
     attr_writer   :ignored_routes
     attr_accessor :enabled,
-                  :deployment_api_token,
+                  :api_token,
                   :ignored_requests,
                   :ignored_queries,
                   :ignored_jobs,
@@ -40,6 +40,12 @@ module RailsPulse
                   :baseline_window,
                   :comparison_window,
                   :hourly_summary_retention
+
+    # deployment_api_token became api_token in 0.5, when the token started
+    # authenticating the whole read-only API rather than only the deployments
+    # endpoint. The old name keeps working.
+    alias_method :deployment_api_token, :api_token
+    alias_method :deployment_api_token=, :api_token=
 
     # Override the attr_accessor setter to track explicit assignment.
     # The default (enabled in production) should not trigger a warning
