@@ -66,6 +66,29 @@ module RailsPulse
           body["data"].each { |j| assert_operator j["failures_count"], :>, 0 }
         end
 
+        test "returns 400 for an unknown status" do
+          get rails_pulse.api_v1_jobs_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }, params: { status: "slow" }
+
+          assert_response :bad_request
+          assert_equal "Invalid status. Valid values: failed", JSON.parse(response.body)["error"]
+        end
+
+        test "job filters to one job class by exact name" do
+          get rails_pulse.api_v1_jobs_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }, params: { job: "GenerateReportJob" }
+          body = JSON.parse(response.body)
+
+          assert_equal [ "GenerateReportJob" ], body["data"].map { |j| j["name"] }
+          assert_equal 1, body["meta"]["total"]
+        end
+
+        test "job with no match returns an empty page" do
+          get rails_pulse.api_v1_jobs_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }, params: { job: "NoSuchJob" }
+          body = JSON.parse(response.body)
+
+          assert_empty body["data"]
+          assert_equal 0, body["meta"]["total"]
+        end
+
         test "includes failure_rate computed field" do
           get rails_pulse.api_v1_jobs_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }
           body = JSON.parse(response.body)

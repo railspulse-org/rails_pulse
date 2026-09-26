@@ -1,4 +1,23 @@
-require "mcp"
+module RailsPulse
+  module Mcp
+    class Server
+      # The `mcp` gem is not a dependency of rails_pulse; the host adds it
+      # when it wants the MCP server.
+      class MissingDependencyError < StandardError; end
+
+      MISSING_DEPENDENCY_MESSAGE = "the `mcp` gem is not installed. Add `gem \"mcp\", \"~> 1.0\"` to the " \
+                                   "application's Gemfile (a development group is enough) and run bundle install, " \
+                                   "or `gem install mcp` when running rails-pulse outside Bundler.".freeze
+    end
+  end
+end
+
+begin
+  require "mcp"
+rescue LoadError
+  raise RailsPulse::Mcp::Server::MissingDependencyError, RailsPulse::Mcp::Server::MISSING_DEPENDENCY_MESSAGE
+end
+
 require "rails_pulse/version"
 require_relative "../cli/config"
 require_relative "../cli/client"

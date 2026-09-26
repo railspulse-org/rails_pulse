@@ -8,6 +8,8 @@ Rails Pulse gives AI coding agents read access to a Rails application's performa
 rails-pulse mcp
 ```
 
+The server needs the `mcp` gem, which Rails Pulse does not depend on: add `gem "mcp", "~> 1.0"` to the application's Gemfile (a development group is enough), or `gem install mcp` when running `rails-pulse` outside Bundler.
+
 **Claude Code** (`~/.claude.json`):
 ```json
 {

@@ -74,6 +74,36 @@ module RailsPulse
         end
       end
 
+      test "install agents refuses to overwrite an existing agents.md" do
+        Dir.chdir(@tmpdir) do
+          File.write("agents.md", "mine\n")
+
+          out, _err = capture_io do
+            assert_raises(SystemExit) { Install.new([], { "list" => false }).perform("agents") }
+          end
+
+          assert_equal "mine\n", File.read("agents.md")
+          assert_includes out, "already exists; not overwriting it"
+          assert_includes out, "agent_files/agents.md"
+        end
+      end
+
+      # On a case-insensitive filesystem agents.md and AGENTS.md are the same
+      # file, so a project's AGENTS.md must block the install everywhere.
+      test "install agents refuses when the project has an AGENTS.md" do
+        Dir.chdir(@tmpdir) do
+          File.write("AGENTS.md", "project instructions\n")
+
+          out, _err = capture_io do
+            assert_raises(SystemExit) { Install.new([], { "list" => false }).perform("agents") }
+          end
+
+          assert_equal "project instructions\n", File.read("AGENTS.md")
+          assert_includes out, "AGENTS.md already exists"
+          assert_equal [ "AGENTS.md" ], Dir.children(@tmpdir)
+        end
+      end
+
       # --- unknown integration ---
 
       test "unknown integration shows usage hint" do

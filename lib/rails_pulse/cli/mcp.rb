@@ -43,6 +43,9 @@ module RailsPulse
         # Write errors to stderr — stdout is reserved for MCP JSON-RPC
         $stderr.puts "Rails Pulse MCP error: #{e.message}"
         exit 1
+      rescue RailsPulse::Mcp::Server::MissingDependencyError => e
+        $stderr.puts "Rails Pulse MCP error: #{e.message}"
+        exit 1
       end
     end
   end

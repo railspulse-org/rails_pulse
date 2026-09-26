@@ -39,8 +39,9 @@ module RailsPulse
           respond(server_context) do |client|
             limit = limit.to_i.clamp(1, 50)
 
-            jobs = (client.get("/jobs", { limit: 100 })["data"] || [])
-            jobs = jobs.select { |j| j["name"] == job } if job
+            job_params = { limit: 100 }
+            job_params[:job] = job if job
+            jobs = client.get("/jobs", job_params)["data"] || []
 
             run_params = { since: resolve_since(period), status: "failed", limit: 100 }
             run_params[:job] = job if job

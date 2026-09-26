@@ -97,6 +97,48 @@ module RailsPulse
           body["data"].each { |r| assert_operator Time.parse(r["occurred_at"]), :<=, 100.minutes.ago }
         end
 
+        test "route filters by controller action substring, case-insensitively" do
+          get rails_pulse.api_v1_requests_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }, params: { route: "userscontroller#show" }
+          body = JSON.parse(response.body)
+
+          refute_empty body["data"]
+          body["data"].each { |r| assert_equal "UsersController#show", r["controller_action"] }
+          assert_equal body["data"].length, body["meta"]["total"]
+        end
+
+        test "route filters by the route's path" do
+          get rails_pulse.api_v1_requests_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }, params: { route: "/api/users" }
+          body = JSON.parse(response.body)
+
+          expected = RailsPulse::Request.joins(:route).where(rails_pulse_routes: { path: "/api/users" }).count
+
+          assert_operator expected, :>, 0
+          assert_equal expected, body["meta"]["total"]
+          assert_equal [ rails_pulse_routes(:api_users).id ], body["data"].map { |r| r["route_id"] }.uniq
+        end
+
+        test "route with no match returns an empty page" do
+          get rails_pulse.api_v1_requests_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }, params: { route: "NoSuchController" }
+          body = JSON.parse(response.body)
+
+          assert_empty body["data"]
+          assert_equal 0, body["meta"]["total"]
+        end
+
+        test "returns 400 for a status that is neither a code nor a class" do
+          get rails_pulse.api_v1_requests_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }, params: { status: "failed" }
+
+          assert_response :bad_request
+          assert_match(/Invalid status/, JSON.parse(response.body)["error"])
+        end
+
+        test "returns 400 when since is not a string" do
+          get rails_pulse.api_v1_requests_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }, params: { since: [ "2026-01-01" ] }
+
+          assert_response :bad_request
+          assert_equal "Invalid time format for 'since'", JSON.parse(response.body)["error"]
+        end
+
         test "returns 400 for invalid since time" do
           get rails_pulse.api_v1_requests_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }, params: { since: "not-a-date" }
 

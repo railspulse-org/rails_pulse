@@ -174,11 +174,14 @@ module RailsPulse
         c = client("/jobs" => JOBS_RESPONSE, "/job_runs" => JOB_RUNS_RESPONSE)
         _, data = call(Tools::Jobs, c, job: "UserMailerJob", period: "last_7_days", limit: 0)
 
+        jobs_call = c.calls.find { |path, _| path == "/jobs" }
         run_call = c.calls.find { |path, _| path == "/job_runs" }
 
+        # The API does the name filtering, so the tool must pass it on both calls.
+        assert_equal "UserMailerJob", jobs_call[1][:job]
         assert_equal "UserMailerJob", run_call[1][:job]
         assert_equal "failed", run_call[1][:status]
-        assert_equal [ "UserMailerJob" ], data["jobs"].map { |j| j["name"] }
+        assert_equal 1, data["jobs"].size
       end
 
       test "jobs next_steps flag failure rates, slow jobs, and errors" do

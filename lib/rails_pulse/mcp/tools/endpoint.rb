@@ -7,8 +7,8 @@ module RailsPulse
         extend Helpers
 
         tool_name "rails_pulse_endpoint"
-        description "Detailed performance profile for a single endpoint. " \
-                    "Combines request metrics, latency distribution, and error information. " \
+        description "Detailed performance profile for a single endpoint, computed from its most recent requests " \
+                    "in the period: latency distribution, error rate and status codes. " \
                     "Use this to deep-dive into a specific route's performance."
 
         annotations(
@@ -21,8 +21,8 @@ module RailsPulse
           properties: {
             endpoint: {
               type: "string",
-              description: "Controller action (e.g. 'CheckoutController#create') or path (e.g. '/checkout'). " \
-                           "If unknown, use rails_pulse_routes first to find endpoint names."
+              description: "Controller action (e.g. 'CheckoutController#create') or path (e.g. '/checkout'); " \
+                           "case-insensitive substring match. If unknown, use rails_pulse_routes first."
             },
             period: {
               type: "string",
@@ -31,7 +31,7 @@ module RailsPulse
             },
             limit: {
               type: "integer",
-              description: "Maximum requests to analyze (1-500). More data = more accurate percentiles.",
+              description: "Most recent requests of this endpoint to analyze (1-500). More data = more accurate percentiles.",
               default: 200
             }
           },
@@ -42,14 +42,11 @@ module RailsPulse
           respond(server_context) do |client|
             limit = limit.to_i.clamp(1, 500)
 
-            params = { limit: limit, offset: 0 }
-            params[:since] = resolve_since(period)
-
-            result = client.get("/requests", params)
-            all_requests = result["data"] || []
-
-            # Filter to matching endpoint (by controller_action or path-like match)
-            matching = all_requests.select { |r| matches_endpoint?(r, endpoint) }
+            # The API matches the endpoint against the request's controller
+            # action and its route's path, so the page holds only this
+            # endpoint's requests rather than the newest across the app.
+            result = client.get("/requests", { route: endpoint, since: resolve_since(period), limit: limit, offset: 0 })
+            matching = result["data"] || []
 
             if matching.empty?
               {
@@ -58,25 +55,12 @@ module RailsPulse
                 error: "No requests found matching '#{endpoint}'. Use rails_pulse_routes to see available endpoints."
               }
             else
-              build_profile(endpoint, period, matching)
+              build_profile(endpoint, period, matching, result.dig("meta", "total"))
             end
           end
         end
 
-        private_class_method def self.matches_endpoint?(request, endpoint)
-          action = request["controller_action"].to_s
-          return true if action == endpoint
-          return true if action.downcase.include?(endpoint.downcase)
-
-          # Match path-like input against controller action
-          path = request["path"].to_s
-          return true if path == endpoint
-          return true if path.downcase.include?(endpoint.downcase.delete_prefix("/"))
-
-          false
-        end
-
-        private_class_method def self.build_profile(endpoint, period, requests)
+        private_class_method def self.build_profile(endpoint, period, requests, total)
           durations = requests.map { |r| r["duration"].to_f }.sort
           errors = requests.select { |r| r["is_error"] }
           statuses = requests.map { |r| r["status"] }.tally.sort_by { |_, c| -c }
@@ -85,7 +69,8 @@ module RailsPulse
           profile = {
             endpoint: requests.first["controller_action"] || endpoint,
             period: period,
-            request_count: requests.size,
+            request_count: total || requests.size,
+            sampled_requests: requests.size,
             latency: {
               avg_ms: (durations.sum / durations.size).round(1),
               min_ms: durations.first.round(1),
@@ -123,7 +108,7 @@ module RailsPulse
 
         private_class_method def self.build_summary(profile)
           parts = []
-          parts << "#{profile[:request_count]} requests"
+          parts << "#{profile[:request_count]} requests (#{profile[:sampled_requests]} most recent analyzed)"
           parts << "avg #{profile[:latency][:avg_ms]}ms (p95: #{profile[:latency][:p95_ms]}ms)"
           parts << "#{profile[:errors][:rate]}% error rate" if profile[:errors][:count] > 0
           parts.join(", ") + "."

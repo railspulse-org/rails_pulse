@@ -43,17 +43,25 @@ module RailsPulse
       private
 
       def raise_for(response)
-        raise ApiError, "#{response.code} #{response.message}" unless response.code == "402"
-
         body = begin
           JSON.parse(response.body.to_s)
         rescue JSON::ParserError
           {}
         end
-        raise ProRequiredError.new(
-          body["message"] || "This endpoint needs Rails Pulse Pro",
-          feature: body["feature"], url: body["url"]
-        )
+        body = {} unless body.is_a?(Hash)
+
+        if response.code == "402"
+          raise ProRequiredError.new(
+            body["message"] || "This endpoint needs Rails Pulse Pro",
+            feature: body["feature"], url: body["url"]
+          )
+        end
+
+        # The API explains a 400 or 401 in the body ("Invalid sort. Valid
+        # values: ..."); relay it rather than only the status line.
+        message = "#{response.code} #{response.message}".strip
+        message = "#{message}: #{body["error"]}" if body["error"].is_a?(String) && !body["error"].empty?
+        raise ApiError, message
       end
     end
   end

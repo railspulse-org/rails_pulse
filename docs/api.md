@@ -50,10 +50,14 @@ header.
 - `GET routes`, `GET requests`, `GET queries`, `GET jobs`, `GET job_runs`, `GET deployments` —
   index-only, paginated (`limit`, default 25, max 500; `offset`) and filterable by `since`/
   `until` (ISO 8601). Response shape is `{ data: [...], meta: { total:, limit:, offset: } }`.
+  `requests` also takes `route` (substring of the controller action or route path) and
+  `status` (`500` or `5xx`); `jobs` and `job_runs` take `job` (exact class name). An
+  unrecognised `sort`, `status`, `since` or `until` is a `400` with the accepted values.
 - `POST deployments` and `PUT deployments/:id/finish` are the existing endpoints CI calls to
   record a release (the same action as the `rails_pulse:record_deployment` and
-  `rails_pulse:finish_deployment` rake tasks below); they sit outside the `api/v1` read-only
-  scope and use dashboard authentication, not `config.api_token`.
+  `rails_pulse:finish_deployment` rake tasks below). They sit outside the `api/v1` read-only
+  scope; they accept `config.api_token` when it is set and fall back to the dashboard
+  authentication only when it is not.
 - Five endpoints (`alerts`, `alert_rules`, `summary`, `threshold_suggestions`, `setup`) answer
   `402 Payment Required` with `{ error: "requires_pro", feature:, message:, url: }` unless
   `rails_pulse_pro` is installed, which draws the real routes in its place. A new Pro-only
@@ -76,7 +80,9 @@ writes an agent skill file to `~/.claude/skills/rails-pulse/SKILL.md`.
 ## MCP server
 
 `rails-pulse mcp` (`lib/rails_pulse/mcp/`) starts an MCP server over stdio for AI coding
-agents, built on the same HTTP client as the CLI. All twelve tools are read-only
+agents, built on the same HTTP client as the CLI. It needs the `mcp` gem, which is a
+development dependency of this gem and not a runtime one: the host adds `gem "mcp"` to its
+own Gemfile, and without it the command exits 1 saying so. All twelve tools are read-only
 (`read_only_hint: true`) and named `rails_pulse_<resource>`: `routes`, `endpoint`, `queries`,
 `errors`, `jobs`, `slow_requests`, and `deployments` work with the free gem alone; `alerts`,
 `alert_rules`, `suggested_thresholds`, `setup`, and `request_stats` need `rails_pulse_pro` and

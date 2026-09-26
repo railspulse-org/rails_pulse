@@ -5,6 +5,7 @@ module RailsPulse
         extend Helpers
 
         SQL_LENGTH = 300
+        MAX_PAGE = 500
 
         tool_name "rails_pulse_queries"
         description "Find the most expensive SQL queries for a time period: execution count, average/max/total time, " \
@@ -44,10 +45,13 @@ module RailsPulse
         def self.call(period: "last_24_hours", limit: 10, sort: "total_duration", n_plus_one_only: false, server_context:)
           respond(server_context) do |client|
             limit = limit.to_i.clamp(1, 50)
-            result = client.get("/queries", { since: resolve_since(period), sort: sort, limit: limit })
+            # The N+1 flag is filtered here, not by the API, so fetch the
+            # largest page it allows and keep the first `limit` matches.
+            page = n_plus_one_only ? MAX_PAGE : limit
+            result = client.get("/queries", { since: resolve_since(period), sort: sort, limit: page })
 
             queries = (result["data"] || []).map { |q| format_query(q) }
-            queries.select! { |q| q[:n_plus_one][:likely] } if n_plus_one_only
+            queries = queries.select { |q| q[:n_plus_one][:likely] }.first(limit) if n_plus_one_only
 
             {
               period: period,

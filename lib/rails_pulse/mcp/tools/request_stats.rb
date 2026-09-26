@@ -39,9 +39,14 @@ module RailsPulse
           end
         end
 
+        # The summary endpoint (rails_pulse_pro's SummarySerializer) reports
+        # the overview as p95_ms / avg_ms / total_requests / error_count /
+        # error_rate_pct with the previous period under vs_previous, and each
+        # slowest route as route / requests / avg_ms / p95_ms / error_count /
+        # prev_p95_delta_pct.
         private_class_method def self.format_response(data)
           overview = data["overview"] || {}
-          prev_overview = data["prev_overview"] || {}
+          previous = overview["vs_previous"] || {}
           period = data["period"] || {}
 
           response = {
@@ -53,47 +58,48 @@ module RailsPulse
             },
             stats: {
               total_requests: overview["total_requests"],
-              avg_duration_ms: overview["avg_duration"],
-              p95_duration_ms: overview["p95_duration"],
+              avg_duration_ms: overview["avg_ms"],
+              p95_duration_ms: overview["p95_ms"],
               error_count: overview["error_count"],
-              error_rate: overview["error_rate"]
+              error_rate: overview["error_rate_pct"]
             },
             slowest_routes: (data["slowest_routes"] || []).first(5).map do |route|
               {
-                endpoint: route["label"],
-                avg_duration_ms: route["avg_duration"],
-                request_count: route["count"],
+                endpoint: route["route"],
+                avg_duration_ms: route["avg_ms"],
+                p95_duration_ms: route["p95_ms"],
+                request_count: route["requests"],
                 error_count: route["error_count"],
-                delta_pct: route["delta_pct"]
+                p95_delta_pct: route["prev_p95_delta_pct"]
               }
             end
           }
 
-          # Add comparison if previous period data exists
-          if prev_overview && prev_overview["total_requests"]
+          if previous["total_requests"]
             response[:previous_period] = {
-              total_requests: prev_overview["total_requests"],
-              avg_duration_ms: prev_overview["avg_duration"],
-              error_rate: prev_overview["error_rate"]
+              total_requests: previous["total_requests"],
+              p95_duration_ms: previous["p95_ms"],
+              error_rate: previous["error_rate_pct"]
             }
-            response[:changes] = build_changes(overview, prev_overview)
+            response[:changes] = build_changes(previous)
           end
 
           response[:summary] = build_summary(response)
           response
         end
 
-        private_class_method def self.build_changes(current, previous)
+        private_class_method def self.build_changes(previous)
           changes = {}
-          if current["avg_duration"] && previous["avg_duration"] && previous["avg_duration"] > 0
-            delta = ((current["avg_duration"].to_f - previous["avg_duration"].to_f) / previous["avg_duration"].to_f * 100).round(1)
-            changes[:avg_duration_change_pct] = delta
-            changes[:avg_duration_trend] = delta > 5 ? "degrading" : delta < -5 ? "improving" : "stable"
+          if (delta = previous["p95_delta_pct"])
+            changes[:p95_duration_change_pct] = delta
+            changes[:p95_duration_trend] = delta > 5 ? "degrading" : delta < -5 ? "improving" : "stable"
           end
-          if current["error_rate"] && previous["error_rate"]
-            delta = (current["error_rate"].to_f - previous["error_rate"].to_f).round(2)
-            changes[:error_rate_change] = delta
-            changes[:error_rate_trend] = delta > 1 ? "degrading" : delta < -1 ? "improving" : "stable"
+          if (delta = previous["total_delta_pct"])
+            changes[:total_requests_change_pct] = delta
+          end
+          if (delta = previous["error_rate_delta_pct"])
+            changes[:error_rate_change_pct] = delta
+            changes[:error_rate_trend] = delta > 5 ? "degrading" : delta < -5 ? "improving" : "stable"
           end
           changes
         end
@@ -103,11 +109,12 @@ module RailsPulse
           parts = []
           parts << "#{stats[:total_requests]} requests"
           parts << "avg #{stats[:avg_duration_ms]}ms" if stats[:avg_duration_ms]
+          parts << "p95 #{stats[:p95_duration_ms]}ms" if stats[:p95_duration_ms]
           parts << "#{stats[:error_rate]}% error rate" if stats[:error_rate]
 
           if response[:changes]
-            trend = response[:changes][:avg_duration_trend]
-            parts << "latency #{trend}" if trend
+            trend = response[:changes][:p95_duration_trend]
+            parts << "p95 #{trend} vs previous period" if trend
           end
 
           parts.join(", ") + "."

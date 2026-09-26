@@ -34,6 +34,37 @@ module RailsPulse
           assert_response :unauthorized
         end
 
+        # The schema report names missing tables and columns; the token
+        # check must run before it.
+        test "returns 401, not the schema report, to an anonymous caller when the schema is outdated" do
+          RailsPulse::SchemaCheck.stubs(:current?).returns(false)
+          RailsPulse::SchemaCheck.stubs(:missing).returns({ "rails_pulse_events" => [ "table" ] })
+          RailsPulse::SchemaCheck.stubs(:warn_once!)
+
+          get rails_pulse.api_v1_routes_path
+
+          assert_response :unauthorized
+          assert_equal({ "error" => "Unauthorized" }, JSON.parse(response.body))
+        end
+
+        test "returns the JSON schema report to an authenticated caller when the schema is outdated" do
+          RailsPulse::SchemaCheck.stubs(:current?).returns(false)
+          RailsPulse::SchemaCheck.stubs(:missing).returns({ "rails_pulse_events" => [ "table" ] })
+          RailsPulse::SchemaCheck.stubs(:warn_once!)
+
+          get rails_pulse.api_v1_routes_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }
+
+          assert_response :service_unavailable
+          assert_match(/schema upgrade/, JSON.parse(response.body)["error"])
+        end
+
+        test "does not touch the session" do
+          get rails_pulse.api_v1_routes_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }
+
+          assert_response :success
+          assert_nil session[:show_non_tagged]
+        end
+
         test "returns 200 with correct token" do
           get rails_pulse.api_v1_routes_path, headers: { "X-Rails-Pulse-Token" => VALID_TOKEN }
 

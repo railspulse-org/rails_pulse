@@ -145,6 +145,56 @@ module RailsPulse
 
         assert_equal "/monitoring", data["mount_path"]
       end
+
+      # --- file permissions ---
+
+      test "write! makes the file readable by its owner only" do
+        Config.write!(url: "https://saved.com", token: "secret")
+
+        assert_equal 0o600, File.stat(@config_path).mode & 0o777
+      end
+
+      test "write! tightens the mode of an existing world-readable file" do
+        File.write(@config_path, "", perm: 0o644)
+        File.chmod(0o644, @config_path)
+
+        Config.write!(url: "https://saved.com", token: "secret")
+
+        assert_equal 0o600, File.stat(@config_path).mode & 0o777
+      end
+
+      # --- malformed input ---
+
+      test "load raises ConfigError when the config file is not valid YAML" do
+        File.write(@config_path, "url: [unclosed\ntoken: t\n")
+
+        err = assert_raises(Config::ConfigError) { Config.load }
+
+        assert_match(/not valid YAML/, err.message)
+        assert_includes err.message, @config_path
+      end
+
+      test "load raises ConfigError when the config file is not a mapping" do
+        File.write(@config_path, "- just\n- a list\n")
+
+        err = assert_raises(Config::ConfigError) { Config.load }
+
+        assert_match(/YAML mapping/, err.message)
+      end
+
+      test "load raises ConfigError when the url has no scheme" do
+        ENV["RAILS_PULSE_URL"]   = "localhost:3000"
+        ENV["RAILS_PULSE_TOKEN"] = "t"
+
+        err = assert_raises(Config::ConfigError) { Config.load }
+
+        assert_match(%r{must start with http:// or https://}, err.message)
+      end
+
+      test "new accepts http and https urls" do
+        assert_equal "http://localhost:3000", Config.new(url: "http://localhost:3000/", token: "t").url
+        assert_equal "https://example.com", Config.new(url: "HTTPS://example.com", token: "t").url.downcase
+      end
     end
   end
 end

@@ -10,13 +10,15 @@ module RailsPulse
       # file carries its own name and description in YAML front matter.
       CLAUDE_SKILL_PATH = "~/.claude/skills/rails-pulse/SKILL.md".freeze
 
+      AGENTS_FILE = "agents.md".freeze
+
       INTEGRATIONS = {
         "claude" => {
           description: "Claude Code skill → #{CLAUDE_SKILL_PATH}",
           source: "claude_skill.md"
         },
         "agents" => {
-          description: "Generic agent descriptor → ./agents.md",
+          description: "Generic agent descriptor → ./#{AGENTS_FILE}",
           source: "agents.md"
         }
       }.freeze
@@ -30,8 +32,10 @@ module RailsPulse
         Available integrations:
           claude   Installs a Claude Code skill to #{CLAUDE_SKILL_PATH}.
                    Claude Code then knows when and how to use the Rails Pulse MCP tools and CLI.
-          agents   Installs a generic agent descriptor to ./agents.md in the current directory.
-                   Compatible with other AI agent frameworks.
+                   An earlier copy of the skill is replaced.
+          agents   Installs a generic agent descriptor to ./#{AGENTS_FILE} in the current directory.
+                   Compatible with other AI agent frameworks. Refuses to overwrite an existing
+                   agents.md or AGENTS.md; append the file it names to yours instead.
 
         Run --list to see all available integrations.
       DESC
@@ -63,9 +67,21 @@ module RailsPulse
         say "Installed Claude Code skill to #{dest}", :green
       end
 
+      # A project's own AGENTS.md is compared case-insensitively: on a
+      # case-insensitive filesystem (macOS by default) writing agents.md
+      # would silently replace it.
       def install_agents
-        dest = File.join(Dir.pwd, "agents.md")
-        FileUtils.cp(File.join(AGENT_FILES_DIR, "agents.md"), dest)
+        source = File.join(AGENT_FILES_DIR, "agents.md")
+        existing = Dir.children(Dir.pwd).find { |name| name.casecmp?(AGENTS_FILE) }
+
+        if existing
+          say "#{File.join(Dir.pwd, existing)} already exists; not overwriting it.", :yellow
+          say "Append the Rails Pulse section from #{source} to it instead."
+          exit 1
+        end
+
+        dest = File.join(Dir.pwd, AGENTS_FILE)
+        FileUtils.cp(source, dest)
         say "Installed agent descriptor to #{dest}", :green
       end
     end

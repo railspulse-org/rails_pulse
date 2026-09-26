@@ -340,7 +340,8 @@ RailsPulse.configure do |config|
   # dashboard authentication above. (Called deployment_api_token before 0.5; the old name still works.)
   #
   # Point the CLI and MCP server at this app with `rails-pulse configure`, or set RAILS_PULSE_URL
-  # and RAILS_PULSE_TOKEN in the agent's environment.
+  # and RAILS_PULSE_TOKEN in the agent's environment. The MCP server needs `gem "mcp"` in this
+  # app's Gemfile (a development group is enough); Rails Pulse does not pull it into production.
   #
   # Deployments draw vertical markers on the charts so a change in performance can be lined up
   # with the release that caused it. Limits: revision ≤ 255 characters, metadata ≤ 4 KB

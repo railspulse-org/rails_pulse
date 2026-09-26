@@ -74,6 +74,20 @@ module RailsPulse
         assert_match(/401/, err.message)
       end
 
+      test "get relays the API's error message on a 400" do
+        stub_http_response(400, '{"error":"Invalid sort. Valid values: request_count, avg_duration, error_count"}')
+        err = assert_raises(Client::ApiError) { @client.get("/routes", { sort: "nope" }) }
+
+        assert_equal "400: Invalid sort. Valid values: request_count, avg_duration, error_count", err.message
+      end
+
+      test "get falls back to the status line when the error body is not JSON" do
+        stub_http_response(400, "<html>Bad Request</html>")
+        err = assert_raises(Client::ApiError) { @client.get("/routes") }
+
+        assert_equal "400", err.message
+      end
+
       test "get raises ApiError on 500 response" do
         stub_http_response(500, "Internal Server Error")
         assert_raises(Client::ApiError) { @client.get("/routes") }

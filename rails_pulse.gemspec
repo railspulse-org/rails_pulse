@@ -66,9 +66,11 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "rails", ">= 7.2.0", "< 9.0.0"
   spec.add_dependency "ransack", ">= 4.0", "< 6"
-  # The rails-pulse CLI and its MCP server (exe/rails-pulse, lib/rails_pulse/cli, lib/rails_pulse/mcp).
+  # The rails-pulse CLI (exe/rails-pulse, lib/rails_pulse/cli). Its MCP server
+  # (lib/rails_pulse/mcp) needs the `mcp` gem, which is left to the host's
+  # Gemfile: it runs on a developer's machine, and its five transitive gems
+  # have no business in every production bundle.
   spec.add_dependency "thor", "~> 1.0"
-  spec.add_dependency "mcp", "~> 1.0"
 
   spec.add_development_dependency "sqlite3", ">= 1.4"
   spec.add_development_dependency "pg", ">= 1.1"
@@ -79,4 +81,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rails-controller-testing", ">= 1.0"
   spec.add_development_dependency "minitest", ">= 5.0"
   spec.add_development_dependency "ostruct"
+  spec.add_development_dependency "mcp", "~> 1.0"
 end
