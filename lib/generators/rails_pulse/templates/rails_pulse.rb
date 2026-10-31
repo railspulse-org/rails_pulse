@@ -121,6 +121,15 @@ RailsPulse.configure do |config|
 
   config.tags = [ "ignored", "critical", "experimental" ]
 
+  # Tags hidden from every dashboard session until the user changes Tag Visibility
+  # in Global Filters. A user can still switch a tag back on for their own session,
+  # and "Clear" returns to this default. Each entry must also be in config.tags.
+  #
+  # Example: keep routes, queries and jobs you have already investigated out of view
+  #   config.default_disabled_tags = ["ignored"]
+
+  config.default_disabled_tags = []
+
   # ====================================================================================================
   #                                          EXCEPTION TRACKING
   # ====================================================================================================

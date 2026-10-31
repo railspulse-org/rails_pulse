@@ -99,6 +99,7 @@ module RailsPulse
                   :standalone_authentication_method,
                   :authentication_redirect_path,
                   :tags,
+                  :default_disabled_tags,
                   :job_tracking_mode,
                   :job_adapters,
                   :capture_job_arguments,
@@ -237,6 +238,9 @@ module RailsPulse
       @standalone_authentication_method = nil
       @authentication_redirect_path = "/"
       @tags = [ "ignored", "critical", "experimental" ]
+      # Tags hidden in a dashboard session that has not saved its own Tag
+      # Visibility yet. Each must also appear in tags.
+      @default_disabled_tags = []
       @job_tracking_mode = :universal
       @job_adapters = {
         sidekiq: { enabled: true, track_queue_depth: false },
@@ -356,6 +360,7 @@ module RailsPulse
       validate_database_settings!
       validate_authentication_settings!
       validate_tags!
+      validate_default_disabled_tags!
       validate_job_settings!
       validate_dashboard_settings!
       validate_tracking_settings!
@@ -550,6 +555,28 @@ module RailsPulse
       @tags.each do |tag|
         unless tag.is_a?(String)
           raise ArgumentError, "tags must be strings, got #{tag.class}"
+        end
+      end
+    end
+
+    # "non_tagged" is refused: its visibility lives in its own session key
+    # (show_non_tagged), which this default does not reach.
+    def validate_default_disabled_tags!
+      unless @default_disabled_tags.is_a?(Array)
+        raise ArgumentError, "default_disabled_tags must be an array, got #{@default_disabled_tags.class}"
+      end
+
+      @default_disabled_tags.each do |tag|
+        unless tag.is_a?(String)
+          raise ArgumentError, "default_disabled_tags must be strings, got #{tag.class}"
+        end
+
+        if tag == "non_tagged"
+          raise ArgumentError, "default_disabled_tags cannot include \"non_tagged\"; list only tags from config.tags"
+        end
+
+        unless @tags.include?(tag)
+          raise ArgumentError, "default_disabled_tags includes #{tag.inspect}, which is not in config.tags (#{@tags.inspect})"
         end
       end
     end

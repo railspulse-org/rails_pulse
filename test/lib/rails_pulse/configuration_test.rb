@@ -445,6 +445,34 @@ module RailsPulse
       end
     end
 
+    test "default_disabled_tags defaults to an empty array" do
+      assert_equal [], Configuration.new.default_disabled_tags
+    end
+
+    test "validate_configuration! accepts default_disabled_tags drawn from tags" do
+      config = Configuration.new
+      config.default_disabled_tags = [ "ignored" ]
+
+      config.validate_configuration!
+
+      assert_equal [ "ignored" ], config.default_disabled_tags
+    end
+
+    test "validate_configuration! raises for invalid default_disabled_tags" do
+      [
+        [ "ignored", /must be an array/ ],
+        [ [ :ignored ], /must be strings/ ],
+        [ [ "non_tagged" ], /cannot include "non_tagged"/ ],
+        [ [ "unknown" ], /not in config\.tags/ ]
+      ].each do |value, message|
+        config = Configuration.new
+        config.default_disabled_tags = value
+
+        error = assert_raises(ArgumentError) { config.validate_configuration! }
+        assert_match message, error.message
+      end
+    end
+
     test "exception_message_filter defaults to nil" do
       assert_nil Configuration.new.exception_message_filter
     end
