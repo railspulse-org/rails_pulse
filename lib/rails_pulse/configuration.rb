@@ -559,26 +559,18 @@ module RailsPulse
       end
     end
 
-    # "non_tagged" is refused: its visibility lives in its own session key
-    # (show_non_tagged), which this default does not reach.
+    # Entries must come from tags, which validate_tags! has already checked
+    # are strings. "non_tagged" is not a tag: its visibility lives in its own
+    # session key (show_non_tagged), which this default does not reach.
     def validate_default_disabled_tags!
       unless @default_disabled_tags.is_a?(Array)
         raise ArgumentError, "default_disabled_tags must be an array, got #{@default_disabled_tags.class}"
       end
 
-      @default_disabled_tags.each do |tag|
-        unless tag.is_a?(String)
-          raise ArgumentError, "default_disabled_tags must be strings, got #{tag.class}"
-        end
+      unknown = @default_disabled_tags - @tags
+      return if unknown.empty?
 
-        if tag == "non_tagged"
-          raise ArgumentError, "default_disabled_tags cannot include \"non_tagged\"; list only tags from config.tags"
-        end
-
-        unless @tags.include?(tag)
-          raise ArgumentError, "default_disabled_tags includes #{tag.inspect}, which is not in config.tags (#{@tags.inspect})"
-        end
-      end
+      raise ArgumentError, "default_disabled_tags must list only tags from config.tags (#{@tags.inspect}), got #{unknown.inspect}"
     end
 
     def validate_job_settings!

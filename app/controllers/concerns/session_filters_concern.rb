@@ -23,10 +23,7 @@ module SessionFiltersConcern
   # has never saved Tag Visibility has no key and gets
   # config.default_disabled_tags; an empty array means every tag is shown.
   def session_disabled_tags
-    filters = session_global_filters
-    return Array(filters["disabled_tags"]) if filters.key?("disabled_tags")
-
-    Array(RailsPulse.configuration.default_disabled_tags)
+    Array(session_global_filters.fetch("disabled_tags") { RailsPulse.configuration.default_disabled_tags })
   end
 
   # Returns the time range preference from session, normalized so every

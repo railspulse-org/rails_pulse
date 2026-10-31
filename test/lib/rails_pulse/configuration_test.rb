@@ -461,9 +461,9 @@ module RailsPulse
     test "validate_configuration! raises for invalid default_disabled_tags" do
       [
         [ "ignored", /must be an array/ ],
-        [ [ :ignored ], /must be strings/ ],
-        [ [ "non_tagged" ], /cannot include "non_tagged"/ ],
-        [ [ "unknown" ], /not in config\.tags/ ]
+        [ [ :ignored ], /only tags from config\.tags/ ],
+        [ [ "non_tagged" ], /only tags from config\.tags/ ],
+        [ [ "unknown" ], /only tags from config\.tags/ ]
       ].each do |value, message|
         config = Configuration.new
         config.default_disabled_tags = value
