@@ -226,6 +226,28 @@ class RailsPulse::RequestsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "×500"
   end
 
+  # Tag Visibility Tests
+
+  test "index hides default_disabled_tags until the session shows them" do
+    ignored = RailsPulse::Request.create!(
+      route: @request_record.route, duration: 100, status: 200, is_error: false,
+      request_uuid: SecureRandom.uuid, occurred_at: 30.minutes.ago, tags: '["ignored"]'
+    )
+
+    with_configuration(default_disabled_tags: [ "ignored" ]) do
+      get rails_pulse.requests_path
+
+      refute_includes assigns(:table_data).map(&:id), ignored.id
+
+      patch rails_pulse.settings_global_filters_path, params: {
+        enabled_tags: RailsPulse.configuration.tags + [ "non_tagged" ]
+      }
+      get rails_pulse.requests_path
+
+      assert_includes assigns(:table_data).map(&:id), ignored.id
+    end
+  end
+
   # Custom Chart Ransack Params Tests
 
   test "requests page loads without charts" do

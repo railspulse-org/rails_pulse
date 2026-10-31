@@ -29,6 +29,8 @@ module RailsPulse
 
     def set_global_filters
       if params[:clear] == "true"
+        # With no disabled_tags key the session falls back to
+        # config.default_disabled_tags.
         session.delete(:global_filters)
         session[:show_non_tagged] = true  # Reset show_non_tagged to default
       else
@@ -58,13 +60,9 @@ module RailsPulse
         session[:show_non_tagged] = enabled_tags.include?("non_tagged")
         enabled_tags = enabled_tags - [ "non_tagged" ]
 
-        disabled_tags = all_tags - enabled_tags
-
-        if disabled_tags.any?
-          filters["disabled_tags"] = disabled_tags
-        else
-          filters.delete("disabled_tags")
-        end
+        # Stored even when empty: an absent key means "use
+        # config.default_disabled_tags", so showing every tag must be explicit.
+        filters["disabled_tags"] = all_tags - enabled_tags
 
         # Update deployment markers visibility (absent checkbox param = unchecked = false)
         filters["show_deployment_markers"] = params[:show_deployment_markers] == "1"

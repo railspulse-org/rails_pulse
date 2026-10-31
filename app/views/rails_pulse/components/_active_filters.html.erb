@@ -1,5 +1,5 @@
 <% global_filters = session_global_filters %>
-<% disabled_tags = global_filters['disabled_tags'] || [] %>
+<% disabled_tags = session_disabled_tags %>
 <% has_date_filters = global_filters['start_time'].present? && global_filters['end_time'].present? %>
 <% has_performance_filter = global_filters['performance_threshold'].present? %>
 <% has_tag_filters = disabled_tags.any? || session[:show_non_tagged] == false %>
