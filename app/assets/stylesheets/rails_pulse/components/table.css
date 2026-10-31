@@ -61,6 +61,12 @@
   }
 }
 
+/* A table being replaced by an in-page fetch: dim it so stale rows don't read as current */
+#index_table[aria-busy="true"] {
+  opacity: 0.6;
+  transition: opacity 150ms ease-in;
+}
+
 /* A wide table pans inside this wrapper instead of making #main — and with it
    the whole page — scroll sideways. */
 .table-scroll {

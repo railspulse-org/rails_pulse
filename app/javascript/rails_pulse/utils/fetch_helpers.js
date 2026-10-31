@@ -19,6 +19,7 @@ function getCsrfToken() {
  * @returns {Promise<Document>} - Parsed HTML document
  */
 export async function fetchPartial(url, options = {}) {
+  const { headers, ...fetchOptions } = options
   const defaultHeaders = {
     'Accept': 'text/html',
     'X-Partial-Request': 'true',
@@ -35,9 +36,9 @@ export async function fetchPartial(url, options = {}) {
   }
 
   const response = await fetch(url, {
+    ...fetchOptions,
     method: method,
-    headers: { ...defaultHeaders, ...options.headers },
-    ...options
+    headers: { ...defaultHeaders, ...headers }
   })
 
   if (!response.ok) {
@@ -56,10 +57,7 @@ export async function fetchPartial(url, options = {}) {
  * @param {HTMLElement} sourceElement - Element containing new content
  */
 export function replaceElement(targetElement, sourceElement) {
-  // Clear existing content
-  while (targetElement.firstChild) {
-    targetElement.removeChild(targetElement.firstChild)
-  }
+  clearElement(targetElement)
 
   // Clone and append new content
   Array.from(sourceElement.childNodes).forEach(child => {
@@ -67,8 +65,24 @@ export function replaceElement(targetElement, sourceElement) {
   })
 }
 
+// In-flight request per target element, so a newer fetch for the same element
+// cancels the older one and a slow response can never overwrite a newer one.
+const inFlight = new WeakMap()
+
 /**
- * Fetch HTML and replace a target element's content in one operation
+ * True when a fetch was cancelled because a newer one for the same element started
+ * @param {Error} error
+ * @returns {boolean}
+ */
+export function isAbortError(error) {
+  return error?.name === 'AbortError'
+}
+
+/**
+ * Fetch HTML and replace a target element's content in one operation.
+ * Starting a new fetch for the same element aborts the previous one, which then
+ * rejects with an AbortError (see isAbortError). While loading, the element
+ * carries aria-busy="true".
  * @param {string} url - The URL to fetch
  * @param {HTMLElement} targetElement - Element to update
  * @param {Object} options - Additional fetch options
@@ -76,20 +90,93 @@ export function replaceElement(targetElement, sourceElement) {
  * @returns {Promise<boolean>} - True if content was replaced, false if selector not found in response
  */
 export async function fetchAndReplace(url, targetElement, options = {}) {
-  const doc = await fetchPartial(url, options)
+  inFlight.get(targetElement)?.abort()
+  const controller = new AbortController()
+  inFlight.set(targetElement, controller)
+  targetElement.setAttribute('aria-busy', 'true')
 
-  // Use provided selector or default to target element's ID
-  const selector = options.selector || `#${targetElement.id}`
-  const sourceElement = doc.querySelector(selector)
+  try {
+    const doc = await fetchPartial(url, { ...options, signal: controller.signal })
+    // A response can still settle after abort() if the body was already read
+    if (controller.signal.aborted) throw supersededError()
 
-  if (sourceElement) {
-    replaceElement(targetElement, sourceElement)
-    return true
+    // Use provided selector or default to target element's ID
+    const selector = options.selector || `#${targetElement.id}`
+    const sourceElement = doc.querySelector(selector)
+
+    if (sourceElement) {
+      replaceElement(targetElement, sourceElement)
+      return true
+    }
+
+    // No matching content in response - clear the target
+    clearElement(targetElement)
+    return false
+  } finally {
+    if (inFlight.get(targetElement) === controller) {
+      inFlight.delete(targetElement)
+      targetElement.removeAttribute('aria-busy')
+    }
+  }
+}
+
+/**
+ * Fetch and replace, showing an error notice with a Retry button in the target
+ * when the fetch fails. A fetch superseded by a newer one is ignored silently.
+ * @param {string} url - The URL to fetch
+ * @param {HTMLElement} targetElement - Element to update
+ * @param {Object} options - Options for fetchAndReplace, plus:
+ * @param {string} options.errorMessage - Text for the error notice
+ * @returns {Promise<boolean>} - True if content was replaced; false on failure, abort or missing selector
+ */
+export async function loadInto(url, targetElement, options = {}) {
+  const { errorMessage, ...fetchOptions } = options
+  try {
+    return await fetchAndReplace(url, targetElement, fetchOptions)
+  } catch (error) {
+    if (isAbortError(error)) return false
+    console.error('[RailsPulse] Fetch error:', error)
+    showFetchError(targetElement, errorMessage, () => loadInto(url, targetElement, options))
+    return false
+  }
+}
+
+/**
+ * Replace an element's content with an error notice and an optional Retry button
+ * @param {HTMLElement} targetElement - Element to update
+ * @param {string} message - Text to show
+ * @param {Function} [retry] - Called when Retry is clicked; no button when omitted
+ */
+export function showFetchError(targetElement, message = 'Could not load this content.', retry) {
+  const notice = document.createElement('div')
+  notice.className = 'alert alert--negative fetch-error'
+  notice.setAttribute('role', 'alert')
+
+  const text = document.createElement('span')
+  text.textContent = message
+  notice.appendChild(text)
+
+  if (retry) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'btn btn--borderless'
+    button.textContent = 'Retry'
+    button.addEventListener('click', retry)
+    notice.appendChild(button)
   }
 
-  // No matching content in response - clear the target
-  while (targetElement.firstChild) {
-    targetElement.removeChild(targetElement.firstChild)
+  clearElement(targetElement)
+  targetElement.appendChild(notice)
+}
+
+function clearElement(element) {
+  while (element.firstChild) {
+    element.removeChild(element.firstChild)
   }
-  return false
+}
+
+function supersededError() {
+  const error = new Error('Fetch superseded by a newer one for the same element')
+  error.name = 'AbortError'
+  return error
 }

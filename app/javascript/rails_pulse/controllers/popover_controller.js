@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { computePosition, flip, shift, offset, autoUpdate } from "@floating-ui/dom"
-import { fetchAndReplace } from "../utils/fetch_helpers"
+import { loadInto } from "../utils/fetch_helpers"
 
 /**
  * Popover Stimulus Controller
@@ -103,11 +103,11 @@ export default class extends Controller {
     if (!hasLoadingContent) return
 
     // Fetch and load the operation details
-    fetchAndReplace(operationUrl, targetDiv)
-      .then(() => {
-        targetDiv.dataset.loaded = 'true'
+    if (targetDiv.getAttribute('aria-busy') === 'true') return
+    loadInto(operationUrl, targetDiv, { errorMessage: 'Could not load operation details.' })
+      .then(loaded => {
+        if (loaded) targetDiv.dataset.loaded = 'true'
       })
-      .catch(error => console.error('Popover details fetch error:', error))
   }
 
   // CSP-safe method to check for loading content

@@ -22,3 +22,11 @@
   --alert-color: var(--color-negative);
   --alert-icon-color: var(--color-filter-negative);
 }
+
+/* Shown in place of content an in-page fetch could not load */
+.fetch-error {
+  align-items: center;
+  display: flex;
+  gap: var(--size-3);
+  justify-content: space-between;
+}

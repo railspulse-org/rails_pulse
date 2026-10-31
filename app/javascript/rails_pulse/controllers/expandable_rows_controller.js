@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { fetchAndReplace } from "../utils/fetch_helpers"
+import { loadInto } from "../utils/fetch_helpers"
 
 export default class extends Controller {
   toggle(event) {
@@ -49,12 +49,17 @@ export default class extends Controller {
   }
 
   async loadOperationDetails(url, targetDiv) {
-    try {
-      await fetchAndReplace(url, targetDiv)
-      targetDiv.dataset.loaded = 'true'
-    } catch (error) {
-      console.error('Operation details fetch error:', error)
+    if (targetDiv.getAttribute('aria-busy') === 'true') return
+
+    if (!targetDiv.firstElementChild) {
+      const loading = document.createElement('p')
+      loading.className = 'text-subtle'
+      loading.textContent = 'Loading operation details…'
+      targetDiv.appendChild(loading)
     }
+
+    const loaded = await loadInto(url, targetDiv, { errorMessage: 'Could not load operation details.' })
+    if (loaded) targetDiv.dataset.loaded = 'true'
   }
 
   collapse(triggerRow, detailsRow) {
