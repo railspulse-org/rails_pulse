@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - The dashboard now says when cleanup itself has stopped, based on the last recorded cleanup run: a warning when `RailsPulse::CleanupJob` has never run with requests past retention or when its last run is over two days old, and a critical item when the last run failed. The Storage page's Cleanup panel also shows when cleanup last ran and what it deleted. (#358)
+- `rails rails_pulse:status` now closes with threshold suggestions, each with an initializer line to paste, when the last summarized day shows route, query or job thresholds that are too noisy or never fire. They are advice only and never change the exit status (#385).
+- Threshold recommendations (the status task, the insights API, `rails-pulse insights` and the MCP tool) now cover `job_thresholds` as well as routes and queries.
 - `config.default_disabled_tags` (for example `["ignored"]`) hides the listed tags in every dashboard session until a user switches them back on in Global Filters, so tagged noise stays hidden across logins and for the whole team (#331).
 
 ### Fixed

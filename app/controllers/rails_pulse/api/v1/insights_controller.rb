@@ -2,7 +2,7 @@ module RailsPulse
   module Api
     module V1
       # What needs attention over one summary period, and whether the
-      # configured route and query thresholds fit what that period recorded.
+      # configured route, query and job thresholds fit what that period recorded.
       # One period rather than a since/until window because a P95 cannot be
       # combined across periods: an hour, day, week or month is read from its
       # own summary rows.

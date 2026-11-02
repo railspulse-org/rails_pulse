@@ -20,7 +20,7 @@ class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
     report
 
     assert_match(/\ARails Pulse #{Regexp.escape(RailsPulse::VERSION)}/, @output.string)
-    %w[Database: Schema: Migrations: Routes: Initializer: Tracking: Dashboard: API: Writer: Summaries: Retention: Cleanup: Jobs: Cloud:].each do |label|
+    %w[Database: Schema: Migrations: Routes: Initializer: Tracking: Dashboard: API: Writer: Summaries: Retention: Cleanup: Jobs: Thresholds: Cloud:].each do |label|
       assert_includes @output.string, label
     end
   end
@@ -313,6 +313,83 @@ class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
     assert_operator @output.string.index("OK — nothing to do."), :<, @output.string.index("Suggestions:")
   end
 
+  test "thresholds the last summarized day finds out of step are suggestions with the snippet to paste" do
+    assume_clean_install
+    clear_day_summaries
+    yesterday = 1.day.ago.beginning_of_day
+    summarize_day(2.days.ago.beginning_of_day, [ 100, 100, 100 ])
+    summarize_day(yesterday, [ 900, 900, 900 ])
+
+    assert report
+    assert_includes @output.string, "Thresholds: 2 change(s) suggested from #{yesterday.to_date.iso8601}'s traffic"
+    assert_match(/Suggestions:.*Route slow threshold may be too low: 3 of 3 sampled routes exceeded the 500ms slow threshold.* In config\/initializers\/rails_pulse.rb: config.route_thresholds = \{ slow: 750, very_slow: 1500, critical: 3000 \}/m, @output.string)
+    assert_includes @output.string, "OK — nothing to do."
+    assert_not_includes @output.string, "Action needed"
+  end
+
+  test "job thresholds out of step are suggested" do
+    assume_clean_install
+    clear_day_summaries
+    jobs = 3.times.map { |i| RailsPulse::Job.create!(name: "StatusReporterJob#{i}") }
+    summarize_day(1.day.ago.beginning_of_day, [ 8_000, 8_000, 8_000 ], subjects: jobs)
+
+    assert report
+    assert_match(/Suggestions:.*Job slow threshold may be too low.*config.job_thresholds = \{ slow: 7500, very_slow: 30000, critical: 60000 \}/m, @output.string)
+  end
+
+  test "thresholds that fit the last summarized day suggest nothing" do
+    assume_clean_install
+    clear_day_summaries
+    # 1 of 3 past slow; 1600ms is past critical / 2
+    summarize_day(1.day.ago.beginning_of_day, [ 1600, 100, 100 ])
+
+    assert report
+    assert_includes @output.string, "Thresholds: fit #{1.day.ago.to_date.iso8601}'s traffic"
+    assert_not_includes @output.string, "threshold may be"
+  end
+
+  test "a summarized day with too little traffic is not reported as fitting" do
+    assume_clean_install
+    clear_day_summaries
+    # SummaryJob writes the overall row even for an empty day; two routes are below the minimum
+    summarize_day(1.day.ago.beginning_of_day, [ 900, 900 ])
+
+    assert report
+    assert_includes @output.string, "Thresholds: too little traffic on #{1.day.ago.to_date.iso8601} to check"
+    assert_not_includes @output.string, "Thresholds: fit"
+    assert_not_includes @output.string, "threshold may be"
+  end
+
+  test "an empty summarized day is not reported as fitting" do
+    assume_clean_install
+    clear_day_summaries
+    summarize_day(1.day.ago.beginning_of_day, [])
+
+    assert report
+    assert_includes @output.string, "Thresholds: too little traffic on"
+    assert_not_includes @output.string, "Thresholds: fit"
+  end
+
+  test "no summarized day leaves the thresholds unchecked" do
+    assume_clean_install
+    clear_day_summaries
+
+    assert report
+    assert_includes @output.string, "Thresholds: not checked yet"
+    assert_not_includes @output.string, "threshold may be"
+  end
+
+  test "a threshold check that raises is reported and does not stop the report" do
+    assume_clean_install
+    clear_day_summaries
+    summarize_day(1.day.ago.beginning_of_day, [ 900, 900, 900 ])
+    RailsPulse::ConfigRecommendations.stubs(:for_period).raises(ActiveRecord::StatementInvalid, "boom")
+
+    assert report
+    assert_includes @output.string, "Thresholds: could not check (ActiveRecord::StatementInvalid: boom)"
+    assert_includes @output.string, "Cloud:"
+  end
+
   test "Cloud is reported off until the key and application are set" do
     assume_clean_install
 
@@ -385,6 +462,23 @@ class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
     yield
   ensure
     original.each { |key, value| RailsPulse.configuration.public_send("#{key}=", value) }
+  end
+
+  def clear_day_summaries
+    RailsPulse::Summary.where(period_type: "day").delete_all
+  end
+
+  # A day as SummaryJob leaves it: the overall request row, plus one day
+  # summary per P95 on each subject (fixture routes unless given).
+  def summarize_day(start, p95s, subjects: RailsPulse::Route.order(:id).limit(p95s.size))
+    RailsPulse::Summary.create!(
+      summarizable_type: "RailsPulse::Request", summarizable_id: 0, period_type: "day",
+      period_start: start, period_end: start.end_of_day, count: 0
+    )
+    subjects.zip(p95s).each do |subject, p95|
+      RailsPulse::Summary.create!(summarizable: subject, period_type: "day", period_start: start, period_end: start.end_of_day,
+                                  count: 100, avg_duration: p95 / 2, p95_duration: p95)
+    end
   end
 
   def overall_hours(*times)
