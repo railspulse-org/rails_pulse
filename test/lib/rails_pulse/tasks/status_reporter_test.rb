@@ -315,25 +315,23 @@ class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
 
   test "thresholds the last summarized day finds out of step are suggestions with the snippet to paste" do
     assume_clean_install
+    clear_day_summaries
     yesterday = 1.day.ago.beginning_of_day
-    day_summaries(2.days.ago.beginning_of_day, 100, 100, 100)
-    day_summaries(yesterday, 900, 900, 900)
+    summarize_day(2.days.ago.beginning_of_day, [ 100, 100, 100 ])
+    summarize_day(yesterday, [ 900, 900, 900 ])
 
     assert report
     assert_includes @output.string, "Thresholds: 2 change(s) suggested from #{yesterday.to_date.iso8601}'s traffic"
     assert_match(/Suggestions:.*Route slow threshold may be too low: 3 of 3 sampled routes exceeded the 500ms slow threshold.* In config\/initializers\/rails_pulse.rb: config.route_thresholds = \{ slow: 750, very_slow: 1500, critical: 3000 \}/m, @output.string)
+    assert_includes @output.string, "OK — nothing to do."
     assert_not_includes @output.string, "Action needed"
   end
 
   test "job thresholds out of step are suggested" do
     assume_clean_install
-    RailsPulse::Summary.where(period_type: "day").delete_all
-    day = 1.day.ago.beginning_of_day
-    3.times do |i|
-      job = RailsPulse::Job.create!(name: "StatusReporterJob#{i}")
-      RailsPulse::Summary.create!(summarizable: job, period_type: "day", period_start: day, period_end: day.end_of_day,
-                                  count: 10, avg_duration: 4_000, p95_duration: 8_000)
-    end
+    clear_day_summaries
+    jobs = 3.times.map { |i| RailsPulse::Job.create!(name: "StatusReporterJob#{i}") }
+    summarize_day(1.day.ago.beginning_of_day, [ 8_000, 8_000, 8_000 ], subjects: jobs)
 
     assert report
     assert_match(/Suggestions:.*Job slow threshold may be too low.*config.job_thresholds = \{ slow: 7500, very_slow: 30000, critical: 60000 \}/m, @output.string)
@@ -341,8 +339,9 @@ class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
 
   test "thresholds that fit the last summarized day suggest nothing" do
     assume_clean_install
+    clear_day_summaries
     # 1 of 3 past slow; 1600ms is past critical / 2
-    day_summaries(1.day.ago.beginning_of_day, 1600, 100, 100)
+    summarize_day(1.day.ago.beginning_of_day, [ 1600, 100, 100 ])
 
     assert report
     assert_includes @output.string, "Thresholds: fit #{1.day.ago.to_date.iso8601}'s traffic"
@@ -351,28 +350,17 @@ class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
 
   test "no summarized day leaves the thresholds unchecked" do
     assume_clean_install
-    RailsPulse::Summary.where(period_type: "day").delete_all
+    clear_day_summaries
 
     assert report
     assert_includes @output.string, "Thresholds: not checked yet"
     assert_not_includes @output.string, "threshold may be"
   end
 
-  test "threshold suggestions never fail a report that needs no action" do
-    assume_clean_install
-    day_summaries(1.day.ago.beginning_of_day, 900, 900, 900)
-    RailsPulse::ConfigRecommendations.any_instance.stubs(:to_recommendations).returns(
-      [ { title: "Route critical threshold may be too permissive", detail: "No route came close.", config_snippet: "config.route_thresholds = { critical: 2000 }" } ] * 4
-    )
-
-    assert report
-    assert_includes @output.string, "Thresholds: 4 change(s) suggested"
-    assert_includes @output.string, "OK — nothing to do."
-  end
-
   test "a threshold check that raises is reported and does not stop the report" do
     assume_clean_install
-    day_summaries(1.day.ago.beginning_of_day, 900, 900, 900)
+    clear_day_summaries
+    summarize_day(1.day.ago.beginning_of_day, [ 900, 900, 900 ])
     RailsPulse::ConfigRecommendations.stubs(:for_period).raises(ActiveRecord::StatementInvalid, "boom")
 
     assert report
@@ -454,14 +442,19 @@ class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
     original.each { |key, value| RailsPulse.configuration.public_send("#{key}=", value) }
   end
 
-  # One route day summary per P95, on its own fixture route. The first call
-  # clears the fixtures' day rows so each test controls the latest day.
-  def day_summaries(start, *p95s)
-    RailsPulse::Summary.where(period_type: "day").delete_all unless @cleared_days
-    @cleared_days = true
-    routes = RailsPulse::Route.order(:id).limit(p95s.size)
-    routes.zip(p95s).each do |route, p95|
-      RailsPulse::Summary.create!(summarizable: route, period_type: "day", period_start: start, period_end: start.end_of_day,
+  def clear_day_summaries
+    RailsPulse::Summary.where(period_type: "day").delete_all
+  end
+
+  # A day as SummaryJob leaves it: the overall request row, plus one day
+  # summary per P95 on each subject (fixture routes unless given).
+  def summarize_day(start, p95s, subjects: RailsPulse::Route.order(:id).limit(p95s.size))
+    RailsPulse::Summary.create!(
+      summarizable_type: "RailsPulse::Request", summarizable_id: 0, period_type: "day",
+      period_start: start, period_end: start.end_of_day, count: 0
+    )
+    subjects.zip(p95s).each do |subject, p95|
+      RailsPulse::Summary.create!(summarizable: subject, period_type: "day", period_start: start, period_end: start.end_of_day,
                                   count: 100, avg_duration: p95 / 2, p95_duration: p95)
     end
   end

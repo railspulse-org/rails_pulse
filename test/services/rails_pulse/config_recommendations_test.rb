@@ -43,7 +43,7 @@ module RailsPulse
 
     test "a lowered critical threshold stays one step above very_slow" do
       # ceil_to(200 * 2, 500) = 500 and 500 * 3 = 1500; very_slow 2500 + 500 wins
-      with_route_thresholds(slow: 500, very_slow: 2500, critical: 5000) do
+      with_thresholds(:route_thresholds, slow: 500, very_slow: 2500, critical: 5000) do
         rec = recommendations(route_rows: rows(200, 150, 100)).find { |r| r[:title].include?("critical") }
 
         assert_equal "config.route_thresholds = { slow: 500, very_slow: 2500, critical: 3000 }", rec[:config_snippet]
@@ -82,7 +82,7 @@ module RailsPulse
 
     test "does not recommend a slow threshold at or past very_slow" do
       # ceil_to(1200 * 1.5, 50) = 1800, past very_slow 1500
-      with_route_thresholds(slow: 1200, very_slow: 1500, critical: 3000) do
+      with_thresholds(:route_thresholds, slow: 1200, very_slow: 1500, critical: 3000) do
         recs = recommendations(route_rows: rows(1300, 1400, 1400))
 
         assert_not_includes titles(recs), "Route slow threshold may be too low"
@@ -146,7 +146,7 @@ module RailsPulse
     end
 
     test "job recommendations follow the configured job thresholds" do
-      with_job_thresholds(slow: 1_000, very_slow: 10_000, critical: 20_000) do
+      with_thresholds(:job_thresholds, slow: 1_000, very_slow: 10_000, critical: 20_000) do
         rec = recommendations(job_rows: rows(2_000, 3_000, 4_000)).find { |r| r[:title] == "Job slow threshold may be too low" }
 
         assert_equal "config.job_thresholds = { slow: 1500, very_slow: 10000, critical: 20000 }", rec[:config_snippet]
@@ -155,7 +155,7 @@ module RailsPulse
 
     test "slow threshold suggestions round up to the step" do
       # 510 * 1.5 = 765, rounded up to 800
-      with_route_thresholds(slow: 510, very_slow: 1500, critical: 3000) do
+      with_thresholds(:route_thresholds, slow: 510, very_slow: 1500, critical: 3000) do
         rec = recommendations(route_rows: rows(600, 700, 800)).find { |r| r[:title].include?("slow") }
 
         assert_includes rec[:config_snippet], "slow: 800"
@@ -234,14 +234,6 @@ module RailsPulse
       ConfigRecommendations.new(route_rows: route_rows, query_rows: query_rows, query_max_p95: query_max_p95, job_rows: job_rows).to_recommendations
     end
 
-    def with_job_thresholds(thresholds)
-      original = RailsPulse.configuration.job_thresholds
-      RailsPulse.configuration.job_thresholds = thresholds
-      yield
-    ensure
-      RailsPulse.configuration.job_thresholds = original
-    end
-
     def rows(*p95s)
       p95s.map { |p95| { p95_duration: p95 } }
     end
@@ -250,12 +242,12 @@ module RailsPulse
       recs.map { |r| r[:title] }
     end
 
-    def with_route_thresholds(thresholds)
-      original = RailsPulse.configuration.route_thresholds
-      RailsPulse.configuration.route_thresholds = thresholds
+    def with_thresholds(setting, thresholds)
+      original = RailsPulse.configuration.public_send(setting)
+      RailsPulse.configuration.public_send(:"#{setting}=", thresholds)
       yield
     ensure
-      RailsPulse.configuration.route_thresholds = original
+      RailsPulse.configuration.public_send(:"#{setting}=", original)
     end
 
     def summary(record, period_start, p95:, count: 100)

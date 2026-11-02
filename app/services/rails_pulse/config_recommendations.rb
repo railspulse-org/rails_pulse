@@ -53,8 +53,8 @@ module RailsPulse
     # highest among query_rows stands in. Routes and jobs are sampled by P95,
     # so their first row is already the period's highest.
     def initialize(route_rows:, query_rows:, query_max_p95: nil, job_rows: [])
-      @rows    = { route: route_rows, query: query_rows, job: job_rows }
-      @max_p95 = { query: query_max_p95 }
+      @rows          = { route: route_rows, query: query_rows, job: job_rows }
+      @query_max_p95 = query_max_p95
     end
 
     def to_recommendations
@@ -74,7 +74,7 @@ module RailsPulse
       critical   = thresholds[:critical].to_i
       p95s       = rows.map { |r| r[:p95_duration].to_i }
       above_slow = p95s.count { |p| p >= slow }
-      max_p95    = (@max_p95[kind] || p95s.max).to_i
+      max_p95    = ((kind == :query && @query_max_p95) || p95s.max).to_i
       recs       = []
 
       suggested = ceil_to(slow * 1.5, spec[:slow_step])

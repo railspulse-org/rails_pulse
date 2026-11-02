@@ -354,7 +354,7 @@ module RailsPulse
           return
         end
 
-        day = RailsPulse::Summary.where(period_type: "day").order(period_start: :desc).pick(:period_start)
+        day = RailsPulse::Summary.overall_requests.for_period_type("day").maximum(:period_start)
         if day.nil?
           output.puts "Thresholds: not checked yet (it needs a day SummaryJob has summarized)"
           return
