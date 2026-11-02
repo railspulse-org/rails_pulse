@@ -46,8 +46,8 @@ module RailsPulse
 
           Next steps:
           1. Run: #{separate_database? ? 'rails db:migrate:rails_pulse' : 'rails db:migrate'}
-          2. Set these in config/initializers/rails_pulse.rb (the key comes from your
-             Application's settings in Rails Pulse Cloud; application is its slug):
+          2. Set these in config/initializers/rails_pulse.rb (create the key under
+             Profile → API keys in Rails Pulse Cloud; application is your app's slug):
 
                config.cloud.api_key = ENV["RAILS_PULSE_CLOUD_API_KEY"]
                config.cloud.application = "your-app"

@@ -65,6 +65,20 @@ class InstallCloudGeneratorTest < Rails::Generators::TestCase
     assert_match(/rails rails_pulse:cloud:preview/, output)
   end
 
+  test "the next steps send people to Profile → API keys for the key" do
+    output = run_generator
+
+    assert_match(/Profile → API keys/, output)
+    assert_no_match(/Application's settings/, output)
+  end
+
+  test "the initializer template sends people to Profile → API keys for the key" do
+    template = File.read(File.expand_path("../../lib/generators/rails_pulse/templates/rails_pulse.rb", __dir__))
+
+    assert_match(/Profile → API keys/, template)
+    assert_no_match(/Application's settings/, template)
+  end
+
   # Separate Database Tests
 
   test "a separate database detected from database.yml gets the migration in db/rails_pulse_migrate" do

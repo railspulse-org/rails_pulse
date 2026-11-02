@@ -407,7 +407,7 @@ RailsPulse.configure do |config|
   #     class: RailsPulse::CloudHealthJob
   #     schedule: every minute
   #
-  # The key comes from your Application's settings in Rails Pulse Cloud; application is its slug.
+  # Create the key under Profile → API keys in Rails Pulse Cloud; application is your app's slug.
   # config.cloud.api_key = ENV["RAILS_PULSE_CLOUD_API_KEY"]
   # config.cloud.application = "your-app"
   # Defaults to Rails.env.
