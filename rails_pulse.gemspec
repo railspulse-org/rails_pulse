@@ -77,7 +77,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "mysql2", "~> 0.5"
 
   spec.add_development_dependency "importmap-rails"
-  spec.add_development_dependency "css-zero", "~> 1.1", ">= 1.1.4"
+  spec.add_development_dependency "css-zero", ">= 1.1.4", "~> 3.1"
   spec.add_development_dependency "rails-controller-testing", ">= 1.0"
   spec.add_development_dependency "minitest", ">= 5.0"
   spec.add_development_dependency "ostruct"
