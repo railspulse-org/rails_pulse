@@ -236,7 +236,7 @@ GEM
     prettyprint (0.2.1)
     prism (1.9.0)
     public_suffix (7.0.5)
-    puma (7.2.1)
+    puma (8.0.2)
       nio4r (~> 2.0)
     raabro (1.5.0)
     racc (1.8.1)
@@ -441,7 +441,7 @@ DEPENDENCIES
   mysql2 (~> 0.5)
   ostruct
   pg (>= 1.1)
-  puma (= 7.2.1)
+  puma (= 8.0.2)
   rails-controller-testing (>= 1.0)
   rails_pulse!
   resque
