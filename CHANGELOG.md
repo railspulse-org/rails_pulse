@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dashboard assets served by the gem (hosts without an asset pipeline and `rails_pulse_server`) are now gzipped and revalidate by ETag, and only the running gem version is cached as immutable.
 - The dashboard now shows the confirmation or error after adding or removing a tag or updating an exception, so a rejected tag no longer looks the same as a saved one.
 - Adding or removing tags on the same record from two processes at once no longer loses one of the edits.
+- Requests and Deployments are now in the navigation, which collapses into the menu button below 1280px wide instead of making the whole page scroll sideways.
+- The Tags column header on the Routes, Requests and Queries tables is no longer a sort link that silently fell back to the default order.
+- The dashboard's Exceptions badge explains "quiet", "firing" and "critical" on hover, and why a firing group below the warning threshold has no Needs Attention entry.
+- On a phone, the request page's Operations table keeps Duration and Impact on screen.
 
 ## [0.5.1.pre.3] - 2026-10-29
 

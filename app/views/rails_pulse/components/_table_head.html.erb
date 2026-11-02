@@ -2,7 +2,9 @@
   <tr>
     <% columns.each do |column| %>
       <th class="<%= column[:class] %>">
-        <% if column[:sortable] == false %>
+        <%# A column with no field (Tags) has nothing to sort by: ransack would
+            emit q[s]=+asc and the controller's default order would apply. %>
+        <% if column[:sortable] == false || column[:field].nil? %>
           <%= column[:label] %>
         <% else %>
           <% sort_params = {} %>

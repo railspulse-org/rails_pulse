@@ -13,7 +13,7 @@
   <% subtle_parts << "0 #{healthy_label}" if subtle_parts.empty? && health[:critical].zero? %>
   <% critical_part = "#{health[:critical]} #{critical_label}" if health[:critical] > 0 %>
   <% badge = capture do %>
-    <span class="badge flex items-center gap-half p-2" style="border-color: <%= border_color %>;">
+    <span class="badge flex items-center gap-half p-2" style="border-color: <%= border_color %>;" <%= tag.attributes(title: local_assigns[:description]) %>>
       <span class="shrink-0 rounded-full" style="width: 10px; height: 10px; background: <%= dot_color %>;"></span>
       <span class="text-xs font-semibold"><%= name %></span>
       <% if subtle_parts.any? %>

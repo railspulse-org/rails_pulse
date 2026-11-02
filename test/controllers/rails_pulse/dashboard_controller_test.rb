@@ -48,6 +48,31 @@ class RailsPulse::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/firing/, response.body)
   end
 
+  test "exceptions badge explains its labels and where Needs Attention starts" do
+    get rails_pulse.root_path
+
+    assert_response :success
+    badge = css_select(".dashboard-health-bar .badge").find { |node| node.text.include?("Exceptions") }
+
+    assert_not_nil badge
+    title = badge["title"]
+
+    assert_includes title, "Quiet: no occurrences"
+    assert_includes title, "Firing: raised at least once"
+    assert_includes title, "Critical: 100+ occurrences"
+    assert_includes title, "Groups with 10+ occurrences are listed under Needs Attention"
+  end
+
+  test "health badges without a description carry no title" do
+    get rails_pulse.root_path
+
+    assert_response :success
+    routes_badge = css_select(".dashboard-health-bar .badge").find { |node| node.text.include?("Routes") }
+
+    assert_not_nil routes_badge
+    assert_nil routes_badge["title"]
+  end
+
   test "health bar omits the exceptions badge when tracking is disabled" do
     original = RailsPulse.configuration.track_exceptions
     RailsPulse.configuration.track_exceptions = false
@@ -113,6 +138,14 @@ class RailsPulse::DashboardControllerTest < ActionDispatch::IntegrationTest
   end
 
   # Navigation Tests
+
+  test "navigation links to requests and deployments" do
+    get rails_pulse.root_path
+
+    assert_response :success
+    assert_select "nav a[href=?]", rails_pulse.requests_path, text: /Requests/
+    assert_select "nav a[href=?]", rails_pulse.deployments_path, text: /Deployments/
+  end
 
   test "navigation links back to the host application" do
     get rails_pulse.root_path

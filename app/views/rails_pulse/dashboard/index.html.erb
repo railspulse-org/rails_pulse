@@ -20,13 +20,20 @@
       <% end %>
       <%# Nil when exception tracking is off, or when the tables have not been
           migrated yet — which is also when exceptions_path does not exist. %>
+      <%# A firing group below the warning threshold has no Needs Attention
+          entry, so the tooltip says where that line is. %>
       <% if @health_summary[:exceptions] %>
+        <% exception_thresholds = RailsPulse.configuration.exception_thresholds %>
         <%= render "rails_pulse/dashboard/health_badge",
         name: "Exceptions",
         health: @health_summary[:exceptions],
         healthy_label: "quiet",
         slow_label: "firing",
         critical_label: "critical",
+        description: "Open exception groups in the #{humanize_time_range(@time_range.selected_time_range)}. " \
+          "Quiet: no occurrences. Firing: raised at least once. " \
+          "Critical: #{exception_thresholds[:critical]}+ occurrences. " \
+          "Groups with #{exception_thresholds[:warning]}+ occurrences are listed under Needs Attention.",
         link_url: exceptions_path %>
       <% end %>
       <%# Nil until a background writer has reported a heartbeat. Shown only

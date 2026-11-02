@@ -8,6 +8,11 @@
   <span class="overflow-ellipsis">Routes</span>
 <% end %>
 
+<%= link_to requests_path, class: 'btn sidebar-menu__button' do %>
+  <%= rails_pulse_icon "activity", width: "16" %>
+  <span class="overflow-ellipsis">Requests</span>
+<% end %>
+
 <%= link_to queries_path, class: 'btn sidebar-menu__button' do %>
   <%= rails_pulse_icon "database", width: "16" %>
   <span class="overflow-ellipsis">Queries</span>
@@ -25,6 +30,11 @@
     <%= rails_pulse_icon "zap", width: "16" %>
     <span class="overflow-ellipsis">Jobs</span>
   <% end %>
+<% end %>
+
+<%= link_to deployments_path, class: 'btn sidebar-menu__button' do %>
+  <%= rails_pulse_icon "server", width: "16" %>
+  <span class="overflow-ellipsis">Deployments</span>
 <% end %>
 
 <% RailsPulse.nav_items.each do |item| %>

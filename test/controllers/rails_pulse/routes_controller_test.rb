@@ -76,7 +76,27 @@ class RailsPulse::RoutesControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil assigns(:table_data)
   end
 
+  test "index Tags column header is not a sort link" do
+    setup_basic_test_data
+
+    get rails_pulse.routes_path
+
+    assert_response :success
+    assert_select "thead th", text: "Tags"
+    assert_select "thead th a", text: "Tags", count: 0
+  end
+
   # Show Action Tests
+
+  test "show Tags column header is not a sort link" do
+    setup_basic_test_data
+
+    get rails_pulse.route_path(@route)
+
+    assert_response :success
+    assert_select "thead th", text: "Tags"
+    assert_select "thead th a", text: "Tags", count: 0
+  end
 
   test "show action loads successfully" do
     setup_basic_test_data

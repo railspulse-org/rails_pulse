@@ -13,6 +13,14 @@ class RailsPulse::QueriesControllerTest < ActionDispatch::IntegrationTest
     super
   end
 
+  test "index Tags column header is not a sort link" do
+    get rails_pulse.queries_path
+
+    assert_response :success
+    assert_select "thead th", text: "Tags"
+    assert_select "thead th a", text: "Tags", count: 0
+  end
+
   test "controller has index, show, and reanalyze actions" do
     controller = RailsPulse::QueriesController.new
 

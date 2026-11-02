@@ -13,6 +13,14 @@ class RailsPulse::RequestsControllerTest < ActionDispatch::IntegrationTest
 
   # Controller Structure Tests
 
+  test "index Tags column header is not a sort link" do
+    get rails_pulse.requests_path
+
+    assert_response :success
+    assert_select "thead th", text: "Tags"
+    assert_select "thead th a", text: "Tags", count: 0
+  end
+
   test "index tolerates a non-hash q param" do
     get rails_pulse.requests_path, params: { q: "garbage" }
 

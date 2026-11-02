@@ -69,4 +69,24 @@ class RequestsShowPageTest < ApplicationSystemTestCase
     assert_selector "img[src*='search.svg']"
     assert_no_selector "table.operations-table"
   end
+
+  def test_operations_duration_and_impact_fit_a_phone_screen
+    page.driver.browser.manage.window.resize_to(390, 844)
+    visit_rails_pulse_path "/requests/#{@users_request_1.id}"
+
+    assert_selector "table.operations-table"
+    viewport = page.evaluate_script("document.documentElement.clientWidth")
+
+    [ "Duration", "Impact" ].each do |header|
+      right = page.evaluate_script(<<~JS)
+        Array.from(document.querySelectorAll("table.operations-table th"))
+          .find(th => th.textContent.trim() === #{header.to_json})
+          .getBoundingClientRect().right
+      JS
+
+      assert_operator right, :<=, viewport, "#{header} column ends at #{right}px, past the #{viewport}px viewport"
+    end
+  ensure
+    page.driver.browser.manage.window.resize_to(1400, 1400)
+  end
 end

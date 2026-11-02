@@ -43,7 +43,7 @@
     <% if @has_summaries %>
     <header id="header">
       <div class="flex justify-between container">
-        <div class="hide@md" data-controller="rails-pulse--dialog">
+        <div class="hide@xl" data-controller="rails-pulse--dialog">
           <button type="button" class="btn btn--icon" data-action="rails-pulse--dialog#showModal">
             <%= rails_pulse_icon 'menu', width: '20' %>
           </button>
@@ -72,7 +72,9 @@
         <%= link_to rails_pulse.root_path, class: "flex items-center gap mie-2", title: "Rails Pulse v#{RailsPulse::VERSION}" do %>
           <span class="font-bold">Rails Pulse</span>
         <% end %>
-        <nav class="flex items-center gap text-sm text-subtle show@md" style="--column-gap: 1rem">
+        <%# Inline only where every link fits; narrower screens use the sheet
+            above, or the header would push the whole page sideways. %>
+        <nav class="flex items-center gap text-sm text-subtle show@xl" style="--column-gap: 1rem">
           <%= render 'layouts/rails_pulse/menu_items' %>
         </nav>
       </div>

@@ -94,6 +94,17 @@ html[data-color-scheme="dark"] .input {
   font-family: 'Times New Roman', Times, serif;
 }
 
+/* On a phone the 380px label alone is wider than the screen, so the numbers
+   a reader scans for land off to the right. Truncate it harder and keep
+   Duration and Impact in view; the timeline still scrolls. */
+@media (max-width: 640px) {
+  .operations-label-cell {
+    width: 8rem;
+    max-width: 8rem;
+    min-width: 0;
+  }
+}
+
 .operations-duration-cell {
   width: 60px;
   max-width: 100px;
