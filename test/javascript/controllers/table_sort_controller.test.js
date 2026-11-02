@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import TableSortController from '../../../app/javascript/rails_pulse/controllers/table_sort_controller'
-import { mountController } from '../setup'
+import { mountController, controllableFetch, nextTick } from '../setup'
 
 const HTML = `
   <div data-controller="table-sort">
@@ -11,26 +11,9 @@ const HTML = `
   </div>
 `
 
-// A fetch whose responses resolve only when the test says so, and which rejects
-// with an AbortError when its signal is aborted, as the browser's fetch does.
-function controllableFetch() {
-  const pending = {}
-  const fetchMock = vi.fn((url, { signal } = {}) => new Promise((resolve, reject) => {
-    pending[url] = {
-      respond(body, status = 200) {
-        resolve({ ok: status < 400, status, text: () => Promise.resolve(body) })
-      },
-    }
-    signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
-  }))
-  return { fetchMock, pending }
-}
-
 function tableHtml(label) {
   return `<div id="index_table"><p>${label} rows</p></div>`
 }
-
-const flush = () => new Promise(resolve => setTimeout(resolve, 0))
 
 describe('TableSortController', () => {
   let app, element, teardown, pending
@@ -72,7 +55,7 @@ describe('TableSortController', () => {
   it('fetches the sorted table and replaces the frame', async () => {
     click('#by-path')
     pending['/routes?q[s]=path'].respond(tableHtml('Path'))
-    await flush()
+    await nextTick()
     expect(table().textContent).toBe('Path rows')
     expect(table().hasAttribute('aria-busy')).toBe(false)
   })
@@ -101,9 +84,9 @@ describe('TableSortController', () => {
     click('#by-method')
 
     pending['/routes?q[s]=method'].respond(tableHtml('Method'))
-    await flush()
+    await nextTick()
     pending['/routes?q[s]=path'].respond(tableHtml('Path'))
-    await flush()
+    await nextTick()
 
     expect(table().textContent).toBe('Method rows')
     expect(console.error).not.toHaveBeenCalled()
@@ -112,7 +95,7 @@ describe('TableSortController', () => {
   it('replaces the old rows with an error notice when the fetch fails', async () => {
     click('#by-path')
     pending['/routes?q[s]=path'].respond('Server error', 500)
-    await flush()
+    await nextTick()
 
     const notice = table().querySelector('[role="alert"]')
     expect(notice).not.toBeNull()
@@ -124,13 +107,23 @@ describe('TableSortController', () => {
   it('retries the failed fetch from the error notice', async () => {
     click('#by-path')
     pending['/routes?q[s]=path'].respond('Server error', 500)
-    await flush()
+    await nextTick()
 
     table().querySelector('[role="alert"] button').click()
     pending['/routes?q[s]=path'].respond(tableHtml('Path'))
-    await flush()
+    await nextTick()
 
     expect(fetch).toHaveBeenCalledTimes(2)
+    expect(table().textContent).toBe('Path rows')
+  })
+
+  it('sends one request when the same sort is clicked again while loading', async () => {
+    click('#by-path')
+    click('#by-path')
+    pending['/routes?q[s]=path'].respond(tableHtml('Path'))
+    await nextTick()
+
+    expect(fetch).toHaveBeenCalledOnce()
     expect(table().textContent).toBe('Path rows')
   })
 })

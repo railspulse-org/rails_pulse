@@ -49,15 +49,6 @@ export default class extends Controller {
   }
 
   async loadOperationDetails(url, targetDiv) {
-    if (targetDiv.getAttribute('aria-busy') === 'true') return
-
-    if (!targetDiv.firstElementChild) {
-      const loading = document.createElement('p')
-      loading.className = 'text-subtle'
-      loading.textContent = 'Loading operation details…'
-      targetDiv.appendChild(loading)
-    }
-
     const loaded = await loadInto(url, targetDiv, { errorMessage: 'Could not load operation details.' })
     if (loaded) targetDiv.dataset.loaded = 'true'
   }

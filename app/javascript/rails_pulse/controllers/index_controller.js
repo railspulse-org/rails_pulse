@@ -752,7 +752,7 @@ export default class extends Controller {
     window.history.replaceState({}, '', url);
 
     // Send the partial request
-    this.executeFrameRequestForColumn(url);
+    this.loadTable(url);
   }
 
   sendColumnDeselectionRequest() {
@@ -774,10 +774,6 @@ export default class extends Controller {
     window.history.replaceState({}, '', url);
 
     // Send the partial request to restore default/zoom view
-    this.executeFrameRequestForColumn(url);
-  }
-
-  executeFrameRequestForColumn(url) {
     this.loadTable(url);
   }
 

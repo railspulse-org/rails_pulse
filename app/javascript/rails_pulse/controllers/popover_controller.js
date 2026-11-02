@@ -103,7 +103,6 @@ export default class extends Controller {
     if (!hasLoadingContent) return
 
     // Fetch and load the operation details
-    if (targetDiv.getAttribute('aria-busy') === 'true') return
     loadInto(operationUrl, targetDiv, { errorMessage: 'Could not load operation details.' })
       .then(loaded => {
         if (loaded) targetDiv.dataset.loaded = 'true'
