@@ -18,6 +18,7 @@ module RailsPulse
       RailsPulse::Job.delete_all
       RailsPulse::ExceptionOccurrence.delete_all
       RailsPulse::ExceptionGroup.delete_all
+      RailsPulse::Baseline.delete_all
 
       @original_archiving = RailsPulse.configuration.archiving_enabled
       @original_retention = RailsPulse.configuration.full_retention_period
@@ -194,6 +195,51 @@ module RailsPulse
       assert_difference -> { RailsPulse::Route.count }, -1 do
         CleanupService.perform
       end
+    end
+
+    # Baseline Cleanup Tests
+
+    test "time-based cleanup deletes the baselines of the routes and queries it removes" do
+      RailsPulse.configuration.full_retention_period = 30.days
+      old_route = create_route("/baseline-old", created_at: 60.days.ago)
+      old_query = RailsPulse::Query.create!(normalized_sql: "SELECT * FROM baseline_orphans", created_at: 60.days.ago)
+      kept_route = create_route("/baseline-kept", created_at: 60.days.ago)
+      create_request(kept_route, occurred_at: 1.day.ago)
+      [ old_route, old_query, kept_route ].each { |subject| create_baseline(subject) }
+
+      stats = CleanupService.perform
+
+      assert_equal 2, stats[:time_based][:orphaned_baselines]
+      assert_equal [ kept_route.id ], RailsPulse::Baseline.pluck(:subject_id)
+    end
+
+    test "count-based cleanup deletes the baselines of the jobs it removes" do
+      RailsPulse.configuration.instance_variable_set(:@full_retention_period, nil)
+      RailsPulse.configuration.max_table_records = { rails_pulse_jobs: 1 }
+      oldest = create_job("BaselineJobOld")
+      newest = create_job("BaselineJobNew")
+      [ oldest, newest ].each { |job| create_baseline(job) }
+
+      stats = CleanupService.perform
+
+      assert_equal 1, stats[:count_based][:orphaned_baselines]
+      assert_equal [ [ "RailsPulse::Job", newest.id ] ], RailsPulse::Baseline.pluck(:subject_type, :subject_id)
+    end
+
+    test "a baseline is matched to its subject by type as well as id" do
+      RailsPulse.configuration.full_retention_period = 30.days
+      job = create_job("BaselineTypeJob")
+      # setup removed every route, so this route baseline's subject is gone
+      # even though a job with the same id exists
+      RailsPulse::Baseline.insert_all([ {
+        subject_type: "RailsPulse::Route", subject_id: job.id, sample_count: 1, periods: 1,
+        computed_at: Time.current, created_at: Time.current, updated_at: Time.current
+      } ])
+      create_baseline(job)
+
+      CleanupService.perform
+
+      assert_equal [ [ "RailsPulse::Job", job.id ] ], RailsPulse::Baseline.pluck(:subject_type, :subject_id)
     end
 
     # Count-based Cleanup Tests
@@ -1042,6 +1088,10 @@ module RailsPulse
 
     def create_route(path, created_at: Time.current)
       RailsPulse::Route.create!(http_methods: '["GET"]', path: path, tags: "[]", created_at: created_at)
+    end
+
+    def create_baseline(subject)
+      RailsPulse::Baseline.create!(subject: subject, p90_ms: 100.0, sample_count: 10, periods: 2, computed_at: Time.current)
     end
 
     def create_rollup(route, period_start:, writer_id: "host:1:abc")

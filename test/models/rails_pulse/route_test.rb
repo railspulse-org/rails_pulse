@@ -9,6 +9,7 @@ class RailsPulse::RouteTest < ActiveSupport::TestCase
   test "should have correct associations" do
     assert have_many(:requests).dependent(:restrict_with_exception).matches?(RailsPulse::Route.new)
     assert have_many(:summaries).dependent(:destroy).matches?(RailsPulse::Route.new)
+    assert have_one(:baseline).dependent(:delete).matches?(RailsPulse::Route.new)
   end
 
   test "should have correct validations" do

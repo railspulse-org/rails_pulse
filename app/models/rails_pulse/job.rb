@@ -12,6 +12,7 @@ module RailsPulse
              foreign_key: :job_id,
              inverse_of: :job,
              dependent: :destroy
+    has_one :baseline, as: :subject, class_name: "RailsPulse::Baseline", dependent: :delete
 
     validates :name, presence: true
 

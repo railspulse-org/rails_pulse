@@ -7,7 +7,7 @@ require "rails_pulse/route_indexes" unless defined?(RailsPulse::RouteIndexes)
 
 RailsPulse::Schema = lambda do |connection|
   # Skip if all tables already exist to prevent conflicts
-  required_tables = [ :rails_pulse_routes, :rails_pulse_queries, :rails_pulse_requests, :rails_pulse_operations, :rails_pulse_jobs, :rails_pulse_job_runs, :rails_pulse_summaries, :rails_pulse_deployments, :rails_pulse_exception_groups, :rails_pulse_exception_occurrences, :rails_pulse_events, :rails_pulse_rollups ]
+  required_tables = [ :rails_pulse_routes, :rails_pulse_queries, :rails_pulse_requests, :rails_pulse_operations, :rails_pulse_jobs, :rails_pulse_job_runs, :rails_pulse_summaries, :rails_pulse_deployments, :rails_pulse_exception_groups, :rails_pulse_exception_occurrences, :rails_pulse_events, :rails_pulse_rollups, :rails_pulse_baselines ]
 
   # Check which tables already exist
   existing_tables = required_tables.select { |table| connection.table_exists?(table) }
@@ -311,6 +311,24 @@ RailsPulse::Schema = lambda do |connection|
             unique: true,
             name: "idx_pulse_rollups_unique"
     connection.add_index :rails_pulse_rollups, :period_start, name: "index_rails_pulse_rollups_on_period_start"
+  end
+
+  unless connection.table_exists?(:rails_pulse_baselines)
+    connection.create_table :rails_pulse_baselines do |t|
+      # What normal looks like for one route, query or job, built from its summaries
+      t.references :subject, polymorphic: true, null: false, index: false, comment: "Link to Route, Query or Job"
+      t.decimal :p50_ms, precision: 15, scale: 6, comment: "Median duration in milliseconds"
+      t.decimal :p90_ms, precision: 15, scale: 6, comment: "90th percentile duration in milliseconds"
+      t.decimal :p95_ms, precision: 15, scale: 6, comment: "95th percentile duration in milliseconds"
+      t.integer :sample_count, default: 0, null: false, comment: "Requests, operations or runs the baseline was built from"
+      t.integer :periods, default: 0, null: false, comment: "Summary periods the baseline was built from"
+      t.datetime :computed_at, null: false, comment: "When the baseline was last rebuilt"
+      t.timestamps
+    end
+
+    connection.add_index :rails_pulse_baselines, [ :subject_type, :subject_id ],
+      unique: true,
+      name: "index_rails_pulse_baselines_on_subject"
   end
 
   # Add indexes to existing tables for efficient aggregation
