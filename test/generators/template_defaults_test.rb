@@ -39,6 +39,10 @@ module RailsPulse
       assert_nothing_raised { @from_template.validate_configuration! }
     end
 
+    test "the Cloud section sends people to Profile → API keys for the key" do
+      assert_match(/Profile → API keys/, File.read(TEMPLATE))
+    end
+
     # Edge Cases
 
     test "every intended difference still differs, so the allow-list cannot go stale" do

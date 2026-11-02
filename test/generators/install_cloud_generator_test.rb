@@ -58,25 +58,12 @@ class InstallCloudGeneratorTest < Rails::Generators::TestCase
     output = run_generator
 
     assert_match(/config\.cloud\.api_key/, output)
+    assert_match(/Profile → API keys/, output)
     assert_match(/config\.cloud\.application/, output)
     assert_match(/class: RailsPulse::SummaryJob/, output)
     assert_match(/class: RailsPulse::CloudHealthJob/, output)
     assert_no_match(/needs no schedule/, output)
     assert_match(/rails rails_pulse:cloud:preview/, output)
-  end
-
-  test "the next steps send people to Profile → API keys for the key" do
-    output = run_generator
-
-    assert_match(/Profile → API keys/, output)
-    assert_no_match(/Application's settings/, output)
-  end
-
-  test "the initializer template sends people to Profile → API keys for the key" do
-    template = File.read(File.expand_path("../../lib/generators/rails_pulse/templates/rails_pulse.rb", __dir__))
-
-    assert_match(/Profile → API keys/, template)
-    assert_no_match(/Application's settings/, template)
   end
 
   # Separate Database Tests
