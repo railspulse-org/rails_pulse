@@ -201,6 +201,22 @@ module RailsPulse
 
     # Edge Cases
 
+    test "checked when any kind has at least 3 rows, even with nothing to recommend" do
+      # 1 of 3 past slow; 600ms is past critical / 2
+      rec = ConfigRecommendations.new(route_rows: [], query_rows: rows(600, 50, 50))
+
+      assert_predicate rec, :checked?
+      assert_empty rec.to_recommendations
+    end
+
+    test "not checked when every kind has fewer than 3 rows" do
+      assert_not_predicate ConfigRecommendations.new(route_rows: rows(900, 900), query_rows: rows(10), job_rows: rows(9_000, 9_000)), :checked?
+    end
+
+    test "not checked with no rows at all" do
+      assert_not_predicate ConfigRecommendations.new(route_rows: [], query_rows: []), :checked?
+    end
+
     test "returns nothing with fewer than 3 job rows" do
       assert_empty recommendations(job_rows: rows(9_000, 9_000))
     end

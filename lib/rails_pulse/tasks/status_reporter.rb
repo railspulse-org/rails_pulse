@@ -361,7 +361,14 @@ module RailsPulse
         end
 
         date = day.to_date.iso8601
-        recommendations = RailsPulse::ConfigRecommendations.for_period(period_type: "day", period_start: day).to_recommendations
+        check = RailsPulse::ConfigRecommendations.for_period(period_type: "day", period_start: day)
+        unless check.checked?
+          output.puts "Thresholds: too little traffic on #{date} to check (needs #{RailsPulse::ConfigRecommendations::MINIMUM_ROWS} " \
+                      "summarized routes, queries or jobs)"
+          return
+        end
+
+        recommendations = check.to_recommendations
         if recommendations.empty?
           output.puts "Thresholds: fit #{date}'s traffic"
           return

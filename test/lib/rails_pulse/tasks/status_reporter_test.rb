@@ -348,6 +348,28 @@ class RailsPulse::Tasks::StatusReporterTest < ActiveSupport::TestCase
     assert_not_includes @output.string, "threshold may be"
   end
 
+  test "a summarized day with too little traffic is not reported as fitting" do
+    assume_clean_install
+    clear_day_summaries
+    # SummaryJob writes the overall row even for an empty day; two routes are below the minimum
+    summarize_day(1.day.ago.beginning_of_day, [ 900, 900 ])
+
+    assert report
+    assert_includes @output.string, "Thresholds: too little traffic on #{1.day.ago.to_date.iso8601} to check"
+    assert_not_includes @output.string, "Thresholds: fit"
+    assert_not_includes @output.string, "threshold may be"
+  end
+
+  test "an empty summarized day is not reported as fitting" do
+    assume_clean_install
+    clear_day_summaries
+    summarize_day(1.day.ago.beginning_of_day, [])
+
+    assert report
+    assert_includes @output.string, "Thresholds: too little traffic on"
+    assert_not_includes @output.string, "Thresholds: fit"
+  end
+
   test "no summarized day leaves the thresholds unchecked" do
     assume_clean_install
     clear_day_summaries

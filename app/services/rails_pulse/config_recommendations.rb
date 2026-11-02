@@ -20,6 +20,10 @@ module RailsPulse
   class ConfigRecommendations
     SAMPLE_SIZE = 10
 
+    # Fewer rows than this say nothing about a threshold, so that kind is not
+    # checked.
+    MINIMUM_ROWS = 3
+
     # How each kind is named in the text, the setting it tunes, and the steps
     # suggested slow and critical thresholds round up to.
     KINDS = {
@@ -61,11 +65,17 @@ module RailsPulse
       KINDS.keys.flat_map { |kind| recommendations_for(kind) }
     end
 
+    # Whether any kind had enough rows to be checked. No recommendations from
+    # an unchecked period means too little traffic, not thresholds that fit.
+    def checked?
+      @rows.values.any? { |rows| rows.size >= MINIMUM_ROWS }
+    end
+
     private
 
     def recommendations_for(kind)
       rows = @rows[kind]
-      return [] if rows.size < 3
+      return [] if rows.size < MINIMUM_ROWS
 
       spec       = KINDS[kind]
       thresholds = RailsPulse.configuration.public_send(spec[:setting])
