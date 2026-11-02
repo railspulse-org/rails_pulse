@@ -9,8 +9,8 @@ module RailsPulse
         tool_name "rails_pulse_insights"
         description "What needs attention over one summary period, and whether the configured thresholds fit " \
                     "it. Lists the routes, queries and jobs past their slow or critical thresholds (critical " \
-                    "first, ten at most), then checks route_thresholds and query_thresholds against the " \
-                    "period's slowest routes and most expensive queries and returns a config line to paste " \
+                    "first, ten at most), then checks route_thresholds, query_thresholds and job_thresholds " \
+                    "against the period's slowest routes and jobs and most expensive queries and returns a config line to paste " \
                     "when one is too noisy or never fires. Use it for 'what should I look at' and 'are my " \
                     "thresholds right'. Reads whole periods, so the P95s are exact."
 

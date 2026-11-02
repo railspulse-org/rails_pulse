@@ -14,9 +14,11 @@ module RailsPulse
     #
     # Below that, "Suggestions" covers how the install is run rather than
     # whether it is current: SummaryJob or CleanupJob not running, hourly
-    # summaries kept too briefly, jobs not tracked. Development and test
-    # environments rarely schedule either job, so these never change the
-    # exit status.
+    # summaries kept too briefly, jobs not tracked, and route, query or job
+    # thresholds the last summarized day shows to be out of step with the
+    # app's traffic. Development and test environments rarely schedule
+    # either job, and a threshold is a judgement call, so these never change
+    # the exit status.
     class StatusReporter
       # Hourly summaries back deployment comparisons and hour-precise change
       # points; below a week, last week's deploys can no longer be compared.
@@ -55,6 +57,7 @@ module RailsPulse
         print_retention
         print_cleanup
         print_jobs
+        print_threshold_recommendations
         print_cloud
         print_actions
         print_suggestions
@@ -341,6 +344,35 @@ module RailsPulse
         output.puts(count.zero? ? "Jobs:       tracked, none recorded yet" : "Jobs:       tracked, #{count} job class(es) recorded")
       rescue StandardError => e
         output.puts "Jobs:       could not check (#{e.class}: #{e.message})"
+      end
+
+      # Reads the latest day SummaryJob has summarized: a whole day evens out
+      # an hour's spikes, and the current day has no summary until it ends.
+      def print_threshold_recommendations
+        unless RailsPulse::SchemaCheck.current?
+          output.puts "Thresholds: (skipped — schema is behind)"
+          return
+        end
+
+        day = RailsPulse::Summary.where(period_type: "day").order(period_start: :desc).pick(:period_start)
+        if day.nil?
+          output.puts "Thresholds: not checked yet (it needs a day SummaryJob has summarized)"
+          return
+        end
+
+        date = day.to_date.iso8601
+        recommendations = RailsPulse::ConfigRecommendations.for_period(period_type: "day", period_start: day).to_recommendations
+        if recommendations.empty?
+          output.puts "Thresholds: fit #{date}'s traffic"
+          return
+        end
+
+        output.puts "Thresholds: #{recommendations.size} change(s) suggested from #{date}'s traffic"
+        recommendations.each do |rec|
+          suggest "#{rec[:title]}: #{rec[:detail]} In config/initializers/rails_pulse.rb: #{rec[:config_snippet]}"
+        end
+      rescue StandardError => e
+        output.puts "Thresholds: could not check (#{e.class}: #{e.message})"
       end
 
       # Reported, never an action: a Cloud outage or a refused key must not

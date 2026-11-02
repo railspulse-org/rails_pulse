@@ -10,8 +10,8 @@ module RailsPulse
       long_desc <<~DESC
         Reads one summary period (an hour, day, week or month) and lists the routes, queries
         and jobs past their slow or critical thresholds, critical first, ten at most. Then
-        checks route_thresholds and query_thresholds against the period's slowest routes and
-        most expensive queries, and suggests an initializer line when a slow threshold is
+        checks route_thresholds, query_thresholds and job_thresholds against the period's
+        slowest routes and jobs and most expensive queries, and suggests an initializer line when a slow threshold is
         exceeded by most of them or a critical threshold is never approached.
 
         Defaults to the last complete week. --at picks the period containing that time:

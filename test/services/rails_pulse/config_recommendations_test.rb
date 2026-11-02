@@ -6,6 +6,7 @@ module RailsPulse
 
     # Default route thresholds: slow 500, very_slow 1500, critical 3000.
     # Default query thresholds: slow 100, very_slow 500, critical 1000.
+    # Default job thresholds: slow 5000, very_slow 30000, critical 60000.
 
     # Structure Tests
 
@@ -114,6 +115,44 @@ module RailsPulse
       assert_equal "config.query_thresholds = { slow: 100, very_slow: 500, critical: 800 }", rec[:config_snippet]
     end
 
+    test "recommends raising the job slow threshold when 40% of jobs exceed it" do
+      # 5000 * 1.5 = 7500, already a multiple of 500
+      rec = recommendations(job_rows: rows(6_000, 7_000, 8_000, 100, 100)).find { |r| r[:title] == "Job slow threshold may be too low" }
+
+      assert_includes rec[:detail], "3 of 5 sampled jobs exceeded the 5000ms slow threshold this period."
+      assert_equal "config.job_thresholds = { slow: 7500, very_slow: 30000, critical: 60000 }", rec[:config_snippet]
+    end
+
+    test "recommends lowering the job critical threshold when nothing came within half of it" do
+      # max(ceil_to(20000 * 2, 5000), 5000 * 3, very_slow 30000 + 5000) = 40000
+      rec = recommendations(job_rows: rows(20_000, 1_000, 900)).find { |r| r[:title] == "Job critical threshold may be too permissive" }
+
+      assert_includes rec[:detail], "No job came close to the 60000ms critical threshold this period (highest P95: 20000ms)."
+      assert_equal "config.job_thresholds = { slow: 5000, very_slow: 30000, critical: 40000 }", rec[:config_snippet]
+    end
+
+    test "a lowered job critical threshold stays one step above very_slow" do
+      # ceil_to(100 * 2, 5000) = 5000 and 5000 * 3 = 15000; very_slow 30000 + 5000 wins
+      rec = recommendations(job_rows: rows(100, 90, 80)).find { |r| r[:title].include?("critical") }
+
+      assert_equal "config.job_thresholds = { slow: 5000, very_slow: 30000, critical: 35000 }", rec[:config_snippet]
+    end
+
+    test "does not recommend a job critical threshold that fails to lower it" do
+      # max(ceil_to(29999 * 2, 5000), 15000, 35000) = 60000, the current critical
+      recs = recommendations(job_rows: rows(29_999, 100, 100))
+
+      assert_not_includes titles(recs), "Job critical threshold may be too permissive"
+    end
+
+    test "job recommendations follow the configured job thresholds" do
+      with_job_thresholds(slow: 1_000, very_slow: 10_000, critical: 20_000) do
+        rec = recommendations(job_rows: rows(2_000, 3_000, 4_000)).find { |r| r[:title] == "Job slow threshold may be too low" }
+
+        assert_equal "config.job_thresholds = { slow: 1500, very_slow: 10000, critical: 20000 }", rec[:config_snippet]
+      end
+    end
+
     test "slow threshold suggestions round up to the step" do
       # 510 * 1.5 = 765, rounded up to 800
       with_route_thresholds(slow: 510, very_slow: 1500, critical: 3000) do
@@ -150,7 +189,21 @@ module RailsPulse
       assert_includes rec[:detail], "highest P95: 450ms"
     end
 
+    test "for_period samples the period's slowest jobs" do
+      RailsPulse::Summary.delete_all
+      period_start = Time.zone.parse("2026-06-01")
+      3.times { |i| summary(RailsPulse::Job.create!(name: "SlowJob#{i}"), period_start, p95: 9_000) }
+
+      recs = ConfigRecommendations.for_period(period_type: "week", period_start: period_start).to_recommendations
+
+      assert_includes titles(recs), "Job slow threshold may be too low"
+    end
+
     # Edge Cases
+
+    test "returns nothing with fewer than 3 job rows" do
+      assert_empty recommendations(job_rows: rows(9_000, 9_000))
+    end
 
     test "returns nothing with fewer than 3 route rows" do
       assert_empty recommendations(route_rows: rows(600, 700))
@@ -177,8 +230,16 @@ module RailsPulse
 
     private
 
-    def recommendations(route_rows: [], query_rows: [], query_max_p95: nil)
-      ConfigRecommendations.new(route_rows: route_rows, query_rows: query_rows, query_max_p95: query_max_p95).to_recommendations
+    def recommendations(route_rows: [], query_rows: [], query_max_p95: nil, job_rows: [])
+      ConfigRecommendations.new(route_rows: route_rows, query_rows: query_rows, query_max_p95: query_max_p95, job_rows: job_rows).to_recommendations
+    end
+
+    def with_job_thresholds(thresholds)
+      original = RailsPulse.configuration.job_thresholds
+      RailsPulse.configuration.job_thresholds = thresholds
+      yield
+    ensure
+      RailsPulse.configuration.job_thresholds = original
     end
 
     def rows(*p95s)
