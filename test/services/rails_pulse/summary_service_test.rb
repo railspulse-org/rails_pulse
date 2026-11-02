@@ -94,15 +94,13 @@ module RailsPulse
       summary = route_summary
       # p99 of 100 values lands among the exactly-kept slow requests
       assert_in_delta Statistics.calculate_percentile(all, 0.99), summary.p99_duration, 1e-6
-      # p90 lands in the folded traffic too: approximate within the bucket width
-      p90_exact = Statistics.calculate_percentile(all, 0.9)
+      # p50 and p90 land in the folded traffic: approximate within the bucket width
+      bucket_width = Math.sqrt(DurationHistogram::GROWTH) - 1
+      { p50_duration: 0.5, p90_duration: 0.9 }.each do |column, quantile|
+        exact = Statistics.calculate_percentile(all, quantile)
 
-      assert_in_delta p90_exact, summary.p90_duration, p90_exact * (Math.sqrt(DurationHistogram::GROWTH) - 1)
-      # p50 lands in the folded traffic: approximate within the bucket width
-      p50_exact = Statistics.calculate_percentile(all, 0.5)
-      tolerance = p50_exact * (Math.sqrt(DurationHistogram::GROWTH) - 1)
-
-      assert_in_delta p50_exact, summary.p50_duration, tolerance
+        assert_in_delta exact, summary.public_send(column), exact * bucket_width, column
+      end
     end
 
     test "a route whose every request was folded still gets a summary row" do

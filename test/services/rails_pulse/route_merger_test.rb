@@ -45,8 +45,8 @@ module RailsPulse
       source = create_route("POST", "/posts/1")
       period_start = 1.hour.ago.beginning_of_hour
 
-      target_summary = create_summary(target, count: 10, period_start: period_start, avg_duration: 100.0)
-      source_summary = create_summary(source, count: 30, period_start: period_start, avg_duration: 200.0)
+      target_summary = create_summary(target, count: 10, period_start: period_start, avg_duration: 100.0, p90_duration: 400.0)
+      source_summary = create_summary(source, count: 30, period_start: period_start, avg_duration: 200.0, p90_duration: 800.0)
 
       RailsPulse::RouteMerger.call(target: target, source: source)
 
@@ -56,6 +56,7 @@ module RailsPulse
       assert_equal target.id, target_summary.summarizable_id
       assert_equal 40, target_summary.count
       assert_in_delta 175.0, target_summary.avg_duration, 0.01
+      assert_in_delta 700.0, target_summary.p90_duration, 0.01
     end
 
     test "reassigns source rollups to the target under a retired writer id" do
@@ -159,14 +160,15 @@ module RailsPulse
       )
     end
 
-    def create_summary(route, count:, period_start: 1.hour.ago.beginning_of_hour, avg_duration: 100.0)
+    def create_summary(route, count:, period_start: 1.hour.ago.beginning_of_hour, avg_duration: 100.0, p90_duration: nil)
       RailsPulse::Summary.create!(
         summarizable: route,
         period_type: "hour",
         period_start: period_start,
         period_end: period_start.end_of_hour,
         count: count,
-        avg_duration: avg_duration
+        avg_duration: avg_duration,
+        p90_duration: p90_duration
       )
     end
   end

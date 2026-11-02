@@ -131,10 +131,7 @@ module RailsPulse
           min_duration: [ sorted_durations.first, rollup.min_duration ].compact.min,
           max_duration: [ sorted_durations.last, rollup.max_duration ].compact.max,
           total_duration: total,
-          p50_duration: merged_percentile(rollup, sorted_durations, 0.5),
-          p90_duration: merged_percentile(rollup, sorted_durations, 0.9),
-          p95_duration: merged_percentile(rollup, sorted_durations, 0.95),
-          p99_duration: merged_percentile(rollup, sorted_durations, 0.99),
+          **PERCENTILES.transform_values { |quantile| merged_percentile(rollup, sorted_durations, quantile) },
           # Each value as its own group makes this the exact sample stddev
           # from N, sum(x) and sum(x^2).
           stddev_duration: Statistics.pooled_stddev(
