@@ -34,6 +34,7 @@ class UpgradeMigrationTest < ActiveSupport::TestCase
     CreateRailsPulseEvents
     CreateRailsPulseRollups
     AddHourlyRollupIndexToOperations
+    CreateRailsPulseBaselines
   ].freeze
 
   def setup
@@ -305,6 +306,18 @@ class UpgradeMigrationTest < ActiveSupport::TestCase
     end
     assert @conn.index_exists?(:rails_pulse_rollups, [ :rollupable_type, :rollupable_id, :period_start, :writer_id ], unique: true, name: "idx_pulse_rollups_unique"),
       "unique rollup index missing"
+  end
+
+  test "upgrade from v0.2.7 creates the baselines table" do
+    load_baseline(RailsPulse::TestSchemas::V027)
+    run_all_migrations
+
+    assert @conn.table_exists?(:rails_pulse_baselines), "baselines table missing"
+    %w[subject_type subject_id p50_ms p90_ms p95_ms sample_count periods computed_at].each do |column|
+      assert @conn.column_exists?(:rails_pulse_baselines, column), "#{column} missing on baselines"
+    end
+    assert @conn.index_exists?(:rails_pulse_baselines, [ :subject_type, :subject_id ], unique: true, name: "index_rails_pulse_baselines_on_subject"),
+      "unique baseline subject index missing"
   end
 
   test "upgrade from v0.2.7 creates deployments table" do

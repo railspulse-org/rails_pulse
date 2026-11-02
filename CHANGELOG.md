@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The dashboard now says when cleanup itself has stopped, based on the last recorded cleanup run: a warning when `RailsPulse::CleanupJob` has never run with requests past retention or when its last run is over two days old, and a critical item when the last run failed. The Storage page's Cleanup panel also shows when cleanup last ran and what it deleted. (#358)
 - `config.default_disabled_tags` (for example `["ignored"]`) hides the listed tags in every dashboard session until a user switches them back on in Global Filters, so tagged noise stays hidden across logins and for the whole team (#331).
+- A new `rails_pulse_baselines` table will hold each route's, query's and job's typical timings for automatic thresholds; nothing uses it yet, but upgraders need `rails generate rails_pulse:upgrade` and `rails db:migrate` before tracking resumes (#385).
 
 ### Fixed
 

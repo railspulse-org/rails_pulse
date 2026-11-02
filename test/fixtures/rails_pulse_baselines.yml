@@ -1,0 +1,32 @@
+api_users_baseline:
+  subject: api_users (RailsPulse::Route)
+  p50_ms: 120.0
+  p90_ms: 280.0
+  p95_ms: 350.0
+  sample_count: 1500
+  periods: 168
+  computed_at: <%= 1.hour.ago %>
+  created_at: <%= 1.day.ago %>
+  updated_at: <%= 1.hour.ago %>
+
+simple_query_baseline:
+  subject: simple_query (RailsPulse::Query)
+  p50_ms: 2.5
+  p90_ms: 8.0
+  p95_ms: 12.0
+  sample_count: 9000
+  periods: 168
+  computed_at: <%= 1.hour.ago %>
+  created_at: <%= 1.day.ago %>
+  updated_at: <%= 1.hour.ago %>
+
+mailer_job_baseline:
+  subject: mailer_job (RailsPulse::Job)
+  p50_ms: 450.0
+  p90_ms: 900.0
+  p95_ms: 1200.0
+  sample_count: 40
+  periods: 12
+  computed_at: <%= 1.hour.ago %>
+  created_at: <%= 1.day.ago %>
+  updated_at: <%= 1.hour.ago %>
