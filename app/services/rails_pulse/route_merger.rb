@@ -7,9 +7,7 @@ module RailsPulse
       status_2xx status_3xx status_4xx status_5xx
     ].freeze
 
-    WEIGHTED_AVG_COLUMNS = %w[
-      avg_duration p50_duration p95_duration p99_duration
-    ].freeze
+    WEIGHTED_AVG_COLUMNS = [ "avg_duration", *SummaryService::PERCENTILES.keys.map(&:to_s) ].freeze
 
     # A rollup bucket for hour H keeps replace-upserting its row until the
     # first drain after H + 1 hour + STALE_HOUR_GRACE retires it; drains come

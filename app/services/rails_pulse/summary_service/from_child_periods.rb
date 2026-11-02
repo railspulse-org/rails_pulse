@@ -7,7 +7,7 @@ module RailsPulse
     # The database combines the children in one GROUP BY, so Ruby receives
     # one row per summarizable however many child periods there are. Counts,
     # totals, averages, min, max, status counts and the standard deviation
-    # combine exactly. P50/P95/P99 are the count-weighted average of the
+    # combine exactly. Percentiles are the count-weighted average of the
     # children's, the same weighting Tables::Base applies when a dashboard
     # range spans several periods.
     #
@@ -20,7 +20,6 @@ module RailsPulse
     # period columns.
     class FromChildPeriods
       TABLE = "rails_pulse_summaries".freeze
-      PERCENTILES = %i[p50_duration p95_duration p99_duration].freeze
       STATUS_COLUMNS = %i[error_count success_count status_2xx status_3xx status_4xx status_5xx].freeze
 
       AGGREGATES = {
@@ -28,7 +27,7 @@ module RailsPulse
         total_duration: "SUM(#{TABLE}.total_duration)",
         min_duration: "MIN(#{TABLE}.min_duration)",
         max_duration: "MAX(#{TABLE}.max_duration)",
-        **PERCENTILES.flat_map { |column|
+        **PERCENTILES.keys.flat_map { |column|
           [
             [ :"#{column}_weighted", "SUM(#{TABLE}.#{column} * #{TABLE}.count)" ],
             [ :"#{column}_weight", "SUM(CASE WHEN #{TABLE}.#{column} IS NOT NULL THEN #{TABLE}.count ELSE 0 END)" ]
@@ -136,7 +135,7 @@ module RailsPulse
           min_duration: combined[:min_duration]&.to_f,
           max_duration: combined[:max_duration]&.to_f,
           total_duration: total,
-          **PERCENTILES.to_h { |column| [ column, weighted_percentile(combined, column) ] },
+          **PERCENTILES.keys.index_with { |column| weighted_percentile(combined, column) },
           stddev_duration: Statistics.pooled_stddev(
             count: count,
             within_sum: combined[:stddev_within_sum],

@@ -34,6 +34,7 @@ class UpgradeMigrationTest < ActiveSupport::TestCase
     CreateRailsPulseEvents
     CreateRailsPulseRollups
     AddHourlyRollupIndexToOperations
+    AddP90DurationToRailsPulseSummaries
   ].freeze
 
   def setup
@@ -65,6 +66,13 @@ class UpgradeMigrationTest < ActiveSupport::TestCase
     assert @conn.index_exists?(:rails_pulse_operations, [ :occurred_at, :query_id, :duration ],
       name: "index_rails_pulse_operations_hourly_rollup"),
       "hourly rollup covering index missing on operations"
+  end
+
+  test "upgrade from v0.2.7 adds p90_duration to summaries" do
+    load_baseline(RailsPulse::TestSchemas::V027)
+    run_all_migrations
+
+    assert @conn.column_exists?(:rails_pulse_summaries, :p90_duration), "p90_duration missing on summaries"
   end
 
     test "upgrade from v0.3.3 converts routes to multi-verb model" do
