@@ -116,6 +116,7 @@ module RailsPulse
       run_stage(:time_based, :queries)    { cleanup_queries_by_time(cutoff_time) }
       run_stage(:time_based, :routes)     { cleanup_routes_by_time(cutoff_time) }
       run_stage(:time_based, :jobs)       { cleanup_jobs_by_time(cutoff_time) }
+      run_stage(:time_based, :orphaned_baselines) { cleanup_orphaned_baselines } if baselines_table_exists?
       if exception_tables_exist?
         run_stage(:time_based, :exception_occurrences) { cleanup_exception_occurrences_by_time(cutoff_time) }
         run_stage(:time_based, :exception_groups)      { cleanup_orphaned_exception_groups }
@@ -150,6 +151,7 @@ module RailsPulse
       run_stage(:count_based, :queries)    { cleanup_queries_by_count }
       run_stage(:count_based, :routes)     { cleanup_routes_by_count }
       run_stage(:count_based, :jobs)       { cleanup_jobs_by_count }
+      run_stage(:count_based, :orphaned_baselines) { cleanup_orphaned_baselines } if baselines_table_exists?
       if exception_tables_exist?
         run_stage(:count_based, :exception_occurrences)     { cleanup_exception_occurrences_by_count }
         run_stage(:count_based, :exception_groups)          { cleanup_exception_groups_by_count }
@@ -399,6 +401,23 @@ module RailsPulse
           .where.not(status: "ignored")
           .where("NOT EXISTS (SELECT 1 FROM rails_pulse_exception_occurrences WHERE rails_pulse_exception_occurrences.exception_group_id = rails_pulse_exception_groups.id)")
       )
+    end
+
+    # Routes, queries and jobs are removed with delete_all, which skips their
+    # has_one :baseline callback, so a removed subject's baseline goes here.
+    def cleanup_orphaned_baselines
+      RailsPulse::Baseline::SUBJECT_TYPES.sum do |subject_type|
+        subject_table = subject_type.constantize.table_name
+        delete_in_batches(
+          RailsPulse::Baseline
+            .where(subject_type: subject_type)
+            .where("NOT EXISTS (SELECT 1 FROM #{subject_table} WHERE #{subject_table}.id = rails_pulse_baselines.subject_id)")
+        )
+      end
+    end
+
+    def baselines_table_exists?
+      RailsPulse::ApplicationRecord.connection.table_exists?(:rails_pulse_baselines)
     end
 
     def perform_summary_cleanup
