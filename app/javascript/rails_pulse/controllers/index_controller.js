@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { fetchAndReplace } from "../utils/fetch_helpers"
+import { loadInto } from "../utils/fetch_helpers"
 
 export default class extends Controller {
   static targets = ["chart", "paginationLimit", "indexTable"]
@@ -524,8 +524,7 @@ export default class extends Controller {
     url.search = currentParams.toString();
 
     // Fetch and replace the index table
-    fetchAndReplace(url.toString(), this.indexTableTarget)
-      .catch(error => console.error('[IndexController] Fetch error:', error));
+    this.loadTable(url);
   }
 
   handleColumnClick(params) {
@@ -753,7 +752,7 @@ export default class extends Controller {
     window.history.replaceState({}, '', url);
 
     // Send the partial request
-    this.executeFrameRequestForColumn(url);
+    this.loadTable(url);
   }
 
   sendColumnDeselectionRequest() {
@@ -775,12 +774,11 @@ export default class extends Controller {
     window.history.replaceState({}, '', url);
 
     // Send the partial request to restore default/zoom view
-    this.executeFrameRequestForColumn(url);
+    this.loadTable(url);
   }
 
-  executeFrameRequestForColumn(url) {
-    fetchAndReplace(url.toString(), this.indexTableTarget)
-      .catch(error => console.error('[IndexController] Column selection fetch error:', error));
+  loadTable(url) {
+    return loadInto(url.toString(), this.indexTableTarget, { errorMessage: 'Could not load the table.' });
   }
 
   initializeZoomFromUrl() {

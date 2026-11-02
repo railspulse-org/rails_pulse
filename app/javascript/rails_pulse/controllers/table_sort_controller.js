@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { fetchAndReplace } from "../utils/fetch_helpers"
+import { loadInto } from "../utils/fetch_helpers"
 
 export default class extends Controller {
   static targets = ["tableFrame"]
@@ -15,11 +15,7 @@ export default class extends Controller {
     }
   }
 
-  async fetchAndUpdateTable(url) {
-    try {
-      await fetchAndReplace(url, this.tableFrameTarget)
-    } catch (error) {
-      console.error('Table sort error:', error)
-    }
+  fetchAndUpdateTable(url) {
+    return loadInto(url, this.tableFrameTarget, { errorMessage: 'Could not load the table.' })
   }
 }

@@ -3,3 +3,11 @@
   border-radius: var(--rounded-md);
   background-color: var(--color-border-light);
 }
+
+/* Content an in-page fetch is replacing: dim it so stale rows don't read as current.
+   Not a bare [aria-busy] rule, which Turbo also sets on <html> and forms during visits. */
+#index_table[aria-busy="true"],
+[data-operation-url][aria-busy="true"] {
+  opacity: 0.6;
+  transition: opacity 150ms ease-in;
+}
