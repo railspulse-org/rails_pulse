@@ -110,6 +110,32 @@ class SessionFiltersConcernTest < ActionController::TestCase
     assert_includes result, "api"
   end
 
+  test "session_disabled_tags falls back to default_disabled_tags when the session has no preference" do
+    with_configuration(default_disabled_tags: [ "ignored" ]) do
+      assert_equal [ "ignored" ], @controller.send(:session_disabled_tags)
+
+      @controller.session[:global_filters] = { "start_time" => "2024-01-01" }
+
+      assert_equal [ "ignored" ], @controller.send(:session_disabled_tags)
+    end
+  end
+
+  test "session_disabled_tags keeps an explicit empty preference over default_disabled_tags" do
+    with_configuration(default_disabled_tags: [ "ignored" ]) do
+      @controller.session[:global_filters] = { "disabled_tags" => [] }
+
+      assert_empty @controller.send(:session_disabled_tags)
+    end
+  end
+
+  test "session_disabled_tags prefers the session's tags over default_disabled_tags" do
+    with_configuration(default_disabled_tags: [ "ignored" ]) do
+      @controller.session[:global_filters] = { "disabled_tags" => [ "critical" ] }
+
+      assert_equal [ "critical" ], @controller.send(:session_disabled_tags)
+    end
+  end
+
   # session_time_range_preference Tests
 
   test "session_time_range_preference returns nil when not set" do
@@ -217,10 +243,8 @@ class SessionFiltersConcernTest < ActionController::TestCase
 
     result = @controller.send(:session_disabled_tags)
 
-    # If it's not an array, the || [] should return empty array
-    # But actually it will return "invalid" since it's truthy
-    # This tests the actual behavior
-    assert_equal "invalid", result
+    # Callers iterate the result, so a stray scalar comes back wrapped
+    assert_equal [ "invalid" ], result
   end
 
   test "session_time_range_preference returns nil for an unrecognized value" do

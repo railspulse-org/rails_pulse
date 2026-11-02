@@ -1,7 +1,6 @@
 <% global_filters = session_global_filters %>
 <% has_performance_filter = global_filters['performance_threshold'].present? %>
-<% disabled_tags = global_filters['disabled_tags'] || [] %>
-<% has_tag_filters = disabled_tags.any? %>
+<% disabled_tags = session_disabled_tags %>
 <% has_any_filters = has_performance_filter %>
 <% current_threshold = global_filters['performance_threshold'] %>
 

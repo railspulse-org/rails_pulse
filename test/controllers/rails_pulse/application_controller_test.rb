@@ -533,13 +533,41 @@ class RailsPulse::ApplicationControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "set_global_filters removes disabled_tags when all enabled" do
+  test "set_global_filters stores an empty disabled_tags list when all enabled" do
     with_configuration(tags: [ "api", "admin" ]) do
       patch rails_pulse.settings_global_filters_path, params: {
         enabled_tags: [ "api", "admin" ]
       }
 
-      refute_includes session[:global_filters].keys, "disabled_tags"
+      assert_equal [], session[:global_filters]["disabled_tags"]
+    end
+  end
+
+  test "default_disabled_tags shows as unchecked in the filter form until the session chooses" do
+    with_configuration(default_disabled_tags: [ "ignored" ]) do
+      get rails_pulse.root_path
+
+      assert_select "input#tag_ignored:not([checked])"
+      assert_select "input#tag_critical[checked]"
+
+      patch rails_pulse.settings_global_filters_path, params: {
+        enabled_tags: RailsPulse.configuration.tags + [ "non_tagged" ]
+      }
+      get rails_pulse.root_path
+
+      assert_select "input#tag_ignored[checked]"
+    end
+  end
+
+  test "clearing global filters returns to default_disabled_tags" do
+    with_configuration(default_disabled_tags: [ "ignored" ]) do
+      patch rails_pulse.settings_global_filters_path, params: {
+        enabled_tags: RailsPulse.configuration.tags + [ "non_tagged" ]
+      }
+      patch rails_pulse.settings_global_filters_path, params: { clear: "true" }
+      get rails_pulse.root_path
+
+      assert_select "input#tag_ignored:not([checked])"
     end
   end
 

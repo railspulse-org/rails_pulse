@@ -19,9 +19,11 @@ module SessionFiltersConcern
     filters.is_a?(Hash) ? filters : {}
   end
 
-  # Returns the array of disabled tags from global filters
+  # Returns the array of disabled tags from global filters. A session that
+  # has never saved Tag Visibility has no key and gets
+  # config.default_disabled_tags; an empty array means every tag is shown.
   def session_disabled_tags
-    session_global_filters["disabled_tags"] || []
+    Array(session_global_filters.fetch("disabled_tags") { RailsPulse.configuration.default_disabled_tags })
   end
 
   # Returns the time range preference from session, normalized so every
