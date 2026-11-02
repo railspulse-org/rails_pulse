@@ -58,6 +58,7 @@ class InstallCloudGeneratorTest < Rails::Generators::TestCase
     output = run_generator
 
     assert_match(/config\.cloud\.api_key/, output)
+    assert_match(/Profile → API keys/, output)
     assert_match(/config\.cloud\.application/, output)
     assert_match(/class: RailsPulse::SummaryJob/, output)
     assert_match(/class: RailsPulse::CloudHealthJob/, output)
