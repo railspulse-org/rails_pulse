@@ -8,6 +8,7 @@ class RailsPulse::QueryTest < ActiveSupport::TestCase
   test "should have correct associations" do
     assert have_many(:operations).inverse_of(:query).matches?(RailsPulse::Query.new)
     assert have_many(:summaries).dependent(:destroy).matches?(RailsPulse::Query.new)
+    assert have_one(:baseline).dependent(:delete).matches?(RailsPulse::Query.new)
   end
 
   # Test validations

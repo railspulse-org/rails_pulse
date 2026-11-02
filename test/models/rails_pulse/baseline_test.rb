@@ -2,6 +2,9 @@ require "test_helper"
 
 module RailsPulse
   class BaselineTest < ActiveSupport::TestCase
+    include Shoulda::Matchers::ActiveModel
+    include Shoulda::Matchers::ActiveRecord
+
     fixtures :rails_pulse_routes, :rails_pulse_queries, :rails_pulse_jobs, :rails_pulse_baselines
 
     def build_baseline(overrides = {})
@@ -56,19 +59,19 @@ module RailsPulse
 
     # Validation Tests
 
-    test "valid with all attributes" do
-      assert_predicate build_baseline, :valid?
-    end
+    test "has correct validations" do
+      baseline = build_baseline
 
-    test "requires a subject" do
-      assert_not build_baseline(subject: nil).valid?
-    end
-
-    test "rejects subjects other than route, query or job" do
-      baseline = build_baseline(subject: nil, subject_type: "RailsPulse::Request", subject_id: 1)
-
-      assert_not baseline.valid?
-      assert_includes baseline.errors[:subject_type], "is not included in the list"
+      assert_predicate baseline, :valid?
+      assert belong_to(:subject).matches?(baseline)
+      assert validate_presence_of(:computed_at).matches?(baseline)
+      assert validate_inclusion_of(:subject_type).in_array(Baseline::SUBJECT_TYPES).matches?(baseline)
+      %i[sample_count periods].each do |column|
+        assert validate_numericality_of(column).only_integer.is_greater_than_or_equal_to(0).matches?(baseline)
+      end
+      %i[p50_ms p90_ms p95_ms].each do |column|
+        assert validate_numericality_of(column).is_greater_than_or_equal_to(0).allow_nil.matches?(baseline)
+      end
     end
 
     test "allows only one baseline per subject" do
@@ -85,15 +88,10 @@ module RailsPulse
     end
 
     test "the same id under a different subject type is a different subject" do
-      route = rails_pulse_routes(:api_posts)
-      Baseline.create!(subject: route, sample_count: 1, periods: 1, computed_at: Time.current)
-      baseline = build_baseline(subject: nil, subject_type: "RailsPulse::Job", subject_id: route.id)
+      baseline = build_baseline(subject: nil, subject_type: "RailsPulse::Job", subject_id: rails_pulse_routes(:api_users).id)
+      baseline.valid?
 
-      assert_not_includes baseline.tap(&:valid?).errors.attribute_names, :subject_id
-    end
-
-    test "requires computed_at" do
-      assert_not build_baseline(computed_at: nil).valid?
+      assert_empty baseline.errors[:subject_id]
     end
 
     # Edge Cases
@@ -109,23 +107,6 @@ module RailsPulse
 
       assert_equal 0, baseline.sample_count
       assert_equal 0, baseline.periods
-    end
-
-    test "rejects negative counts" do
-      assert_not build_baseline(sample_count: -1).valid?
-      assert_not build_baseline(periods: -1).valid?
-    end
-
-    test "rejects fractional counts" do
-      assert_not build_baseline(sample_count: 1.5).valid?
-    end
-
-    test "rejects negative percentiles" do
-      assert_not build_baseline(p90_ms: -0.1).valid?
-    end
-
-    test "zero percentiles are valid" do
-      assert_predicate build_baseline(p50_ms: 0, p90_ms: 0, p95_ms: 0), :valid?
     end
   end
 end
