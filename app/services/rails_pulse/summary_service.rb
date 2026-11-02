@@ -29,9 +29,11 @@ module RailsPulse
     CHILD_PERIOD_TYPES = { "day" => "hour", "week" => "day", "month" => "day" }.freeze
     CHILD_PERIOD_STEPS = { "hour" => 1.hour, "day" => 1.day }.freeze
 
-    # Every percentile column a summary row carries, with its quantile. Each
-    # summary path (and RouteMerger) reads this, so adding a percentile here
-    # fills it everywhere.
+    # Every percentile column a summary row carries, with its quantile.
+    # Metrics, FromRawRows, FromChildPeriods and RouteMerger read this, so a
+    # percentile added here is written and merged on every summary path.
+    # Cloud::CombinedMetrics keeps its own list, matching the columns the
+    # Cloud payload sends.
     PERCENTILES = { p50_duration: 0.5, p90_duration: 0.9, p95_duration: 0.95, p99_duration: 0.99 }.freeze
 
     attr_reader :period_type, :start_time, :end_time

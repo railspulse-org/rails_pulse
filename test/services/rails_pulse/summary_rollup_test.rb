@@ -59,15 +59,27 @@ module RailsPulse
     end
 
     test "a day's percentiles are the traffic-weighted average of its hours'" do
-      3.times { request_at(@day + 2.hours, 100) }
-      request_at(@day + 9.hours, 500)
+      # Distinct durations in each hour, so every percentile differs from the
+      # others and a column weighted from the wrong child column shows up.
+      early = (1..10).map { |i| i * 10.0 }
+      late = [ 200.0, 300.0, 500.0, 800.0, 1_300.0 ]
+      early.each { |d| request_at(@day + 2.hours, d) }
+      late.each { |d| request_at(@day + 9.hours, d) }
 
       summarize("day", @day)
       day = summary("RailsPulse::Request", 0, "day", @day)
 
-      assert_in_delta (3 * 100 + 1 * 500) / 4.0, day.p95_duration
-      assert_in_delta (3 * 100 + 1 * 500) / 4.0, day.p90_duration
-      assert_in_delta (3 * 100 + 1 * 500) / 4.0, day.p50_duration
+      expected = SummaryService::PERCENTILES.to_h do |column, quantile|
+        weighted = early.size * Statistics.calculate_percentile(early, quantile) +
+          late.size * Statistics.calculate_percentile(late, quantile)
+        [ column, weighted / (early.size + late.size) ]
+      end
+
+      assert_equal expected.size, expected.values.uniq.size, "percentiles under test should all differ"
+      expected.each do |column, value|
+        # MySQL stores the summaries' float columns in single precision.
+        assert_in_delta value, day.public_send(column), 0.01, column
+      end
     end
 
     test "a day's query and job rows are rolled up from their hours" do
