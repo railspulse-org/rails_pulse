@@ -66,6 +66,7 @@ module RailsPulse
       day = summary("RailsPulse::Request", 0, "day", @day)
 
       assert_in_delta (3 * 100 + 1 * 500) / 4.0, day.p95_duration
+      assert_in_delta (3 * 100 + 1 * 500) / 4.0, day.p90_duration
       assert_in_delta (3 * 100 + 1 * 500) / 4.0, day.p50_duration
     end
 

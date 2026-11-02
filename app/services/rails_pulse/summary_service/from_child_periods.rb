@@ -7,7 +7,7 @@ module RailsPulse
     # The database combines the children in one GROUP BY, so Ruby receives
     # one row per summarizable however many child periods there are. Counts,
     # totals, averages, min, max, status counts and the standard deviation
-    # combine exactly. P50/P95/P99 are the count-weighted average of the
+    # combine exactly. P50/P90/P95/P99 are the count-weighted average of the
     # children's, the same weighting Tables::Base applies when a dashboard
     # range spans several periods.
     #
@@ -20,7 +20,7 @@ module RailsPulse
     # period columns.
     class FromChildPeriods
       TABLE = "rails_pulse_summaries".freeze
-      PERCENTILES = %i[p50_duration p95_duration p99_duration].freeze
+      PERCENTILES = %i[p50_duration p90_duration p95_duration p99_duration].freeze
       STATUS_COLUMNS = %i[error_count success_count status_2xx status_3xx status_4xx status_5xx].freeze
 
       AGGREGATES = {

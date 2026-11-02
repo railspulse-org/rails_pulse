@@ -20,7 +20,8 @@ class RailsPulse::SchemaCheckTest < ActiveSupport::TestCase
     assert_equal RailsPulse::Generators::BaseMethods::RAILS_PULSE_TABLES.sort, expected.keys.sort
     assert_equal %w[controller_action http_methods], expected["rails_pulse_routes"]
     assert_equal %w[method response_size_bytes], expected["rails_pulse_requests"]
-    assert_empty expected["rails_pulse_summaries"]
+    assert_equal %w[p90_duration], expected["rails_pulse_summaries"]
+    assert_empty expected["rails_pulse_queries"]
   end
 
   # An install that never ran rails_pulse:install_cloud has no Cloud tables,

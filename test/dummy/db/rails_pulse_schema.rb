@@ -180,6 +180,7 @@ RailsPulse::Schema = lambda do |connection|
       t.float :min_duration, comment: "Minimum duration in milliseconds"
       t.float :max_duration, comment: "Maximum duration in milliseconds"
       t.float :p50_duration, comment: "50th percentile duration"
+      t.float :p90_duration, comment: "90th percentile duration"
       t.float :p95_duration, comment: "95th percentile duration"
       t.float :p99_duration, comment: "99th percentile duration"
       t.float :total_duration, comment: "Total duration in milliseconds"

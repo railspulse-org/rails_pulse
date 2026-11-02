@@ -38,6 +38,7 @@ module RailsPulse
 
       assert_equal 4, summary.count
       assert_in_delta 25.0, summary.avg_duration, 1e-6
+      assert_in_delta Statistics.calculate_percentile([ 10.0, 20.0, 30.0, 40.0 ], 0.9), summary.p90_duration, 1e-6
       assert_in_delta Statistics.calculate_percentile([ 10.0, 20.0, 30.0, 40.0 ], 0.95), summary.p95_duration, 1e-6
       # 0.001: MySQL stores summary metrics in single-precision float columns
       assert_in_delta Statistics.calculate_stddev([ 10.0, 20.0, 30.0, 40.0 ], 25.0), summary.stddev_duration, 0.001
@@ -93,6 +94,10 @@ module RailsPulse
       summary = route_summary
       # p99 of 100 values lands among the exactly-kept slow requests
       assert_in_delta Statistics.calculate_percentile(all, 0.99), summary.p99_duration, 1e-6
+      # p90 lands in the folded traffic too: approximate within the bucket width
+      p90_exact = Statistics.calculate_percentile(all, 0.9)
+
+      assert_in_delta p90_exact, summary.p90_duration, p90_exact * (Math.sqrt(DurationHistogram::GROWTH) - 1)
       # p50 lands in the folded traffic: approximate within the bucket width
       p50_exact = Statistics.calculate_percentile(all, 0.5)
       tolerance = p50_exact * (Math.sqrt(DurationHistogram::GROWTH) - 1)

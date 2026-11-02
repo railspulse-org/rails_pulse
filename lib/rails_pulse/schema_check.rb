@@ -41,6 +41,7 @@ module RailsPulse
       "rails_pulse_requests" => %w[method response_size_bytes],
       "rails_pulse_operations" => %w[actual_sql row_count repeated_query_group],
       "rails_pulse_jobs" => %w[p95_duration p99_duration],
+      "rails_pulse_summaries" => %w[p90_duration],
       "rails_pulse_exception_groups" => %w[location]
     }.freeze
 

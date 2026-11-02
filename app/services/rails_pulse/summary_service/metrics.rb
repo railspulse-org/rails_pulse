@@ -17,6 +17,7 @@ module RailsPulse
           max_duration: durations.last,
           total_duration: durations.sum,
           p50_duration: Statistics.calculate_percentile(durations, 0.5),
+          p90_duration: Statistics.calculate_percentile(durations, 0.9),
           p95_duration: Statistics.calculate_percentile(durations, 0.95),
           p99_duration: Statistics.calculate_percentile(durations, 0.99),
           stddev_duration: Statistics.calculate_stddev(durations, avg)
