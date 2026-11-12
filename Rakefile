@@ -55,13 +55,17 @@ def pulse_phase(label, phase, command, env = {})
   end
 end
 
+# A session already running (`rake test` invoking test_migrations and
+# test_central) keeps collecting rows; only the call that opened it closes it.
 def pulse_session(meta, &block)
   return yield if @pulse_session_active
 
   @pulse_session_active = true
-  run_pulse_session(meta, &block)
-ensure
-  @pulse_session_active = false
+  begin
+    run_pulse_session(meta, &block)
+  ensure
+    @pulse_session_active = false
+  end
 end
 
 def run_pulse_session(meta)
@@ -309,6 +313,16 @@ task :test_migrations do
   end
 end
 
+desc "Run central-mode tests in a process booted as a central"
+task :test_central do
+  pulse_session(pulse_meta(rails: false)) do
+    # A central has a database per application and none to load fixtures
+    # into, so test/central boots the dummy app as one, with SQLite shards of
+    # its own, in a process apart from the main suite's.
+    pulse_phase("central mode", "central", "rails test test/central", "RAILS_PULSE_TEST_CENTRAL" => "true", "COVERAGE" => nil)
+  end
+end
+
 desc "Run test suite"
 task :test do
   verify_test_setup_adapter!(ENV["DB"] || "sqlite3")
@@ -316,6 +330,7 @@ task :test do
   pulse_session(pulse_meta) do
     pulse_phase("main suite", "main", "rails test test/controllers test/generators test/helpers test/instrumentation test/jobs test/lib test/middleware test/models test/serializers test/services test/rails_pulse_test.rb test/tracker_test.rb")
     Rake::Task[:test_migrations].invoke
+    Rake::Task[:test_central].invoke
   end
 end
 
@@ -412,6 +427,9 @@ task :test_matrix do
 
         progress.call("running migrations…")
         pulse_sh("bundle exec appraisal #{rails_version} rails test test/migrations", test_env)
+
+        progress.call("running central mode…")
+        pulse_sh("bundle exec appraisal #{rails_version} rails test test/central", test_env.merge("RAILS_PULSE_TEST_CENTRAL" => "true"))
       ensure
         print "\r\e[2K" if RailsPulseConsole.fancy?
       end

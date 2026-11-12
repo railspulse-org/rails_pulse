@@ -63,11 +63,15 @@ module RailsPulse
       end
 
       def dropped_total
-        @mutex.synchronize { @dropped_total }
+        @mutex.synchronize do
+          ensure_current_process
+          @dropped_total
+        end
       end
 
       def stats
         @mutex.synchronize do
+          ensure_current_process
           {
             pending_batches: @pending.size,
             pending_bytes: @pending.sum { |pending| pending.body.bytesize },
