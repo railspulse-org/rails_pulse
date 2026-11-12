@@ -123,6 +123,11 @@ module RailsPulse
       end
     end
 
+    # After the host's initializers, which are what turn central mode on.
+    initializer "rails_pulse.central" do |app|
+      app.config.after_initialize { RailsPulse::Central.install! }
+    end
+
     # CSP helper methods
     def self.csp_sources
       {

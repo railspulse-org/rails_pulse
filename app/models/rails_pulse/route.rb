@@ -74,6 +74,9 @@ module RailsPulse
     # has an action) must be one indexed query; router recognition only
     # happens when there is something to recognise.
     def self.needs_action_backfill?
+      # A central's router is not its applications' router; asking it would
+      # flag paths it happens to route itself.
+      return false if RailsPulse::Central.enabled?
       return false unless column_names.include?("controller_action")
       return false unless column_names.include?("http_methods")
 

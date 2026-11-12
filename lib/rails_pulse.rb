@@ -5,6 +5,8 @@ require "rails_pulse/configuration"
 require "rails_pulse/paginator"
 require "rails_pulse/cleanup_service"
 require "rails_pulse/tracker"
+require "rails_pulse/remote"
+require "rails_pulse/central"
 require "rails_pulse/standalone"
 require "rails_pulse/schema_check"
 
@@ -39,7 +41,12 @@ module RailsPulse
       end
     end
 
+    # What RailsPulse::ApplicationRecord connects to: on a central, one shard
+    # per application (config.central.applications); otherwise
+    # config.connects_to, nil for the host's own database.
     def connects_to
+      return configuration.central.connects_to if configuration&.central&.enabled?
+
       configuration&.connects_to
     end
   end
