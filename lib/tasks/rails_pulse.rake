@@ -6,6 +6,13 @@ namespace :db do
     task load_rails_pulse: :environment do
       schema_file = Rails.root.join("db/rails_pulse_schema.rb")
 
+      # A central has one database per application and loads the schema into
+      # each one that does not have the tables yet.
+      if RailsPulse::Central.enabled?
+        load_rails_pulse_schema_into_applications(schema_file)
+        next
+      end
+
       # Only load schema if using separate database setup
       if separate_database_setup?
         if schema_file.exist?
@@ -38,6 +45,19 @@ namespace :db do
   task setup: :environment do
     Rake::Task["db:schema:load_rails_pulse"].invoke if separate_database_setup?
   end
+
+  namespace :rails_pulse do
+    # On a central, ahead of db:prepare and db:migrate: a database added for a
+    # new application gets the schema before Rails runs db/rails_pulse_migrate
+    # against it, whose guarded migrations expect the tables to exist.
+    task load_central_schema: :environment do
+      Rake::Task["db:schema:load_rails_pulse"].invoke if RailsPulse::Central.enabled?
+    end
+  end
+end
+
+%w[db:prepare db:migrate].each do |name|
+  Rake::Task[name].enhance([ "db:rails_pulse:load_central_schema" ]) if Rake::Task.task_defined?(name)
 end
 
 # Hook into test database preparation so the separate Rails Pulse DB is populated
@@ -66,6 +86,31 @@ Rake::Task["db:test:prepare"].enhance do
     end
   end
 end if Rake::Task.task_defined?("db:test:prepare")
+
+# Every central application's database that lacks the Rails Pulse tables
+# gets the schema (SQLite creates the file on connect), and the migrations in
+# db/rails_pulse_migrate are recorded as applied there, since the schema
+# already has what they add. A database that has the tables is left to
+# db:migrate, so its genuinely pending migrations still run.
+def load_rails_pulse_schema_into_applications(schema_file)
+  unless schema_file.exist?
+    puts "Rails Pulse schema file not found. Run: rails generate rails_pulse:install --database=separate"
+    return
+  end
+
+  RailsPulse::Central.application_names.each do |name|
+    RailsPulse::Central.with_application(name) do
+      if RailsPulse::ApplicationRecord.connection.table_exists?(:rails_pulse_routes)
+        puts "Rails Pulse tables already exist for #{name}"
+        next
+      end
+
+      load schema_file
+      record_rails_pulse_migrations_applied
+      puts "Rails Pulse schema loaded for #{name}"
+    end
+  end
+end
 
 # Helper function to detect database setup type
 def separate_database_setup?
@@ -175,6 +220,11 @@ namespace :rails_pulse do
     metadata = deployment_metadata_from_env
     attributes[:metadata] = metadata if metadata
 
+    if RailsPulse::Remote.enabled?
+      send_deployment_to_central(attributes.merge(action: "record", metadata: metadata && JSON.parse(metadata)))
+      next
+    end
+
     deployment = RailsPulse::Deployment.create!(attributes)
     puts "[RailsPulse] Deployment recorded: #{deployment.revision} at #{deployment.started_at}"
   rescue ActiveRecord::RecordInvalid => e
@@ -186,6 +236,11 @@ namespace :rails_pulse do
     revision = args[:revision]
     abort "ERROR: revision is required. Usage: rake rails_pulse:finish_deployment[abc1234]" if revision.blank?
 
+    if RailsPulse::Remote.enabled?
+      send_deployment_to_central(action: "finish", revision: revision, finished_at: Time.current)
+      next
+    end
+
     deployment = RailsPulse::Deployment.latest_for_revision(revision)
     abort "ERROR: no deployment recorded for revision #{revision}" unless deployment
 
@@ -194,6 +249,22 @@ namespace :rails_pulse do
   rescue ActiveRecord::RecordInvalid => e
     abort "ERROR: #{e.message}"
   end
+end
+
+# In remote mode the deployment goes to the central. A rake task has no
+# writer thread to queue it on, so it is sent now, and whoever ran the task
+# is told whether the central recorded it.
+def send_deployment_to_central(attributes)
+  response = RailsPulse::Remote.deliver_now([ RailsPulse::Remote::Item.new("deployment", attributes) ])
+  body = response.json
+  unless response.status.between?(200, 299) && body["rejected"].to_i.zero?
+    abort "ERROR: the central did not record the deployment (HTTP #{response.status}): #{Array(body['errors']).first || response.message}"
+  end
+
+  verb = attributes[:action] == "finish" ? "finish" : "start"
+  puts "[RailsPulse] Deployment #{verb} sent to the central: #{attributes[:revision]}"
+rescue RailsPulse::Remote::Client::Unavailable => e
+  abort "ERROR: could not reach the central at #{RailsPulse.configuration.remote.url}: #{e.message}"
 end
 
 # Optional metadata for rails_pulse:record_deployment, as a JSON object:

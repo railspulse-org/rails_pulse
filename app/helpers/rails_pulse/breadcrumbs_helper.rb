@@ -96,14 +96,21 @@ module RailsPulse
 
     def page_title
       crumbs = breadcrumbs
-      return "Rails Pulse" if crumbs.empty?
+      return rails_pulse_name if crumbs.empty?
 
       current = crumbs.last
       if current[:current] && current[:title] != "Home"
-        "#{current[:title]} — Rails Pulse"
+        "#{current[:title]} — #{rails_pulse_name}"
       else
-        "Rails Pulse"
+        rails_pulse_name
       end
+    end
+
+    # "Rails Pulse", followed on a central by the application being shown,
+    # so two applications' dashboards cannot be mistaken for each other.
+    def rails_pulse_name
+      application = RailsPulse::Central.current_application
+      application ? "Rails Pulse · #{application}" : "Rails Pulse"
     end
   end
 end

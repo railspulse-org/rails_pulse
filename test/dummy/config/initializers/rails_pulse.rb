@@ -199,6 +199,16 @@ RailsPulse.configure do |config|
     config.connects_to = { database: { writing: :rails_pulse, reading: :rails_pulse } }
   end
 
+  # rake test_central boots this app as a central for two applications, each
+  # in its own database (the pulse_alpha and pulse_beta entries in
+  # config/database.yml), to run test/central.
+  if ENV["RAILS_PULSE_TEST_CENTRAL"] == "true"
+    config.central.applications = {
+      alpha: { token: "alpha-#{'a' * 40}", database: :pulse_alpha },
+      beta:  { token: "beta-#{'b' * 40}", database: :pulse_beta }
+    }
+  end
+
   # Option 2: Primary/replica configuration for Rails Pulse
   # config.connects_to = {
   #   database: { writing: :rails_pulse_primary, reading: :rails_pulse_replica }

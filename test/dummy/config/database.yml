@@ -78,7 +78,28 @@ development:
   else 'storage/test_rails_pulse.sqlite3'
   end
 %>
-<% if ENV['RAILS_PULSE_SEPARATE_DATABASE'] == 'true' %>
+<% if ENV['RAILS_PULSE_TEST_CENTRAL'] == 'true' %>
+# A central receiving from two applications, each in its own SQLite database,
+# whatever DB the main suite runs on. Used by rake test_central; the dummy
+# initializer lists the same applications. test/central/central_test_helper.rb
+# loads the schema into both, so they are left out of the database tasks.
+test:
+  primary:
+    <<: *default
+    database: <%= test_database %>
+  pulse_alpha:
+    adapter: sqlite3
+    database: storage/test_central_alpha.sqlite3
+    pool: 5
+    timeout: 5000
+    database_tasks: false
+  pulse_beta:
+    adapter: sqlite3
+    database: storage/test_central_beta.sqlite3
+    pool: 5
+    timeout: 5000
+    database_tasks: false
+<% elsif ENV['RAILS_PULSE_SEPARATE_DATABASE'] == 'true' %>
 # Two real databases, as a host with config.connects_to has. Used by
 # bin/test_separate_database_upgrade; the dummy initializer sets connects_to
 # from the same variable.

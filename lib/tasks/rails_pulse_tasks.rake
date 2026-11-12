@@ -25,7 +25,16 @@ namespace :rails_pulse do
 
   desc "Reports schema, migration, route backfill and initializer state for this install; exits 1 when something needs action."
   task status: :environment do
-    exit 1 unless RailsPulse::Tasks::StatusReporter.report
+    # A central reports on each application's database in turn.
+    ok = if RailsPulse::Central.enabled?
+      RailsPulse::Central.application_names.map do |name|
+        puts "== #{name}"
+        RailsPulse::Central.with_application(name) { RailsPulse::Tasks::StatusReporter.report }
+      end.all?
+    else
+      RailsPulse::Tasks::StatusReporter.report
+    end
+    exit 1 unless ok
   end
 
   namespace :cloud do

@@ -1,5 +1,13 @@
 Rails.application.routes.draw do
-  mount RailsPulse::Engine => "/rails_pulse"
+  if RailsPulse::Central.enabled?
+    # A central, as the README sets one up (rake test_central).
+    post "/rails_pulse/v1/batches", to: "rails_pulse/central/batches#create"
+    get "/rails_pulse", to: "rails_pulse/central/applications#index", as: :rails_pulse_applications
+    mount RailsPulse::Engine, at: "/:rails_pulse_application", as: :rails_pulse,
+          constraints: RailsPulse::Central.route_constraints
+  else
+    mount RailsPulse::Engine => "/rails_pulse"
+  end
 
   root "home#index"
 
