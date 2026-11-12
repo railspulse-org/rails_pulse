@@ -1,4 +1,4 @@
-require_relative "central_test_helper"
+require_relative "test_helper"
 
 module RailsPulse
   # Rails Pulse's jobs run once per application on a central, each in its
@@ -27,7 +27,7 @@ module RailsPulse
 
       in_application(:alpha) do
         assert_equal 3, RailsPulse::Request.count
-        assert RailsPulse::CleanupRun.events.exists?, "each database records its own cleanup run"
+        assert_predicate RailsPulse::CleanupRun.events, :exists?, "each database records its own cleanup run"
       end
       in_application(:beta) { assert_equal 1, RailsPulse::Request.count }
     end
@@ -36,7 +36,7 @@ module RailsPulse
       in_application(:beta) { RailsPulse::SummaryJob.perform_now(@hour) }
 
       in_application(:alpha) { assert_not RailsPulse::Summary.exists? }
-      in_application(:beta) { assert RailsPulse::Summary.exists? }
+      in_application(:beta) { assert_predicate RailsPulse::Summary, :exists? }
     end
 
     # Edge Cases
@@ -52,7 +52,7 @@ module RailsPulse
       error = assert_raises(RuntimeError) { RailsPulse::SummaryJob.perform_now(@hour) }
 
       assert_equal "alpha is broken", error.message
-      in_application(:beta) { assert RailsPulse::Summary.exists? }
+      in_application(:beta) { assert_predicate RailsPulse::Summary, :exists? }
     ensure
       RailsPulse::SummaryService.define_method(:perform, original)
     end

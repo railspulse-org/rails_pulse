@@ -1,4 +1,4 @@
-require_relative "central_test_helper"
+require_relative "test_helper"
 
 module RailsPulse
   # Job runs, exceptions, writer heartbeats and deployments arriving from

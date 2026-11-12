@@ -175,7 +175,7 @@ module RailsPulse
         RailsPulse::ApplicationRecord.expects(:connection).never
 
         assert_empty RailsPulse::SchemaCheck.missing
-        assert RailsPulse::SchemaCheck.tracking_allowed?
+        assert_predicate RailsPulse::SchemaCheck, :tracking_allowed?
       end
     end
 

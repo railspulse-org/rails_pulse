@@ -62,7 +62,7 @@ class RailsPulse::Middleware::RemoteModeEndToEndTest < ActionDispatch::Integrati
 
     assert_includes types, "request"
     assert_equal "ActiveRecord::RecordNotFound", exception["exception_class"]
-    assert exception["location"].start_with?("app/controllers/exceptions_test_controller.rb"), exception["location"]
+    assert_match %r{\Aapp/controllers/exceptions_test_controller\.rb}, exception["location"]
     assert_equal "/exceptions_test/raise", exception["request_url"]
     assert_equal "POST", exception["request_method"]
     assert_equal "record_not_found", exception.dig("request_params", "type")
@@ -85,7 +85,8 @@ class RailsPulse::Middleware::RemoteModeEndToEndTest < ActionDispatch::Integrati
 
     request = remote_items(posts).find { |item| item["type"] == "request" }
 
-    assert_equal false, request["detail"]
+    refute request["detail"]
+    assert request.key?("detail")
     assert_nil request["request_uuid"]
     assert(request["operations"].all? { |op| op.keys.sort == %w[actual_sql duration label operation_type] })
   ensure

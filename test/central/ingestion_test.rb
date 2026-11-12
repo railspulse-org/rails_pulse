@@ -1,4 +1,4 @@
-require_relative "central_test_helper"
+require_relative "test_helper"
 
 module RailsPulse
   class CentralIngestionTest < CentralIntegrationTest
@@ -95,6 +95,7 @@ module RailsPulse
       assert_response 202
       assert response.parsed_body["duplicate"]
       RailsPulse::Tracker.flush_rollups!
+
       in_application(:alpha) { assert_equal 1, RailsPulse::Rollup.find_by!(rollupable_type: "RailsPulse::Route").count }
     end
 

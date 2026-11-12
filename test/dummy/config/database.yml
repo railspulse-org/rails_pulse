@@ -81,7 +81,7 @@ development:
 <% if ENV['RAILS_PULSE_TEST_CENTRAL'] == 'true' %>
 # A central receiving from two applications, each in its own SQLite database,
 # whatever DB the main suite runs on. Used by rake test_central; the dummy
-# initializer lists the same applications. test/central/central_test_helper.rb
+# initializer lists the same applications. test/central/test_helper.rb
 # loads the schema into both, so they are left out of the database tasks.
 test:
   primary:

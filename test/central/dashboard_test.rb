@@ -1,4 +1,4 @@
-require_relative "central_test_helper"
+require_relative "test_helper"
 
 module RailsPulse
   # One dashboard per application, chosen by the first path segment, and an
