@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Remote and central modes (this fork): with `config.remote.url` and `config.remote.token` (or `RAILS_PULSE_REMOTE_URL` and `RAILS_PULSE_REMOTE_TOKEN`) an application keeps no Rails Pulse tables and sends what it collects to a central in batches from the background writer; with `config.central.applications` a Rails app receives those batches and keeps each application in its own database, with its own dashboard at `/<name>/`. See "Remote and central modes" in the README.
 - The dashboard now says when cleanup itself has stopped, based on the last recorded cleanup run: a warning when `RailsPulse::CleanupJob` has never run with requests past retention or when its last run is over two days old, and a critical item when the last run failed. The Storage page's Cleanup panel also shows when cleanup last ran and what it deleted. (#358)
 - `rails rails_pulse:status` now closes with threshold suggestions, each with an initializer line to paste, when the last summarized day shows route, query or job thresholds that are too noisy or never fire. They are advice only and never change the exit status (#385).
 - Threshold recommendations (the status task, the insights API, `rails-pulse insights` and the MCP tool) now cover `job_thresholds` as well as routes and queries.

@@ -98,6 +98,20 @@ _Avoid_: ping, stats row, health check (that is `Tracker.healthy?`)
 The once-per-process test that every table and each sentinel column the running gem expects is present. When the database is behind, tracking pauses and the dashboard answers 503 until the upgrade commands are run.
 _Avoid_: migration check, version check
 
+### Remote and central
+
+**Remote mode**:
+An application that keeps no Rails Pulse tables and sends what it collects to a central in batches from the writer thread, authenticated by its token. On with `config.remote.url` and `config.remote.token`.
+_Avoid_: agent, client mode, forwarder
+
+**Central**:
+A Rails app that receives remote applications' batches and keeps each application in a database of its own, a shard of `RailsPulse::ApplicationRecord` named after it, serving one dashboard per application under `/<name>/`. Configured by `config.central.applications`.
+_Avoid_: server, hub, collector (that is the middleware)
+
+**Batch**:
+One POST from a remote application: an envelope with the contract `version` and a `batch_id`, and its items (`request`, `job_run`, `exception`, `writer_heartbeat`, `deployment`). A `batch_id` the central has recorded is not recorded again.
+_Avoid_: payload, message, upload
+
 ### Exception tracking
 
 **ExceptionGroup**:

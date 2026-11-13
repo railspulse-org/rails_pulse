@@ -33,7 +33,18 @@ module RailsPulse
       assert_includes hrefs, "/alpha/"
       assert_includes hrefs, "/alpha/routes"
       assert hrefs.none? { |href| href.start_with?("/beta") }, "no link may lead to another application: #{hrefs.inspect}"
+      assert hrefs.none? { |href| href.include?("rails_pulse_application") }, "the application is the prefix, not a parameter: #{hrefs.inspect}"
       assert_select "[data-rails-pulse--time-range-url-value='/alpha/settings/time_range']"
+    end
+
+    test "the authentication hooks see the application being served" do
+      seen = nil
+      with_configuration(authentication_enabled: true, authorize: ->(_controller) { seen = RailsPulse::Central.current_application }) do
+        get "/beta/"
+      end
+
+      assert_response :success
+      assert_equal :beta, seen
     end
 
     test "the header names the application" do

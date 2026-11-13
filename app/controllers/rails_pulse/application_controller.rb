@@ -137,11 +137,16 @@ module RailsPulse
 
     # A central serves one dashboard per application, the first path segment
     # (RailsPulse::Central::PATH_PARAMETER), from that application's database.
-    # Links generated while it renders stay under the same prefix.
+    # Links generated while it renders stay under the same prefix. From here
+    # on the application is that prefix and RailsPulse::Central.current_application,
+    # not a parameter, or every link built from params (sort links, filters)
+    # would repeat it in its query string.
     def serve_central_application(&block)
-      name = params[RailsPulse::Central::PATH_PARAMETER]
+      path_parameters = request.path_parameters
+      name = path_parameters[RailsPulse::Central::PATH_PARAMETER]
       return render(plain: "Not Found", status: :not_found) unless RailsPulse::Central.application?(name)
 
+      request.path_parameters = path_parameters.except(RailsPulse::Central::PATH_PARAMETER)
       RailsPulse::Central.with_application(name, script_name: request.script_name, &block)
     end
 
