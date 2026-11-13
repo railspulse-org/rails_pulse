@@ -12,29 +12,23 @@ namespace :rails_pulse do
   desc "Runs all install tasks for Rails Pulse (migrations and config)."
   task install: [ :install_migrations, :install_config ]
 
+  # On a central these run once per application (each_rails_pulse_database).
+
   desc "Performs data cleanup based on configured retention policies."
   task cleanup: :environment do
-    success = RailsPulse::Tasks::CleanupTaskRunner.run
-    exit 1 unless success
+    successes = each_rails_pulse_database { RailsPulse::Tasks::CleanupTaskRunner.run }
+    exit 1 unless successes.all?
   end
 
   desc "Shows current table sizes and cleanup configuration."
   task cleanup_stats: :environment do
-    RailsPulse::Stats::CleanupStatsReporter.report
+    each_rails_pulse_database { RailsPulse::Stats::CleanupStatsReporter.report }
   end
 
   desc "Reports schema, migration, route backfill and initializer state for this install; exits 1 when something needs action."
   task status: :environment do
-    # A central reports on each application's database in turn.
-    ok = if RailsPulse::Central.enabled?
-      RailsPulse::Central.application_names.map do |name|
-        puts "== #{name}"
-        RailsPulse::Central.with_application(name) { RailsPulse::Tasks::StatusReporter.report }
-      end.all?
-    else
-      RailsPulse::Tasks::StatusReporter.report
-    end
-    exit 1 unless ok
+    reports = each_rails_pulse_database { RailsPulse::Tasks::StatusReporter.report }
+    exit 1 unless reports.all?
   end
 
   namespace :cloud do

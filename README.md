@@ -247,7 +247,21 @@ bin/rails db:prepare                                         # creates each data
 bin/rails rails_pulse:status                                 # reports on each application in turn
 ```
 
-On a central, `db:prepare` and `db:migrate` first load `db/rails_pulse_schema.rb` into any application database that does not have the tables yet, and record the migrations in `db/rails_pulse_migrate` as applied there; then Rails migrates every database as usual. So adding an application is a `central.applications` entry, a `database.yml` entry and its token, then `bin/rails db:prepare`, which a deploy that runs it on boot does by itself. To upgrade the gem: `bin/rails generate rails_pulse:upgrade` (it recognises a central and copies new migrations to `db/rails_pulse_migrate`), then `bin/rails db:migrate`, which runs them against every application's database.
+On a central, `db:prepare` and `db:migrate` first load `db/rails_pulse_schema.rb` into any application database that does not have the tables yet, and record there what Rails' own schema load would: the migrations in `db/rails_pulse_migrate` as applied, and the environment the database belongs to, which `db:drop`, `db:reset`, `db:seed:replant` and `db:test:prepare` check before they run. Then Rails migrates every database as usual. `db:prepare`, `db:setup` and `db:reset` in development do the same for the test databases, as Rails does for every database it prepares there, unless `SKIP_TEST_DATABASE` or `DATABASE_URL` is set; `db:migrate` acts on its own environment only. So adding an application is a `central.applications` entry, a `database.yml` entry and its token, then `bin/rails db:prepare`, which a deploy that runs it on boot does by itself. To upgrade the gem: `bin/rails generate rails_pulse:upgrade` (it recognises a central and copies new migrations to `db/rails_pulse_migrate`), then `bin/rails db:migrate`, which runs them against every application's database.
+
+`rails_pulse:status`, `rails_pulse:backfill_summaries`, `rails_pulse:cleanup` and `rails_pulse:cleanup_stats` run once per application, each in its database; `RAILS_PULSE_APPLICATION=vquick` runs one for that application only, which is the command the dashboard suggests.
+
+With parallel tests, Rails gives each worker empty copies of the test databases and loads only those with a schema file, so load Rails Pulse's into the applications' copies when a worker starts:
+
+```ruby
+# test/test_helper.rb
+class ActiveSupport::TestCase
+  parallelize(workers: :number_of_processors)
+  parallelize_setup { RailsPulse::Central.load_schema(quiet: true) }
+end
+```
+
+A single test process needs nothing: `db:test:prepare`, which `bin/rails test` runs whenever the schema is behind, loads them.
 
 Schedule the jobs as for a single install. Each runs once per application, in that application's database; one application's failure does not stop the others and is raised once they have run:
 
@@ -341,7 +355,7 @@ An item that does not match is rejected on its own (`"items[3] (job_run): run_id
 
 - Moving data between modes: switching an install to remote mode leaves its existing tables untouched and unread, and nothing imports them into the central.
 - Rails Pulse Cloud with either mode, and `config.connects_to` on a central.
-- Rake tasks other than `rails_pulse:status`, `db:prepare`, `db:migrate` and `db:schema:load_rails_pulse` on a central (`backfill_summaries`, `cleanup`, `cleanup_stats`, `migrate_routes`): run their code inside `RailsPulse::Central.with_application`.
+- `rails_pulse:migrate_routes` and `rails_pulse:cloud:preview` on a central; other code that reads Rails Pulse tables there runs inside `RailsPulse::Central.with_application`.
 - What needs the monitored application's code or database: the central has the application's Rails Pulse tables but not its router or its own tables, so routes are not backfilled (`migrate_routes`) and EXPLAIN plans cannot run (as with a separate Pulse database); SQL is normalised with the central's adapter rules, so applications on MySQL want a central on MySQL.
 - Per-application settings on the central: thresholds, tags, SLOs, `capture_actual_sql` and retention come from the central's initializer, and summaries are cut in the central's time zone.
 - Durable buffering: held batches live in the sending process's memory. A central outage longer than the buffer, or a restart while batches are held, loses that data, counted where it can be.

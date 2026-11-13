@@ -306,6 +306,11 @@ draws, and version 1 of the batch format. What a host may depend on:
   application's database; every Rails Pulse query on a central needs one.
 - `RailsPulse::Central.current_application` — the application whose database is connected, as
   a symbol, or `nil` (always `nil` outside central mode).
+- `RailsPulse::Central.load_schema(quiet: false)` — loads the schema into every application
+  database of this environment that lacks the tables, recording its migrations and environment;
+  for a host's `parallelize_setup`.
+- `RAILS_PULSE_APPLICATION` — narrows `rails_pulse:status`, `backfill_summaries`, `cleanup` and
+  `cleanup_stats` on a central to one application.
 - The batch contract: `POST <remote.url>/rails_pulse/v1/batches`, its envelope `version` (1),
   item types and fields, and the answers. A field or item type may be added in a minor release;
   a central rejects an item it does not know on its own and records the rest, so a newer sender

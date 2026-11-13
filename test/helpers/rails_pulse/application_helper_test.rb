@@ -5,6 +5,21 @@ class RailsPulse::ApplicationHelperTest < ActionView::TestCase
   include RailsPulse::ApplicationHelper
 
   # ============================================================================
+  # rails_pulse_task_command Tests
+  # ============================================================================
+
+  test "rails_pulse_task_command is the plain rake command outside a central" do
+    assert_equal "bin/rails rails_pulse:backfill_summaries", rails_pulse_task_command("rails_pulse:backfill_summaries")
+  end
+
+  test "rails_pulse_task_command names the application being shown on a central" do
+    RailsPulse::Central.stubs(:current_application).returns(:shop)
+
+    assert_equal "RAILS_PULSE_APPLICATION=shop bin/rails rails_pulse:backfill_summaries",
+                 rails_pulse_task_command("rails_pulse:backfill_summaries")
+  end
+
+  # ============================================================================
   # humanize_time_range Tests
   # ============================================================================
 

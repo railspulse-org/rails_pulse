@@ -64,7 +64,7 @@
             the scheduled job to run:
           </p>
           <code class="setup-banner__command"><span class="setup-banner__command-prefix">$</span>
-            bin/rails rails_pulse:backfill_summaries</code>
+            <%= rails_pulse_task_command("rails_pulse:backfill_summaries") %></code>
         <% end %>
       </div>
     </li>

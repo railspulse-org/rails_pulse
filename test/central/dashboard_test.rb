@@ -47,6 +47,15 @@ module RailsPulse
       assert_equal :beta, seen
     end
 
+    test "before the first summary the setup screen suggests a backfill of this application" do
+      in_application(:alpha) { RailsPulse::Summary.delete_all }
+
+      get "/alpha/"
+
+      assert_response :success
+      assert_includes response.body, "RAILS_PULSE_APPLICATION=alpha bin/rails rails_pulse:backfill_summaries"
+    end
+
     test "the header names the application" do
       get "/alpha/"
 
