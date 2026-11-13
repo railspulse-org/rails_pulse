@@ -117,7 +117,9 @@ module RailsPulse
       end
 
       # Called once the host's initializers have run, so it sees the final
-      # configuration.
+      # configuration. With no writer thread here, nothing else flushes the
+      # rollups of folded requests at exit, as the writer's shutdown does
+      # where requests are tracked.
       def install!
         return unless enabled?
 
@@ -125,6 +127,7 @@ module RailsPulse
         return if routes.singleton_class.ancestors.include?(RequestScriptName)
 
         routes.singleton_class.prepend(RequestScriptName)
+        at_exit { RailsPulse::Tracker.flush_rollups! }
       end
     end
   end

@@ -6,8 +6,9 @@ module RailsPulse
       end
 
       def call(env)
-        # Skip if Rails Pulse is disabled
-        return @app.call(env) unless RailsPulse.configuration.enabled
+        # Skip if Rails Pulse is disabled, or on a central, which records what
+        # its applications send and tracks nothing of its own
+        return @app.call(env) if !RailsPulse.configuration.enabled || RailsPulse::Central.enabled?
 
         # Skip logging if we are already recording RailsPulse activity. This is to avoid recursion issues
         return @app.call(env) if RailsPulse::Current.skip_recording_rails_pulse_activity
