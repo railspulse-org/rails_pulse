@@ -7,9 +7,10 @@ namespace :db do
       schema_file = Rails.root.join("db/rails_pulse_schema.rb")
 
       # A central has one database per application and loads the schema into
-      # each one that does not have the tables yet.
+      # each one that does not have the tables yet, in every environment this
+      # task's callers (db:prepare, db:setup, db:test:prepare) act on.
       if RailsPulse::Central.enabled?
-        load_rails_pulse_schema_into_applications(schema_file)
+        RailsPulse::Central.load_schema(environments: RailsPulse::Central.task_environments(Rails.env), schema_file: schema_file)
         next
       end
 
@@ -47,18 +48,31 @@ namespace :db do
   end
 
   namespace :rails_pulse do
-    # On a central, ahead of db:prepare and db:migrate: a database added for a
-    # new application gets the schema before Rails runs db/rails_pulse_migrate
-    # against it, whose guarded migrations expect the tables to exist.
-    task load_central_schema: :environment do
+    # On a central, ahead of db:prepare: every application database it is
+    # about to migrate, in development and test alike, gets the schema
+    # before Rails runs db/rails_pulse_migrate against it, whose guarded
+    # migrations expect the tables to exist.
+    task prepare_central_schema: :environment do
       Rake::Task["db:schema:load_rails_pulse"].invoke if RailsPulse::Central.enabled?
+    end
+
+    # The same ahead of db:migrate, which migrates this environment only.
+    task load_central_schema: :environment do
+      RailsPulse::Central.load_schema if RailsPulse::Central.enabled?
     end
   end
 end
 
-%w[db:prepare db:migrate].each do |name|
-  Rake::Task[name].enhance([ "db:rails_pulse:load_central_schema" ]) if Rake::Task.task_defined?(name)
+{ "db:prepare" => "db:rails_pulse:prepare_central_schema", "db:migrate" => "db:rails_pulse:load_central_schema" }.each do |name, prerequisite|
+  Rake::Task[name].enhance([ prerequisite ]) if Rake::Task.task_defined?(name)
 end
+
+# db:setup and db:reset load each database's schema file, then seed, which
+# refuses to run while any migration is pending. A central's application
+# databases have no schema file, so they get Rails Pulse's right after.
+Rake::Task["db:schema:load"].enhance do
+  RailsPulse::Central.load_schema(environments: RailsPulse::Central.task_environments(Rails.env)) if RailsPulse::Central.enabled?
+end if Rake::Task.task_defined?("db:schema:load")
 
 # Hook into test database preparation so the separate Rails Pulse DB is populated
 # for test runs, not just for development/production db:prepare.
@@ -86,31 +100,6 @@ Rake::Task["db:test:prepare"].enhance do
     end
   end
 end if Rake::Task.task_defined?("db:test:prepare")
-
-# Every central application's database that lacks the Rails Pulse tables
-# gets the schema (SQLite creates the file on connect), and the migrations in
-# db/rails_pulse_migrate are recorded as applied there, since the schema
-# already has what they add. A database that has the tables is left to
-# db:migrate, so its genuinely pending migrations still run.
-def load_rails_pulse_schema_into_applications(schema_file)
-  unless schema_file.exist?
-    puts "Rails Pulse schema file not found. Run: rails generate rails_pulse:install --database=separate"
-    return
-  end
-
-  RailsPulse::Central.application_names.each do |name|
-    RailsPulse::Central.with_application(name) do
-      if RailsPulse::ApplicationRecord.connection.table_exists?(:rails_pulse_routes)
-        puts "Rails Pulse tables already exist for #{name}"
-        next
-      end
-
-      load schema_file
-      record_rails_pulse_migrations_applied
-      puts "Rails Pulse schema loaded for #{name}"
-    end
-  end
-end
 
 # Helper function to detect database setup type
 def separate_database_setup?
@@ -183,32 +172,7 @@ end
 namespace :rails_pulse do
   desc "Backfill summary data from existing requests and operations"
   task backfill_summaries: :environment do
-    puts "Starting Rails Pulse summary backfill..."
-
-    # Find earliest data
-    earliest_request = RailsPulse::Request.minimum(:occurred_at)
-    earliest_operation = RailsPulse::Operation.minimum(:occurred_at)
-
-    historical_start_time = if earliest_request && earliest_operation
-      [ earliest_request, earliest_operation ].min.beginning_of_day
-    elsif earliest_request
-      earliest_request.beginning_of_day
-    elsif earliest_operation
-      earliest_operation.beginning_of_day
-    else
-      puts "No Rails Pulse data found - skipping summary generation"
-      next
-    end
-
-    historical_end_time = Time.current
-
-    # Generate hourly and daily summaries from beginning of data
-    puts "\nCreating hourly and daily summaries from #{historical_start_time.strftime('%B %d, %Y')} to #{historical_end_time.strftime('%B %d, %Y')}"
-    RailsPulse::BackfillSummariesJob.perform_now(historical_start_time, historical_end_time, [ "hour", "day" ])
-
-    puts "\nSummary backfill completed!"
-    puts "Total summaries: #{RailsPulse::Summary.count}"
-    puts "\nTo keep summaries up to date, schedule RailsPulse::SummaryJob to run hourly"
+    each_rails_pulse_database { backfill_rails_pulse_summaries }
   end
 
   desc "Record a deployment event. Usage: rake rails_pulse:record_deployment[revision]"
@@ -249,6 +213,55 @@ namespace :rails_pulse do
   rescue ActiveRecord::RecordInvalid => e
     abort "ERROR: #{e.message}"
   end
+end
+
+# The database tasks run once here, or on a central once per application, in
+# its database: every application, or only the one RAILS_PULSE_APPLICATION
+# names. Returns what each run returned.
+def each_rails_pulse_database
+  return [ yield ] unless RailsPulse::Central.enabled?
+
+  names = RailsPulse::Central.application_names
+  if (only = ENV["RAILS_PULSE_APPLICATION"].presence)
+    unless RailsPulse::Central.application?(only)
+      abort "ERROR: RAILS_PULSE_APPLICATION=#{only} is not in config.central.applications (#{names.join(', ')})"
+    end
+    names = [ only.to_sym ]
+  end
+
+  names.map do |name|
+    puts "== #{name}"
+    RailsPulse::Central.with_application(name) { yield }
+  end
+end
+
+def backfill_rails_pulse_summaries
+  puts "Starting Rails Pulse summary backfill..."
+
+  # Find earliest data
+  earliest_request = RailsPulse::Request.minimum(:occurred_at)
+  earliest_operation = RailsPulse::Operation.minimum(:occurred_at)
+
+  historical_start_time = if earliest_request && earliest_operation
+    [ earliest_request, earliest_operation ].min.beginning_of_day
+  elsif earliest_request
+    earliest_request.beginning_of_day
+  elsif earliest_operation
+    earliest_operation.beginning_of_day
+  else
+    puts "No Rails Pulse data found - skipping summary generation"
+    return
+  end
+
+  historical_end_time = Time.current
+
+  # Generate hourly and daily summaries from beginning of data
+  puts "\nCreating hourly and daily summaries from #{historical_start_time.strftime('%B %d, %Y')} to #{historical_end_time.strftime('%B %d, %Y')}"
+  RailsPulse::BackfillSummariesJob.perform_now(historical_start_time, historical_end_time, [ "hour", "day" ])
+
+  puts "\nSummary backfill completed!"
+  puts "Total summaries: #{RailsPulse::Summary.count}"
+  puts "\nTo keep summaries up to date, schedule RailsPulse::SummaryJob to run hourly"
 end
 
 # In remote mode the deployment goes to the central. A rake task has no
