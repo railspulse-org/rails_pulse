@@ -25,7 +25,8 @@ what each key does and its default; this page does not duplicate it.
 - `RailsPulse.logger` — the logger Rails Pulse writes to: `config.logger` if set, otherwise
   `Rails.logger` tagged `"RailsPulse"`, falling back to `Logger.new($stdout)` before Rails has
   booted a logger.
-- `RailsPulse.connects_to` — `config.connects_to`, or `nil` when unset or unconfigured.
+- `RailsPulse.connects_to` — `config.connects_to`, or `nil` when unset or unconfigured; on a
+  central, one shard per application in `config.central.applications`.
 
 ## Navigation
 
@@ -290,6 +291,25 @@ version expects, pausing tracking (and returning a 503 from the dashboard) when 
   doesn't exist at all); empty when current or when the check is disabled.
 
 `config.schema_check_enabled = false` turns the guard off entirely.
+
+## Remote and central modes
+
+The README's "Remote and central modes" is the contract: the settings, the routes a central
+draws, and version 1 of the batch format. What a host may depend on:
+
+- `config.remote.url`, `config.remote.token` (`RAILS_PULSE_REMOTE_URL`,
+  `RAILS_PULSE_REMOTE_TOKEN`) and `config.central.applications`.
+- The routes a central draws: `post "/rails_pulse/v1/batches", to: "rails_pulse/central/batches#create"`,
+  `rails_pulse/central/applications#index`, and the engine mounted at
+  `"/:rails_pulse_application"` with `RailsPulse::Central.route_constraints`.
+- `RailsPulse::Central.with_application(name) { ... }` — runs the block against one
+  application's database; every Rails Pulse query on a central needs one.
+- `RailsPulse::Central.current_application` — the application whose database is connected, as
+  a symbol, or `nil` (always `nil` outside central mode).
+- The batch contract: `POST <remote.url>/rails_pulse/v1/batches`, its envelope `version` (1),
+  item types and fields, and the answers. A field or item type may be added in a minor release;
+  a central rejects an item it does not know on its own and records the rest, so a newer sender
+  degrades rather than fails. Removing or changing one is a new `version`.
 
 ## What is not covered
 

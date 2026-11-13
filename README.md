@@ -159,7 +159,7 @@ RailsPulse.configure do |config|
 end
 ```
 
-Keep the engine mounted if it is; in remote mode its pages and JSON API answer `404` (the API still checks its token first). Do not schedule `SummaryJob` or `CleanupJob` here: in remote mode they do nothing. `rails rails_pulse:status` reports where the data goes. The deploy markers still come from the same tasks, which now send to the central and fail when it does not record them:
+Keep the engine mounted if it is; in remote mode its pages and JSON API answer `404` (the API still checks its token first). Do not schedule `SummaryJob` or `CleanupJob` here: in remote mode they do nothing, and the rake tasks that work on tables (`cleanup`, `backfill_summaries`, `migrate_routes`) have none to work on. `rails rails_pulse:status` reports where the data goes. The deploy markers still come from the same tasks, which now send to the central and fail when it does not record them:
 
 ```bash
 bin/rails rails_pulse:record_deployment[$GIT_SHA]
