@@ -44,7 +44,8 @@ module RailsPulse
       def deliver(items)
         @mutex.synchronize do
           ensure_current_process
-          hold(Batch.new(items)) unless items.empty?
+          batch = build(items) unless items.empty?
+          hold(batch) if batch
           send_due
         end
       rescue StandardError => e
@@ -100,6 +101,14 @@ module RailsPulse
       # still owns and sends; start clean.
       def ensure_current_process
         reset_state unless @pid == Process.pid
+      end
+
+      # nil, counted as dropped, for items that cannot be encoded.
+      def build(items)
+        Batch.new(items)
+      rescue StandardError => e
+        drop(items.size, "a batch could not be encoded (#{e.class}: #{e.message})")
+        nil
       end
 
       def hold(batch)

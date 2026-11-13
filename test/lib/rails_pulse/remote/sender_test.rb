@@ -232,6 +232,19 @@ module RailsPulse
         assert_includes @log.string, "remote delivery failed: ArgumentError"
       end
 
+      test "items that cannot be encoded are dropped and counted, and held batches still go" do
+        client = ScriptedClient.new(Client::Unavailable, accepted)
+        sender = build_sender(client)
+        sender.deliver([ item("/held") ])
+        @now += Sender::BACKOFF_START
+        unencodable = Item.new("request", { path: Object.new.tap { |o| o.define_singleton_method(:as_json) { |*| raise "no" } } })
+
+        sender.deliver([ unencodable ])
+
+        assert_equal 1, sender.dropped_total
+        assert_equal [ [ "/held" ], [ "/held" ] ], client.items_posted.map { |items| items.map { |i| i["path"] } }
+      end
+
       test "an empty delivery with nothing held sends nothing" do
         client = ScriptedClient.new(accepted)
 

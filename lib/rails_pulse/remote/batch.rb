@@ -39,7 +39,9 @@ module RailsPulse
       end
 
       # Plain JSON values: string keys, times as UTC ISO 8601, and anything
-      # else through as_json.
+      # else through as_json. A string that is not valid UTF-8 (SQL with a
+      # binary literal) has its bad bytes replaced, or the whole batch would
+      # fail to encode.
       def self.encode(value)
         case value
         when Hash then value.each_with_object({}) { |(key, inner), out| out[key.to_s] = encode(inner) }
@@ -49,7 +51,9 @@ module RailsPulse
         when Symbol then value.to_s
         when Float then value.finite? ? value : nil
         when BigDecimal then value.to_f
-        when String, Integer, true, false, nil then value
+        when String
+          value.encoding == Encoding::UTF_8 && value.valid_encoding? ? value : value.dup.force_encoding(Encoding::UTF_8).scrub
+        when Integer, true, false, nil then value
         else
           json = value.as_json
           json.equal?(value) ? value.to_s : encode(json)

@@ -48,6 +48,16 @@ module RailsPulse
 
       # Edge Cases
 
+      test "a string that is not valid UTF-8 is sent with its bad bytes replaced" do
+        binary = "SELECT x'\xFF\xFE'".b
+
+        encoded = Batch.encode(actual_sql: binary)
+
+        assert_predicate encoded["actual_sql"], :valid_encoding?
+        assert_equal Encoding::UTF_8, encoded["actual_sql"].encoding
+        assert_nothing_raised { Batch.new([ Item.new("request", { operations: [ { actual_sql: binary } ] }) ]) }
+      end
+
       test "a duration that is not a finite number is sent as null" do
         assert_equal({ "duration" => nil }, Batch.encode(duration: Float::NAN))
       end
