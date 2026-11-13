@@ -104,7 +104,7 @@ module RailsPulse
     # Heartbeat Tests
 
     test "a writer heartbeat is recorded for the remote process it describes" do
-      post_batch([ item("writer_heartbeat", { hostname: "web-1", pid: 42, host_label: "vquick-web", queue_size: 1000,
+      post_batch([ item("writer_heartbeat", { hostname: "web-1", pid: 42, host_label: "shop-web", queue_size: 1000,
                                               queue_depth: 3, dropped: 7, dropped_total: 9, sampled_at: Time.current }) ])
 
       in_application(:alpha) do
@@ -112,7 +112,7 @@ module RailsPulse
 
         assert_equal "web-1:42", event.subject
         assert_in_delta 7, event.value
-        assert_equal "vquick-web", event.metadata_hash["host_label"]
+        assert_equal "shop-web", event.metadata_hash["host_label"]
         assert_equal 1, RailsPulse::WriterHeartbeat.summary[:processes]
       end
     end

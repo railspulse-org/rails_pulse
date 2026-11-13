@@ -126,7 +126,7 @@ Add `gem "mcp"` to your Gemfile (a development group is enough), register `rails
 
 ## Remote and central modes
 
-This fork adds two modes for running one Rails Pulse for several applications. They exist for apps that cannot share a database: each app on SQLite in its own container, say, with a volume no other container can read.
+Two optional modes run one Rails Pulse for several applications. They exist for apps that cannot share a database: each app on SQLite in its own container, say, with a volume no other container can read. Both are off unless configured, and the central is an app you run yourself, so the data stays on your own infrastructure.
 
 - **Remote mode**, on each monitored application: Rails Pulse collects exactly as it always does, but writes nothing to the application's database. What it collects (requests and their operations, job runs, exceptions, the writer's heartbeat, deploy markers) is sent in gzipped JSON batches over HTTPS to a central Rails Pulse. The application needs no Rails Pulse tables and no migration.
 - **Central mode**, on one Rails app of its own: it receives the batches, authenticates each by its token, and writes every application into a database of its own (a shard of `RailsPulse::ApplicationRecord`), through the same models and persistence code a single install uses. It runs `SummaryJob` and `CleanupJob` for every application and serves one dashboard per application at `/<name>/`, plus an index of them at `/`.
@@ -135,15 +135,10 @@ Neither mode changes anything until it is configured. Remote mode excludes centr
 
 ### On each application (remote mode)
 
-```ruby
-# Gemfile
-gem "rails_pulse", github: "virtual360-io/rails_pulse", branch: "remote-mode"
-```
-
 Remote mode is on when both settings are present. Each defaults to its environment variable, read when first needed, so the deploy can turn it on without touching the initializer:
 
 ```bash
-RAILS_PULSE_REMOTE_URL=https://pulse.example.com    # the central's base URL; a path prefix is kept
+RAILS_PULSE_REMOTE_URL=https://central.example.com    # the central's base URL; a path prefix is kept
 RAILS_PULSE_REMOTE_TOKEN=<this application's token on the central>
 ```
 
@@ -182,9 +177,9 @@ The central is its own Rails app with the same gem. List each application with i
 # config/initializers/rails_pulse.rb (start from `bin/rails generate rails_pulse:install --database=separate`)
 RailsPulse.configure do |config|
   config.central.applications = {
-    vquick: { token: ENV["RAILS_PULSE_VQUICK_TOKEN"], database: :pulse_vquick },
-    aboard: { token: ENV["RAILS_PULSE_ABOARD_TOKEN"], database: :pulse_aboard },
-    lina:   { token: ENV["RAILS_PULSE_LINA_TOKEN"],   database: :pulse_lina }
+    shop:    { token: ENV["RAILS_PULSE_SHOP_TOKEN"],    database: :pulse_shop },
+    blog:    { token: ENV["RAILS_PULSE_BLOG_TOKEN"],    database: :pulse_blog },
+    billing: { token: ENV["RAILS_PULSE_BILLING_TOKEN"], database: :pulse_billing }
   }
 
   # Dashboard, storage and retention settings apply to every application:
@@ -205,19 +200,19 @@ production:
     <<: *default
     database: storage/production.sqlite3
   # ...the app's own cache, queue and cable databases...
-  pulse_vquick:
+  pulse_shop:
     <<: *default
-    database: storage/production_pulse_vquick.sqlite3
+    database: storage/production_pulse_shop.sqlite3
     migrations_paths: db/rails_pulse_migrate
     schema_dump: false
-  pulse_aboard:
+  pulse_blog:
     <<: *default
-    database: storage/production_pulse_aboard.sqlite3
+    database: storage/production_pulse_blog.sqlite3
     migrations_paths: db/rails_pulse_migrate
     schema_dump: false
-  pulse_lina:
+  pulse_billing:
     <<: *default
-    database: storage/production_pulse_lina.sqlite3
+    database: storage/production_pulse_billing.sqlite3
     migrations_paths: db/rails_pulse_migrate
     schema_dump: false
 ```
@@ -234,7 +229,7 @@ Rails.application.routes.draw do
 end
 ```
 
-`/vquick/` is then vquick's dashboard, read from vquick's database, and every link it generates stays under `/vquick`; the JSON API is at `/vquick/api/v1/...` (with `config.api_token`), and CI can also post deploy markers to `/vquick/deployments` (with `config.deployment_token`). The constraint lets only the configured names reach the engine, so the central's other routes, such as `/up`, stay its own. `authentication_method` and `authorize` guard every dashboard and the index (with neither set, HTTP Basic against `RAILS_PULSE_USERNAME` and `RAILS_PULSE_PASSWORD`, as in a single install); for per-application rules, `RailsPulse::Central.current_application` is the application being served (a symbol, `nil` on the index). The ingestion endpoint takes only application tokens. The index lists each application and when it was last heard from, and `return_to_app_url` (default `/`) links the dashboards back to it.
+`/shop/` is then shop's dashboard, read from shop's database, and every link it generates stays under `/shop`; the JSON API is at `/shop/api/v1/...` (with `config.api_token`), and CI can also post deploy markers to `/shop/deployments` (with `config.deployment_token`). The constraint lets only the configured names reach the engine, so the central's other routes, such as `/up`, stay its own. `authentication_method` and `authorize` guard every dashboard and the index (with neither set, HTTP Basic against `RAILS_PULSE_USERNAME` and `RAILS_PULSE_PASSWORD`, as in a single install); for per-application rules, `RailsPulse::Central.current_application` is the application being served (a symbol, `nil` on the index). The ingestion endpoint takes only application tokens. The index lists each application and when it was last heard from, and `return_to_app_url` (default `/`) links the dashboards back to it.
 
 Set it up in this order, so the generators see a central:
 
@@ -249,7 +244,7 @@ bin/rails rails_pulse:status                                 # reports on each a
 
 On a central, `db:prepare` and `db:migrate` first load `db/rails_pulse_schema.rb` into any application database that does not have the tables yet, and record there what Rails' own schema load would: the migrations in `db/rails_pulse_migrate` as applied, and the environment the database belongs to, which `db:drop`, `db:reset`, `db:seed:replant` and `db:test:prepare` check before they run. Then Rails migrates every database as usual. `db:prepare`, `db:setup` and `db:reset` in development do the same for the test databases, as Rails does for every database it prepares there, unless `SKIP_TEST_DATABASE` or `DATABASE_URL` is set; `db:migrate` acts on its own environment only. So adding an application is a `central.applications` entry, a `database.yml` entry and its token, then `bin/rails db:prepare`, which a deploy that runs it on boot does by itself. To upgrade the gem: `bin/rails generate rails_pulse:upgrade` (it recognises a central and copies new migrations to `db/rails_pulse_migrate`), then `bin/rails db:migrate`, which runs them against every application's database.
 
-`rails_pulse:status`, `rails_pulse:backfill_summaries`, `rails_pulse:cleanup` and `rails_pulse:cleanup_stats` run once per application, each in its database; `RAILS_PULSE_APPLICATION=vquick` runs one for that application only, which is the command the dashboard suggests.
+`rails_pulse:status`, `rails_pulse:backfill_summaries`, `rails_pulse:cleanup` and `rails_pulse:cleanup_stats` run once per application, each in its database; `RAILS_PULSE_APPLICATION=shop` runs one for that application only, which is the command the dashboard suggests.
 
 With parallel tests, Rails gives each worker empty copies of the test databases and loads only those with a schema file, so load Rails Pulse's into the applications' copies when a worker starts:
 
@@ -276,7 +271,7 @@ production:
     schedule: "0 1 * * *"
 ```
 
-The central tracks nothing of its own. Anything that reads Rails Pulse tables must run inside one application's database: `RailsPulse::Central.with_application(:vquick) { RailsPulse::Request.count }`. Outside one, `RailsPulse::ApplicationRecord` is connected to an empty in-memory database, so a query fails (`no such table`) rather than reading whichever application is listed first, while models still load there, as an eager-loading boot needs.
+The central tracks nothing of its own. Anything that reads Rails Pulse tables must run inside one application's database: `RailsPulse::Central.with_application(:shop) { RailsPulse::Request.count }`. Outside one, `RailsPulse::ApplicationRecord` is connected to an empty in-memory database, so a query fails (`no such table`) rather than reading whichever application is listed first, while models still load there, as an eager-loading boot needs.
 
 ### The contract (version 1)
 
