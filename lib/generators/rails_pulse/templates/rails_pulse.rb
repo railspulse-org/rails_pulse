@@ -418,6 +418,22 @@ RailsPulse.configure do |config|
   # config.cloud.host_label = ENV["RAILS_PULSE_HOST_LABEL"]
 
   # ====================================================================================================
+  #                                        REMOTE AND CENTRAL MODES
+  # ====================================================================================================
+  # Remote mode: this application keeps no Rails Pulse tables. What it collects is sent to a central
+  # Rails Pulse over HTTPS instead, in batches from the background writer, and its dashboard is served
+  # there. On when both are set; each defaults to its environment variable. No migration is needed,
+  # and SummaryJob, CleanupJob and the dashboard stand down here.
+  # config.remote.url = ENV["RAILS_PULSE_REMOTE_URL"]
+  # config.remote.token = ENV["RAILS_PULSE_REMOTE_TOKEN"]
+  #
+  # Central mode: this application receives from applications in remote mode and writes each one to a
+  # database of its own (an entry in config/database.yml), serving one dashboard per application at
+  # /<name>/. Each application is listed with the token it sends and that database.
+  # See "Remote and central modes" in the README for the routes and database.yml it needs.
+  # config.central.applications = { shop: { token: ENV["RAILS_PULSE_SHOP_TOKEN"], database: :pulse_shop } }
+
+  # ====================================================================================================
   #                                               DATA CLEANUP
   # ====================================================================================================
   # Configure automatic cleanup of old performance data to manage database size.

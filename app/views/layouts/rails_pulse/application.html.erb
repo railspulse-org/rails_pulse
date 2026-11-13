@@ -53,7 +53,7 @@
             <div class="sidebar-menu">
               <%= link_to rails_pulse.root_path, class: "btn sidebar-menu__button" do %>
                 <div class="flex flex-col text-start leading-tight overflow-hidden">
-                  <span class="overflow-ellipsis font-semibold">Rails Pulse</span>
+                  <span class="overflow-ellipsis font-semibold"><%= rails_pulse_name %></span>
                 </div>
               <% end %>
               <div class="sidebar-menu__content">
@@ -70,7 +70,7 @@
 
       <div class="flex items-center gap">
         <%= link_to rails_pulse.root_path, class: "flex items-center gap mie-2", title: "Rails Pulse v#{RailsPulse::VERSION}" do %>
-          <span class="font-bold">Rails Pulse</span>
+          <span class="font-bold"><%= rails_pulse_name %></span>
         <% end %>
         <%# Inline only where every link fits; narrower screens use the sheet
             above, or the header would push the whole page sideways. %>

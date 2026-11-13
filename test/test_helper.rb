@@ -14,6 +14,12 @@ ENV["RAILS_ENV"] = "test"
 # Load environment variables from .env file for database configuration
 require "dotenv/load" if File.exist?(".env")
 
+# Remote mode reads these when first asked; a shell or .env that sets them
+# must not turn it on for the whole suite. The remote tests turn it on
+# themselves.
+ENV.delete("RAILS_PULSE_REMOTE_URL")
+ENV.delete("RAILS_PULSE_REMOTE_TOKEN")
+
 require_relative "../test/dummy/config/environment"
 require "rails/test_help"
 

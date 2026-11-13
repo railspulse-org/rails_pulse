@@ -44,6 +44,7 @@ module RailsPulse
       def report
         output.puts "Rails Pulse #{RailsPulse::VERSION}"
         output.puts
+        return print_remote if RailsPulse::Remote.enabled?
 
         print_database
         print_schema
@@ -76,6 +77,15 @@ module RailsPulse
       end
 
       # -- sections -----------------------------------------------------------
+
+      # Remote mode keeps no Rails Pulse tables here: there is no schema,
+      # summary or cleanup to report on, only where the data goes. The central
+      # reports on this application's database.
+      def print_remote
+        output.puts "Mode:       remote, sending to #{config.remote.url}"
+        output.puts "Database:   none here; the central keeps this application's data and serves its dashboard"
+        true
+      end
 
       def print_database
         connection = RailsPulse::ApplicationRecord.connection

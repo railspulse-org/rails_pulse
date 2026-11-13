@@ -14,6 +14,12 @@ module RailsPulse
     # explicit skips.
     protect_from_forgery with: :exception
 
+    # Ahead of every other callback: in remote mode there are no tables to
+    # show or authenticate against, and on a central every callback that
+    # reads must read the application named in the path.
+    prepend_before_action :render_remote_mode_notice, if: -> { RailsPulse::Remote.enabled? }
+    prepend_around_action :serve_central_application, if: -> { RailsPulse::Central.enabled? }
+
     before_action :authenticate_rails_pulse_user!
     before_action :require_current_schema!
     before_action :set_onboarding_state
@@ -120,6 +126,28 @@ module RailsPulse
 
     def partial_request?
       request.headers["X-Partial-Request"] == "true"
+    end
+
+    # This application sends its data to a central Rails Pulse and keeps no
+    # tables of its own, so its dashboard and API are the central's.
+    def render_remote_mode_notice
+      render plain: "Rails Pulse sends this application's data to a central Rails Pulse; its dashboard is served there.",
+             status: :not_found
+    end
+
+    # A central serves one dashboard per application, the first path segment
+    # (RailsPulse::Central::PATH_PARAMETER), from that application's database.
+    # Links generated while it renders stay under the same prefix. From here
+    # on the application is that prefix and RailsPulse::Central.current_application,
+    # not a parameter, or every link built from params (sort links, filters)
+    # would repeat it in its query string.
+    def serve_central_application(&block)
+      path_parameters = request.path_parameters
+      name = path_parameters[RailsPulse::Central::PATH_PARAMETER]
+      return render(plain: "Not Found", status: :not_found) unless RailsPulse::Central.application?(name)
+
+      request.path_parameters = path_parameters.except(RailsPulse::Central::PATH_PARAMETER)
+      RailsPulse::Central.with_application(name, script_name: request.script_name, &block)
     end
 
     def logger

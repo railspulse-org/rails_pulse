@@ -3,7 +3,7 @@
 ## Commands
 
 ```bash
-DB=sqlite3 rake test                 # default; also runs test/migrations in a separate process afterwards
+DB=sqlite3 rake test                 # default; also runs test/central before and test/migrations after, each in a process of its own
                                      # refuses to run if the last test_setup was for another adapter
 DB=postgresql rake test              # needs POSTGRES_USERNAME/PASSWORD/HOST/PORT (port 5434 locally)
 DB=mysql2 rake test                  # needs MYSQL_USERNAME/PASSWORD/HOST/PORT
@@ -11,6 +11,7 @@ BROWSER=true DB=sqlite3 rake test    # include system tests; disables parallelis
 COVERAGE=true rake test              # SimpleCov, serial; thresholds 90% total, 80% per file (.simplecov)
 rake test_matrix                     # 3 Rails versions (Appraisals) × 3 databases = 9 runs
 rake test_migrations                 # upgrade regression tests only
+rake test_central                    # central-mode tests only, in a process booted as a central
 npm run test:js                      # Vitest + JSDOM for Stimulus controllers
 bin/test_generators                  # install + upgrade generators against a scratch app
 bin/test_separate_database_upgrade   # upgrade from a schema baseline with config.connects_to; BASELINE=V027 for the oldest

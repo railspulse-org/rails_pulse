@@ -20,6 +20,10 @@ module RailsPulse
   # per process, and any database error is treated as "not outdated" so a
   # booting app without a database (assets precompile, db:create) is never
   # blocked. `config.schema_check_enabled = false` turns it off entirely.
+  #
+  # Remote mode has no tables to check, so the check is off there. A central
+  # checks each application's database on its own (once per application per
+  # process), and never tracks itself.
   module SchemaCheck
     UPGRADE_INSTRUCTIONS = [
       "rails generate rails_pulse:upgrade",
@@ -46,7 +50,7 @@ module RailsPulse
 
     class << self
       def enabled?
-        RailsPulse.configuration.schema_check_enabled
+        RailsPulse.configuration.schema_check_enabled && !RailsPulse::Remote.enabled?
       end
 
       def current?
@@ -60,19 +64,23 @@ module RailsPulse
       def missing
         return {} unless enabled?
 
-        cached = @missing
+        application = RailsPulse::Central.current_application
+        cached = @missing[application]
         return cached if cached
 
         result = compute_missing
         # Only remember a completed comparison; a database error is retried
         # on the next call rather than cached as either answer.
-        @missing = result unless result.nil?
+        @missing[application] = result unless result.nil?
         result || {}
       end
 
       # Tracking entry points call this instead of writing straight away. The
       # first refusal logs the upgrade instructions; later ones are silent.
+      # A central has no database of its own to track into, only one per
+      # application it receives from, so it never tracks itself.
       def tracking_allowed?
+        return false if RailsPulse::Central.enabled?
         return true if current?
 
         warn_once!
@@ -80,10 +88,13 @@ module RailsPulse
       end
 
       def warn_once!
-        return if @warned
+        application = RailsPulse::Central.current_application
+        return if @warned[application]
 
-        @warned = true
-        RailsPulse.logger.error(warning_message)
+        @warned[application] = true
+        message = warning_message
+        message = "[#{application}] #{message}" if application
+        RailsPulse.logger.error(message)
       end
 
       def warning_message
@@ -108,8 +119,8 @@ module RailsPulse
       end
 
       def reset!
-        @missing = nil
-        @warned = nil
+        @missing = {}
+        @warned = {}
       end
 
       private
@@ -132,5 +143,9 @@ module RailsPulse
         nil
       end
     end
+
+    # Keyed by application: nil outside a central.
+    @missing = {}
+    @warned = {}
   end
 end

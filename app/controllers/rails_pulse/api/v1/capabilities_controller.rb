@@ -16,8 +16,9 @@ module RailsPulse
 
         private
 
+        # On a central, the application whose data this is.
         def application_name
-          Rails.application.class.module_parent_name
+          RailsPulse::Central.current_application&.to_s || Rails.application.class.module_parent_name
         rescue StandardError
           nil
         end

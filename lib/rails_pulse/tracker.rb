@@ -18,6 +18,13 @@ module RailsPulse
   # Once a minute the writer also records a WriterHeartbeat event (queue
   # depth, drops since the last sample) so the dashboard and rails_pulse:status
   # can see every process's writer, not just the one serving the page.
+  #
+  # In remote mode (RailsPulse::Remote) the queue carries items for a central
+  # instead, and the writer posts each batch it drains rather than writing
+  # it. On a central (RailsPulse::Central) this persistence code records what
+  # applications send, one application's database at a time, so the state
+  # kept between batches (rollups, the route id cache, heartbeat pruning) is
+  # kept per application.
   module Tracker
     # PG::Connection::PQTRANS_INERROR (libpq enum value 3) — the connection's transaction
     # was aborted by a DB-level error and no ROLLBACK has been issued yet. Defined as a
@@ -199,6 +206,7 @@ module RailsPulse
       def track_request(data)
         return if RailsPulse::Current.skip_recording_rails_pulse_activity
         return unless RailsPulse::SchemaCheck.tracking_allowed?
+        return RailsPulse::Remote.track(:request, data) if RailsPulse::Remote.enabled?
 
         if RailsPulse.configuration.async && !connection_shared_across_threads?
           writer.enqueue(data)
@@ -206,6 +214,13 @@ module RailsPulse
         else
           perform_tracking(data)
         end
+      end
+
+      # Puts anything the writer handles on its queue: a request's payload, or
+      # in remote mode an item for the central. Never blocks; false when the
+      # queue is full and the item was dropped.
+      def enqueue(item)
+        writer.enqueue(item)
       end
 
       # Queue depth and lifetime drop count of the background writer, for
@@ -226,19 +241,19 @@ module RailsPulse
       # Discard the writer, queue contents included. For tests.
       def reset_writer!
         @writer_mutex.synchronize { @writer = nil }
-        @last_heartbeat_prune_at = nil
+        @last_heartbeat_prune_at = {}
       end
 
       # Discard the rollup accumulator, folded data included, and the route id
       # cache — a transactional test's rolled-back routes must not leak ids
       # into the next test. For tests.
       def reset_rollups!
-        @writer_mutex.synchronize { @rollups = nil }
+        @writer_mutex.synchronize { @rollups = {} }
         @route_cache_mutex.synchronize { clear_route_cache(cleared_at: nil) }
       end
 
       def flush_rollups_if_due
-        flush_rollups! if @rollups&.flush_due?
+        each_rollup_accumulator { |accumulator| flush_accumulator(accumulator) if accumulator.flush_due? }
       end
 
       # Upsert every dirty rollup bucket's cumulative totals. Errors are
@@ -246,23 +261,26 @@ module RailsPulse
       # accumulator and retried by a later flush, so a failed write loses
       # nothing unless the outage outlasts the retention cap.
       def flush_rollups!
-        rows = @rollups&.drain_rows
-        return if rows.blank?
-
-        with_writer_connection { RailsPulse::Rollup.upsert_rows(rows) }
-      rescue => e
-        @rollups&.retain_failed(rows) if rows.present?
-        log_error(e)
+        each_rollup_accumulator { |accumulator| flush_accumulator(accumulator) }
       end
 
       # table_exists? has to run inside with_writer_connection too, or the bare
-      # call pins a connection on this thread that nothing would ever release
+      # call pins a connection on this thread that nothing would ever release.
+      #
+      # The sample describes this process's writer unless it names another
+      # (hostname, pid, host_label), as the heartbeats a central records for
+      # its applications do. In remote mode it is sent to the central instead.
       def record_heartbeat(sample)
+        sample = { hostname: hostname, pid: Process.pid, host_label: RailsPulse.configuration.cloud.host_label }.merge(sample)
+        if RailsPulse::Remote.enabled?
+          RailsPulse::Remote.deliver([ RailsPulse::Remote.heartbeat_item(sample) ])
+          return true
+        end
+
         with_writer_connection do
           next false unless RailsPulse::Event.table_available?
 
-          RailsPulse::WriterHeartbeat.record!(hostname: hostname, pid: Process.pid,
-                                              host_label: RailsPulse.configuration.cloud.host_label, **sample)
+          RailsPulse::WriterHeartbeat.record!(**sample)
           prune_heartbeats_if_due
           true
         end
@@ -303,7 +321,10 @@ module RailsPulse
       # persist is logged and skipped; the others in the batch still land, and
       # their operations go in with a single insert. Requests detail capture
       # declined (detail: false) are folded into rollups instead of persisted.
+      # In remote mode the batch is items for the central, and is sent.
       def perform_tracking_batch(batch)
+        return RailsPulse::Remote.deliver(batch) if RailsPulse::Remote.enabled?
+
         with_writer_connection do
           detailed, folded = batch.partition { |data| data[:detail] != false }
 
@@ -333,10 +354,31 @@ module RailsPulse
         end
       end
 
+      # The accumulator for the database being written: the only one outside
+      # a central, the current application's on one.
       def rollups
+        application = RailsPulse::Central.current_application
         @writer_mutex.synchronize do
-          @rollups ||= RollupAccumulator.new
+          @rollups[application] ||= RollupAccumulator.new
         end
+      end
+
+      # Yields each accumulator with its own database connected.
+      def each_rollup_accumulator
+        accumulators = @writer_mutex.synchronize { @rollups.to_a }
+        accumulators.each do |application, accumulator|
+          RailsPulse::Central.with_application(application) { yield accumulator }
+        end
+      end
+
+      def flush_accumulator(accumulator)
+        rows = accumulator.drain_rows
+        return if rows.blank?
+
+        with_writer_connection { RailsPulse::Rollup.upsert_rows(rows) }
+      rescue => e
+        accumulator.retain_failed(rows) if rows.present?
+        log_error(e)
       end
 
       # Fold a batch's non-captured requests into the rollups. Their SQL is
@@ -383,9 +425,10 @@ module RailsPulse
       # (method, path, controller_action) => route id, capped and cleared
       # wholesale when full or when ROUTE_CACHE_TTL passes. A new HTTP verb on
       # a known path misses once, which is when find_or_create_for_request
-      # appends the verb.
+      # appends the verb. On a central the application is part of the key:
+      # each one's route ids belong to its own database.
       def cached_route_id(method, path, controller_action)
-        key = [ method, path, controller_action ]
+        key = [ RailsPulse::Central.current_application, method, path, controller_action ]
         cached, generation = @route_cache_mutex.synchronize do
           expire_route_cache_if_due
           [ @route_id_cache[key], @route_cache_generation ]
@@ -424,11 +467,14 @@ module RailsPulse
         @route_cache_cleared_at = cleared_at
       end
 
+      # Once per PRUNE_INTERVAL for each database written.
       def prune_heartbeats_if_due
         now = Time.current
-        return if @last_heartbeat_prune_at && now - @last_heartbeat_prune_at < PRUNE_INTERVAL
+        application = RailsPulse::Central.current_application
+        last_pruned_at = @last_heartbeat_prune_at[application]
+        return if last_pruned_at && now - last_pruned_at < PRUNE_INTERVAL
 
-        @last_heartbeat_prune_at = now
+        @last_heartbeat_prune_at[application] = now
         RailsPulse::WriterHeartbeat.prune!
       end
 
@@ -516,7 +562,8 @@ module RailsPulse
 
     @writer = nil
     @writer_mutex = Mutex.new
-    @rollups = nil
+    @rollups = {}
+    @last_heartbeat_prune_at = {}
     @route_id_cache = {}
     @route_cache_cleared_at = nil
     @route_cache_generation = 0

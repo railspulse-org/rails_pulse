@@ -13,7 +13,7 @@ module RailsPulse
       desc "Upgrade Rails Pulse database schema to the latest version"
 
       class_option :database, type: :string, default: "detect",
-                   desc: "Database setup: 'single', 'separate', or 'detect' (default)"
+                   desc: "Database setup: 'single', 'separate', 'central', or 'detect' (default)"
 
       def check_current_installation
         @database_type = detect_database_setup
@@ -26,6 +26,10 @@ module RailsPulse
         when :separate
           warn_if_missing_schema_dump_false
           upgrade_installation(migration_dir: "db/rails_pulse_migrate", migrate_command: "rails db:migrate:rails_pulse")
+        when :central
+          # Every application's database shares db/rails_pulse_migrate, and
+          # db:migrate runs it against each one.
+          upgrade_installation(migration_dir: "db/rails_pulse_migrate", migrate_command: "rails db:migrate")
         when :schema_only
           offer_conversion_to_migrations
         when :not_installed
@@ -39,6 +43,10 @@ module RailsPulse
       def detect_database_setup
         # Override with command line option if provided
         return options[:database].to_sym if options[:database] != "detect"
+
+        # A central has no Rails Pulse tables on its primary, and a database
+        # per application rather than a rails_pulse entry.
+        return :central if defined?(RailsPulse::Central) && RailsPulse::Central.enabled?
 
         # Determine database type before checking tables so the table lookup
         # uses the correct connection pool for separate-database setups.

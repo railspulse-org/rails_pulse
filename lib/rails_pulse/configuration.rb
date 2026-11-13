@@ -72,6 +72,179 @@ module RailsPulse
       end
     end
 
+    # Settings for remote mode, read as `config.remote.url` and
+    # `config.remote.token`: this application writes nothing to its own
+    # database and sends what it collects to a central Rails Pulse instead
+    # (RailsPulse::Remote). On only when both are set. Each defaults to its
+    # environment variable, read when first asked for, so a deploy can turn
+    # remote mode on without editing the initializer.
+    class RemoteSettings
+      URL_ENV = "RAILS_PULSE_REMOTE_URL".freeze
+      TOKEN_ENV = "RAILS_PULSE_REMOTE_TOKEN".freeze
+
+      attr_writer :url, :token
+
+      def url
+        defined?(@url) ? @url : ENV[URL_ENV].presence
+      end
+
+      def token
+        defined?(@token) ? @token : ENV[TOKEN_ENV].presence
+      end
+
+      def enabled?
+        url.present? && token.present?
+      end
+
+      def to_h
+        { url: url, token: token }
+      end
+
+      def ==(other)
+        other.is_a?(RemoteSettings) && to_h == other.to_h
+      end
+
+      # The token is left out so it does not end up in a log or console.
+      def inspect
+        "#<#{self.class.name} #{to_h.merge(token: token.present? ? "[FILTERED]" : nil).inspect}>"
+      end
+
+      # A blank URL or token leaves remote mode off rather than failing the
+      # boot, as an environment variable set to nothing does.
+      def validate!
+        if url.present? && !http_url?(url)
+          raise ArgumentError, "remote.url must be the central's http or https URL, got #{url.inspect}"
+        end
+
+        unless token.nil? || token.is_a?(String)
+          raise ArgumentError, "remote.token must be a string, or nil"
+        end
+      end
+
+      private
+
+      def http_url?(value)
+        uri = URI.parse(value.to_s)
+        uri.is_a?(URI::HTTP) && uri.host.present?
+      rescue URI::InvalidURIError
+        false
+      end
+    end
+
+    # Settings for central mode, read as `config.central.applications`: the
+    # applications that send to this Rails Pulse, each with the token it
+    # authenticates with and the config/database.yml entry its data is
+    # written to (RailsPulse::Central).
+    #
+    #   config.central.applications = {
+    #     shop: { token: ENV["RAILS_PULSE_SHOP_TOKEN"], database: :pulse_shop }
+    #   }
+    #
+    # On when at least one application is listed. Each application becomes a
+    # shard of RailsPulse::ApplicationRecord, and its name is the path segment
+    # its dashboard is served under. A nil or blank token is allowed, so the
+    # app still boots where secrets are absent or empty (assets:precompile);
+    # that application accepts nothing until it has one.
+    class CentralSettings
+      NAME_FORMAT = /\A[a-z0-9][a-z0-9_-]{0,62}\z/
+      MIN_TOKEN_LENGTH = 32
+      OPTION_KEYS = %i[token database].freeze
+
+      attr_accessor :applications
+
+      def initialize
+        @applications = {}
+      end
+
+      def enabled?
+        applications.is_a?(Hash) && applications.any?
+      end
+
+      # { shop: { token: "…", database: :pulse_shop } }, names and option
+      # keys as symbols.
+      def entries
+        return {} unless enabled?
+
+        applications.to_h { |name, options| [ name.to_sym, options.to_h.transform_keys(&:to_sym) ] }
+      end
+
+      def application_names
+        entries.keys
+      end
+
+      # Arguments for RailsPulse::ApplicationRecord.connects_to: one shard per
+      # application, reading and writing its own database.
+      def connects_to
+        shards = entries.transform_values do |options|
+          database = options[:database].to_sym
+          { writing: database, reading: database }
+        end
+        { shards: shards }
+      end
+
+      def ==(other)
+        other.is_a?(CentralSettings) && applications == other.applications
+      end
+
+      # Tokens are left out so they do not end up in a log or console.
+      def inspect
+        filtered = entries.transform_values { |options| options.merge(token: options[:token].present? ? "[FILTERED]" : nil) }
+        "#<#{self.class.name} #{filtered.inspect}>"
+      end
+
+      def validate!
+        unless applications.is_a?(Hash)
+          raise ArgumentError, "central.applications must be a hash of name => { token:, database: }, got #{applications.class}"
+        end
+
+        names = []
+        tokens = []
+        applications.each do |name, options|
+          validate_name!(name, names)
+          names << name.to_s
+
+          unless options.is_a?(Hash)
+            raise ArgumentError, "central.applications[#{name.inspect}] must be a hash with :token and :database, got #{options.inspect}"
+          end
+
+          options = options.transform_keys(&:to_sym)
+          unknown = options.keys - OPTION_KEYS
+          if unknown.any?
+            raise ArgumentError, "central.applications[#{name.inspect}] has unknown keys #{unknown.inspect} (allowed: #{OPTION_KEYS.inspect})"
+          end
+
+          database = options[:database]
+          unless (database.is_a?(Symbol) || database.is_a?(String)) && database.to_s.present?
+            raise ArgumentError, "central.applications[#{name.inspect}][:database] must name an entry in config/database.yml, got #{database.inspect}"
+          end
+
+          token = options[:token]
+          next if token.nil? || (token.is_a?(String) && token.strip.empty?)
+
+          unless token.is_a?(String) && token.length >= MIN_TOKEN_LENGTH
+            raise ArgumentError, "central.applications[#{name.inspect}][:token] must be a string of at least #{MIN_TOKEN_LENGTH} characters, or nil"
+          end
+          if tokens.include?(token)
+            raise ArgumentError, "central.applications[#{name.inspect}][:token] is another application's token; each needs its own"
+          end
+
+          tokens << token
+        end
+      end
+
+      private
+
+      def validate_name!(name, seen)
+        unless (name.is_a?(Symbol) || name.is_a?(String)) && name.to_s.match?(NAME_FORMAT)
+          raise ArgumentError, "central.applications names must be lowercase letters, digits, dashes and underscores " \
+                               "(they become a path segment and a shard), got #{name.inspect}"
+        end
+        return unless seen.include?(name.to_s)
+
+        raise ArgumentError, "central.applications lists #{name.to_s.inspect} twice"
+      end
+    end
+
     attr_writer   :ignored_routes
     attr_accessor :enabled,
                   :api_token,
@@ -135,7 +308,7 @@ module RailsPulse
     end
 
     # Read-only access to thresholds (use setters for validation)
-    attr_reader :cloud
+    attr_reader :cloud, :remote, :central
 
     attr_reader :route_thresholds,
                 :request_thresholds,
@@ -182,6 +355,8 @@ module RailsPulse
     def initialize
       @enabled = true
       @cloud = CloudSettings.new
+      @remote = RemoteSettings.new
+      @central = CentralSettings.new
       @route_thresholds = { slow: 500, very_slow: 1500, critical: 3000 }
       @request_thresholds = { slow: 700, very_slow: 2000, critical: 4000 }
       @query_thresholds = { slow: 100, very_slow: 500, critical: 1000 }
@@ -371,9 +546,31 @@ module RailsPulse
       validate_schema_check_settings!
       validate_detail_capture_settings!(require_threshold: true)
       @cloud.validate!
+      @remote.validate!
+      @central.validate!
+      validate_mode_settings!
     end
 
     private
+
+    # Remote and central mode each change where the data is written: remote
+    # sends it away and keeps no tables here, central writes one database per
+    # application. So they exclude each other, a central owns its connections
+    # (connects_to), and Cloud, which syncs from this database's tables, works
+    # with neither.
+    def validate_mode_settings!
+      if @remote.enabled? && @central.enabled?
+        raise ArgumentError, "remote and central cannot both be on: a central receives from remote applications and sends nowhere"
+      end
+
+      if @central.enabled? && @connects_to
+        raise ArgumentError, "connects_to must be nil when central.applications is set: the central connects one database per application"
+      end
+
+      if @cloud.enabled? && (@remote.enabled? || @central.enabled?)
+        raise ArgumentError, "cloud cannot be used with remote or central mode: it syncs from this application's own Rails Pulse tables"
+      end
+    end
 
     def validate_threshold_hash!(thresholds, name)
       unless thresholds.is_a?(Hash)

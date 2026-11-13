@@ -10,6 +10,6 @@
   <div class="setup-banner setup-banner--negative">
     <p class="setup-banner__title">Summary jobs don't appear to be running</p>
     <p class="setup-banner__body">No summaries have been generated in the last 2 hours — charts and metrics may be out of date. Make sure <code>RailsPulse::SummaryJob</code> is scheduled to run hourly in your job scheduler. To catch up on missing summaries, run:</p>
-    <code class="setup-banner__command"><span class="setup-banner__command-prefix">$</span> bin/rails rails_pulse:backfill_summaries</code>
+    <code class="setup-banner__command"><span class="setup-banner__command-prefix">$</span> <%= rails_pulse_task_command("rails_pulse:backfill_summaries") %></code>
   </div>
 <% end %>

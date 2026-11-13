@@ -1,4 +1,10 @@
 module RailsPulse
+  # Captures an exception in two steps. The first reads everything off the
+  # exception and the host's configuration (backtrace frames, location,
+  # redacted message, filtered params) and touches no table. The second
+  # records it: upserts the ExceptionGroup and adds the ExceptionOccurrence.
+  # In remote mode the first step's attributes are sent to the central
+  # instead, and the central runs the second step on them (`record`).
   class ExceptionCaptureService
     APP_FRAME_PATTERN = %r{/app/|/lib/|/config/}
     # /lib/ruby/ matches interpreter stdlib (…/lib/ruby/3.3.0/…) without
@@ -12,10 +18,10 @@ module RailsPulse
 
     # Cached on the class so every request in this process shares one value instead
     # of each hitting the DB. Because multiple threads can call capture concurrently,
-    # the cache variables need a mutex to prevent torn reads/writes.
-    @_deploy_sha_mutex     = Mutex.new # guards @_deploy_sha_value and @_deploy_sha_cached_at
-    @_deploy_sha_value     = nil
-    @_deploy_sha_cached_at = nil
+    # the cache needs a mutex to prevent torn reads/writes. Keyed by application:
+    # a central keeps one revision per application's database (nil elsewhere).
+    @_deploy_sha_mutex = Mutex.new # guards @_deploy_sha_cache
+    @_deploy_sha_cache = {}        # application => [revision, cached_at]
 
     class << self
       def capture(exception, request_url: nil, request_method: nil, request_params: nil, environment: nil, deploy_sha: nil)
@@ -24,22 +30,30 @@ module RailsPulse
         new(exception, request_url: request_url, request_method: request_method, request_params: request_params, environment: environment, deploy_sha: deploy_sha).capture
       end
 
+      # Records one captured exception from its attributes (see #attributes):
+      # what this process read off an exception, or what an application sent
+      # a central. Returns the occurrence, or nil for an ignored group.
+      def record(attributes)
+        new(nil, environment: attributes[:environment]).record(attributes)
+      end
+
       def fetch_deploy_sha
+        application = RailsPulse::Central.current_application
         @_deploy_sha_mutex.synchronize do
           # Check expiry inside the lock so only one thread does the DB query when
           # the cache is cold — other threads block here and then see the fresh value.
-          if @_deploy_sha_cached_at.nil? || (Time.current.to_f - @_deploy_sha_cached_at) >= DEPLOY_SHA_TTL
-            @_deploy_sha_value     = RailsPulse::Deployment.order(started_at: :desc).first&.revision
-            @_deploy_sha_cached_at = Time.current.to_f
+          value, cached_at = @_deploy_sha_cache[application]
+          if cached_at.nil? || (Time.current.to_f - cached_at) >= DEPLOY_SHA_TTL
+            value = RailsPulse::Deployment.order(started_at: :desc).first&.revision
+            @_deploy_sha_cache[application] = [ value, Time.current.to_f ]
           end
-          @_deploy_sha_value
+          value
         end
       end
 
       def reset_deploy_sha_cache!
         @_deploy_sha_mutex.synchronize do
-          @_deploy_sha_value     = nil
-          @_deploy_sha_cached_at = nil
+          @_deploy_sha_cache = {}
         end
       end
     end
@@ -57,16 +71,40 @@ module RailsPulse
       return unless RailsPulse.configuration.track_exceptions
       return if RailsPulse::Current.skip_recording_rails_pulse_activity
 
-      frames      = parse_backtrace(@exception.backtrace || [])
-      location    = fingerprint_location(frames)
-      fingerprint = Digest::SHA256.hexdigest("#{@exception.class.name}:#{location}")
-      now         = Time.current
+      return RailsPulse::Remote.track(:exception, attributes) if RailsPulse::Remote.enabled?
 
-      group = upsert_group(fingerprint, location, now)
-      create_occurrence(group, frames, now) unless group.status == "ignored"
+      record(attributes)
     rescue => e
       Rails.logger.error("[RailsPulse] ExceptionCaptureService error: #{e.message}")
       nil
+    end
+
+    # Everything recording needs, read off the exception and this host's
+    # configuration (Rails.root, filter_parameters, exception_message_filter),
+    # so it can be recorded anywhere: here, or on a central.
+    def attributes
+      frames = parse_backtrace(@exception.backtrace || [])
+      {
+        exception_class: @exception.class.name,
+        location:        fingerprint_location(frames),
+        message:         sanitize_exception_message(@exception),
+        backtrace:       frames,
+        request_url:     @request_url,
+        request_method:  @request_method,
+        request_params:  filtered_params,
+        environment:     @environment,
+        deploy_sha:      @deploy_sha,
+        occurred_at:     Time.current
+      }
+    end
+
+    # The fingerprint is computed from the class and location rather than
+    # taken from the caller, so it means the same thing whoever sent them.
+    def record(attributes)
+      fingerprint = Digest::SHA256.hexdigest("#{attributes[:exception_class]}:#{attributes[:location]}")
+
+      group = upsert_group(fingerprint, attributes)
+      create_occurrence(group, attributes) unless group.status == "ignored"
     end
 
 
@@ -129,9 +167,12 @@ module RailsPulse
     # Single SQL upsert: inserts a new group or updates the existing one.
     # occurrence_count is incremented atomically in the same statement, so no
     # separate update_counters call is needed and no race window exists.
-    def upsert_group(fingerprint, location, now)
-      message = sanitize_exception_message(@exception)
-      conn    = ExceptionGroup.connection
+    def upsert_group(fingerprint, attributes)
+      exception_class = attributes[:exception_class]
+      location = attributes[:location]
+      message  = attributes[:message]
+      now      = attributes[:occurred_at]
+      conn     = ExceptionGroup.connection
       clear_aborted_transaction(conn)
 
       # Explicitly set status/preserve: SQLite schema dumps omit boolean DEFAULT false,
@@ -142,7 +183,7 @@ module RailsPulse
             (fingerprint, exception_class, location, message, first_seen_at, last_seen_at, occurrence_count, status, preserve, created_at, updated_at)
           VALUES (
             #{conn.quote(fingerprint)},
-            #{conn.quote(@exception.class.name)},
+            #{conn.quote(exception_class)},
             #{conn.quote(location)},
             #{conn.quote(message)},
             #{conn.quote(now)},
@@ -167,7 +208,7 @@ module RailsPulse
             (fingerprint, exception_class, location, message, first_seen_at, last_seen_at, occurrence_count, status, preserve, created_at, updated_at)
           VALUES (
             #{conn.quote(fingerprint)},
-            #{conn.quote(@exception.class.name)},
+            #{conn.quote(exception_class)},
             #{conn.quote(location)},
             #{conn.quote(message)},
             #{conn.quote(now)},
@@ -212,18 +253,18 @@ module RailsPulse
       serialized.bytesize <= PARAMS_SIZE_LIMIT ? filtered : nil
     end
 
-    def create_occurrence(group, frames, now)
+    def create_occurrence(group, attributes)
       ExceptionOccurrence.create!(
         exception_group: group,
-        exception_class: @exception.class.name,
-        message:         sanitize_exception_message(@exception),
-        backtrace:       frames,
-        request_url:     @request_url,
-        request_method:  @request_method,
-        request_params:  filtered_params,
-        environment:     @environment,
-        deploy_sha:      @deploy_sha || current_deploy_sha,
-        occurred_at:     now
+        exception_class: attributes[:exception_class],
+        message:         attributes[:message],
+        backtrace:       attributes[:backtrace],
+        request_url:     attributes[:request_url],
+        request_method:  attributes[:request_method],
+        request_params:  attributes[:request_params],
+        environment:     attributes[:environment],
+        deploy_sha:      attributes[:deploy_sha] || current_deploy_sha,
+        occurred_at:     attributes[:occurred_at]
       )
     end
   end

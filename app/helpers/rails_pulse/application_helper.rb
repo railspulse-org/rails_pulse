@@ -13,6 +13,15 @@ module RailsPulse
     include TableHelper
     include TagsHelper
 
+    # The shell command for a rails_pulse rake task, as the dashboard
+    # suggests it. On a central the task runs once per application, so the
+    # suggestion names the one being shown.
+    def rails_pulse_task_command(task)
+      application = RailsPulse::Central.current_application
+      command = "bin/rails #{task}"
+      application ? "RAILS_PULSE_APPLICATION=#{application} #{command}" : command
+    end
+
     # Convert time range symbol to human-readable label
     def humanize_time_range(time_range_symbol)
       case time_range_symbol.to_sym

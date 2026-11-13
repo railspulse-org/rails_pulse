@@ -10,4 +10,4 @@ The one exception is Rails Pulse Cloud, and it is opt-in: with `config.cloud.api
 
 The cost is real and shapes the rest of the design: the dashboard queries compete with the app for the database, retention has to be enforced by the gem (`CleanupJob`, `max_table_records`), summaries have to be precomputed because raw rows are too many to aggregate at read time, and the standalone dashboard is a second process against the same database rather than a separate service.
 
-Any feature that sends data out of the host other than through the Cloud sync contract, including alerting through third-party services, is out of scope for the gem under this decision.
+Any feature that sends data off the operator's own infrastructure other than through the Cloud sync contract, including alerting through third-party services, is out of scope for the gem under this decision. Remote mode, opt-in like Cloud, sends an application's data to a central the operator runs themselves (decision 0023), so it stays on that infrastructure.
