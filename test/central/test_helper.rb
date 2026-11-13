@@ -21,6 +21,17 @@ unless defined?(Rails) && Rails.respond_to?(:application) && Rails.application&.
 end
 
 require_relative "../dummy/config/environment"
+
+# Central code runs in this process only. Under COVERAGE (SimpleCov started
+# in test/dummy/config/boot.rb) it stores what it covered and leaves the
+# thresholds to the main suite, which `rake test` runs after it and whose
+# report merges this slice in: checked alone, a slice of central mode fails
+# them for everything else.
+if ENV["COVERAGE"] == "true" && RailsPulse::Central.enabled?
+  SimpleCov.command_name "test:central"
+  SimpleCov.finalize_merge false
+end
+
 require "rails/test_help"
 require "mocha/minitest"
 require_relative "../support/rails_pulse_test_reporter"

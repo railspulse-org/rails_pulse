@@ -319,7 +319,7 @@ task :test_central do
     # A central has a database per application and none to load fixtures
     # into, so test/central boots the dummy app as one, with SQLite shards of
     # its own, in a process apart from the main suite's.
-    pulse_phase("central mode", "central", "rails test test/central", "RAILS_PULSE_TEST_CENTRAL" => "true", "COVERAGE" => nil)
+    pulse_phase("central mode", "central", "rails test test/central", "RAILS_PULSE_TEST_CENTRAL" => "true")
   end
 end
 
@@ -328,9 +328,12 @@ task :test do
   verify_test_setup_adapter!(ENV["DB"] || "sqlite3")
 
   pulse_session(pulse_meta) do
+    # Central mode first: under COVERAGE its process only stores what it
+    # covered, and the main suite's merges that into the report it checks
+    # against the thresholds (test/central/test_helper.rb).
+    Rake::Task[:test_central].invoke
     pulse_phase("main suite", "main", "rails test test/controllers test/generators test/helpers test/instrumentation test/jobs test/lib test/middleware test/models test/serializers test/services test/rails_pulse_test.rb test/tracker_test.rb")
     Rake::Task[:test_migrations].invoke
-    Rake::Task[:test_central].invoke
   end
 end
 
