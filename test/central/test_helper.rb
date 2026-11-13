@@ -31,6 +31,9 @@ Minitest::Reporters.use!(RailsPulseTestReporter.new)
 
 if RailsPulse::Central.enabled? && !defined?(CENTRAL_SCHEMA_LOADED)
   CENTRAL_SCHEMA_LOADED = true
+  # A production central eager loads before any application is connected;
+  # a class body that needs a connection must fail here, not at its boot.
+  Rails.application.eager_load!
   Rails.application.load_tasks unless Rake::Task.task_defined?("db:schema:load_rails_pulse")
   original_stdout = $stdout
   $stdout = StringIO.new

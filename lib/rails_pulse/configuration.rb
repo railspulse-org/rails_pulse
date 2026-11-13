@@ -109,13 +109,15 @@ module RailsPulse
         "#<#{self.class.name} #{to_h.merge(token: token.present? ? "[FILTERED]" : nil).inspect}>"
       end
 
+      # A blank URL or token leaves remote mode off rather than failing the
+      # boot, as an environment variable set to nothing does.
       def validate!
-        if !url.nil? && !http_url?(url)
+        if url.present? && !http_url?(url)
           raise ArgumentError, "remote.url must be the central's http or https URL, got #{url.inspect}"
         end
 
-        if !token.nil? && !(token.is_a?(String) && token.present?)
-          raise ArgumentError, "remote.token must be a non-empty string, or nil"
+        unless token.nil? || token.is_a?(String)
+          raise ArgumentError, "remote.token must be a string, or nil"
         end
       end
 
@@ -140,9 +142,9 @@ module RailsPulse
     #
     # On when at least one application is listed. Each application becomes a
     # shard of RailsPulse::ApplicationRecord, and its name is the path segment
-    # its dashboard is served under. A nil token is allowed, so the app still
-    # boots where secrets are absent (assets:precompile); that application
-    # accepts nothing until it has one.
+    # its dashboard is served under. A nil or blank token is allowed, so the
+    # app still boots where secrets are absent or empty (assets:precompile);
+    # that application accepts nothing until it has one.
     class CentralSettings
       NAME_FORMAT = /\A[a-z0-9][a-z0-9_-]{0,62}\z/
       MIN_TOKEN_LENGTH = 32
@@ -217,7 +219,7 @@ module RailsPulse
           end
 
           token = options[:token]
-          next if token.nil?
+          next if token.nil? || (token.is_a?(String) && token.strip.empty?)
 
           unless token.is_a?(String) && token.length >= MIN_TOKEN_LENGTH
             raise ArgumentError, "central.applications[#{name.inspect}][:token] must be a string of at least #{MIN_TOKEN_LENGTH} characters, or nil"

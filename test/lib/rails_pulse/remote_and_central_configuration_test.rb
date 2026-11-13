@@ -54,8 +54,17 @@ module RailsPulse
 
     test "remote settings are validated" do
       assert_raises(ArgumentError) { build_config { remote.url = "pulse.example.com" } }
-      assert_raises(ArgumentError) { build_config { remote.token = "" } }
+      assert_raises(ArgumentError) { build_config { remote.url = "ftp://pulse.example.com" } }
       assert_raises(ArgumentError) { build_config { remote.token = 123 } }
+    end
+
+    test "a blank URL or token leaves remote mode off instead of failing the boot" do
+      config = build_config do
+        remote.url = ""
+        remote.token = ""
+      end
+
+      assert_not config.remote.enabled?
     end
 
     # Central Settings Tests
@@ -79,12 +88,16 @@ module RailsPulse
                    central.connects_to)
     end
 
-    test "RailsPulse.connects_to is the central's shards when central mode is on" do
+    test "RailsPulse.connects_to is the central's shards, after an empty one for outside any application" do
       config = Configuration.new
       config.central.applications = { shop: { token: TOKEN, database: :pulse_shop } }
       RailsPulse.stubs(:configuration).returns(config)
 
-      assert_equal config.central.connects_to, RailsPulse.connects_to
+      shards = RailsPulse.connects_to[:shards]
+
+      assert_equal [ RailsPulse::Central::NO_APPLICATION, :shop ], shards.keys
+      assert_equal({ writing: :pulse_shop, reading: :pulse_shop }, shards[:shop])
+      assert_equal ":memory:", shards[RailsPulse::Central::NO_APPLICATION][:writing].database
     end
 
     test "tokens never show in inspect" do
@@ -114,8 +127,9 @@ module RailsPulse
       end
     end
 
-    test "an application without a token is allowed, so the app boots where secrets are absent" do
+    test "an application without a token is allowed, so the app boots where secrets are absent or empty" do
       assert_nothing_raised { build_config { central.applications = { shop: { token: nil, database: :pulse_shop } } } }
+      assert_nothing_raised { build_config { central.applications = { shop: { token: "", database: :pulse_shop } } } }
     end
 
     # Mode Tests

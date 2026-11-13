@@ -42,10 +42,11 @@ module RailsPulse
     end
 
     # What RailsPulse::ApplicationRecord connects to: on a central, one shard
-    # per application (config.central.applications); otherwise
-    # config.connects_to, nil for the host's own database.
+    # per application (config.central.applications, see
+    # RailsPulse::Central.connects_to); otherwise config.connects_to, nil for
+    # the host's own database.
     def connects_to
-      return configuration.central.connects_to if configuration&.central&.enabled?
+      return RailsPulse::Central.connects_to if configuration&.central&.enabled?
 
       configuration&.connects_to
     end

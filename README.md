@@ -194,7 +194,7 @@ RailsPulse.configure do |config|
 end
 ```
 
-An application name is lowercase letters, digits, dashes and underscores; it becomes the path segment of its dashboard and the name of its shard. Each token must be at least 32 characters (`ruby -rsecurerandom -e 'puts SecureRandom.hex(32)'`) and unique. A missing token (`nil`, as during `assets:precompile`) boots, and that application accepts nothing until it has one.
+An application name is lowercase letters, digits, dashes and underscores; it becomes the path segment of its dashboard and the name of its shard. Each token must be at least 32 characters (`ruby -rsecurerandom -e 'puts SecureRandom.hex(32)'`) and unique. A missing or empty token (as during `assets:precompile`) boots, and that application accepts nothing until it has one.
 
 One SQLite database per application, all sharing `db/rails_pulse_migrate`:
 
@@ -262,7 +262,7 @@ production:
     schedule: "0 1 * * *"
 ```
 
-The central tracks nothing of its own. Anything that reads Rails Pulse tables must run inside one application's database: `RailsPulse::Central.with_application(:vquick) { RailsPulse::Request.count }`. Outside one, `RailsPulse::ApplicationRecord` has no default shard and raises `ActiveRecord::ConnectionNotEstablished` rather than reading whichever application is listed first.
+The central tracks nothing of its own. Anything that reads Rails Pulse tables must run inside one application's database: `RailsPulse::Central.with_application(:vquick) { RailsPulse::Request.count }`. Outside one, `RailsPulse::ApplicationRecord` is connected to an empty in-memory database, so a query fails (`no such table`) rather than reading whichever application is listed first, while models still load there, as an eager-loading boot needs.
 
 ### The contract (version 1)
 

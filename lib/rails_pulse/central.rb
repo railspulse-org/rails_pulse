@@ -7,9 +7,9 @@ module RailsPulse
   # application. Configured by config.central.applications.
   #
   # Each application is a shard of RailsPulse::ApplicationRecord, named after
-  # it. There is no default shard: anything that reads or writes Rails Pulse
-  # tables runs inside with_application, and a query outside one raises
-  # rather than landing in whichever application is listed first. Process
+  # it. Anything that reads or writes Rails Pulse tables runs inside
+  # with_application; outside one a query fails rather than landing in
+  # whichever application is listed first (see NO_APPLICATION). Process
   # caches that hold ids (the tracker's rollups and route cache, the schema
   # check, the deploy SHA) are kept per application for the same reason.
   #
@@ -20,7 +20,10 @@ module RailsPulse
   #         constraints: RailsPulse::Central.route_constraints
   module Central
     # The shard RailsPulse::ApplicationRecord falls back to outside
-    # with_application. No connection pool exists for it.
+    # with_application: an empty in-memory SQLite database. Models can load
+    # and declare their attributes against it, as an eager-loading boot does
+    # before any application is connected, but every query fails there for
+    # want of its table.
     NO_APPLICATION = :rails_pulse_no_application
 
     # The path segment of the central's mount that names the application.
@@ -48,6 +51,16 @@ module RailsPulse
 
       def application_names
         RailsPulse.configuration.central.application_names
+      end
+
+      # Arguments for RailsPulse::ApplicationRecord.connects_to: NO_APPLICATION,
+      # the default, then a shard per application.
+      def connects_to
+        empty = ActiveRecord::DatabaseConfigurations::HashConfig.new(
+          Rails.env, NO_APPLICATION.to_s, { adapter: "sqlite3", database: ":memory:" }
+        )
+        shards = RailsPulse.configuration.central.connects_to[:shards]
+        { shards: { NO_APPLICATION => { writing: empty, reading: empty } }.merge(shards) }
       end
 
       def application?(name)

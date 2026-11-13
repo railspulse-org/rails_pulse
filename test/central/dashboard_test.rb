@@ -116,8 +116,15 @@ module RailsPulse
     end
 
     test "nothing reads or writes Rails Pulse tables outside an application" do
-      assert_raises(ActiveRecord::ConnectionNotEstablished) { RailsPulse::Route.count }
+      assert_raises(ActiveRecord::StatementInvalid) { RailsPulse::Route.count }
+      assert_raises(ActiveRecord::StatementInvalid) { RailsPulse::Deployment.create!(revision: "stray", started_at: Time.current) }
+      assert_nil RailsPulse::Central.current_application
       assert_not RailsPulse::SchemaCheck.tracking_allowed?, "a central never tracks itself"
+    end
+
+    test "models load outside an application, as an eager-loading central boots" do
+      assert_equal "sqlite3", RailsPulse::ExceptionGroup.connection_db_config.adapter
+      assert_kind_of ActiveModel::Type::Boolean, RailsPulse::Request.type_for_attribute(:is_error)
     end
 
     private
